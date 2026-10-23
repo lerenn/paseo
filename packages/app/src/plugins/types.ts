@@ -34,7 +34,10 @@ type PluginSidebarItemContribution = SDKPluginSidebarItemContribution<PluginText
 type PluginScreenContribution = SDKPluginScreenContribution<PluginText>;
 type PluginSettingsScreenContribution = SDKPluginSettingsScreenContribution<PluginText>;
 type PluginWorkspaceLocationContribution = SDKPluginWorkspaceLocationContribution<PluginText>;
-type PluginWorkspacePanelContribution = SDKPluginWorkspacePanelContribution<PluginText>;
+type WorkspacePanelInput = SDKPluginWorkspacePanelContribution<PluginText>;
+type PluginWorkspacePanelContribution =
+  | (Extract<WorkspacePanelInput, { context?: "workspace" }> & { context: "workspace" })
+  | Extract<WorkspacePanelInput, { context: "agent" }>;
 
 export type PluginSidebarSection = "header" | "footer";
 
