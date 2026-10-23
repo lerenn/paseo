@@ -8,6 +8,9 @@ const runtime = {
   openScreen() {},
   openSurface() {},
   openPanel() {},
+  openAppPanel() {},
+  toggleAppPanel() {},
+  closeAppPanel() {},
   addHeaderButton() {
     return { update() {}, remove() {} };
   },
@@ -501,6 +504,37 @@ describe("evaluatePluginClientBundle", () => {
     expect(() =>
       evaluatePluginClientBundle("review", bundle(registration.replace("ICON", icon))),
     ).toThrow(message);
+  });
+
+  it("collects app panels and rejects duplicates, missing titles, and non-components", () => {
+    const plugin = evaluatePluginClientBundle(
+      "dock",
+      bundle(
+        `plugin.addAppPanel({ id: " chat ", title: "Chat", icon: "Bot", Component() { return null; } })`,
+      ),
+    );
+    expect(plugin.appPanels).toHaveLength(1);
+    expect(plugin.appPanels[0]).toMatchObject({ id: "chat", title: "Chat" });
+    expect(plugin.workspacePanels).toHaveLength(0);
+
+    const duplicate = `plugin.addAppPanel({ id: "chat", title: "Chat", icon: "Bot", Component() { return null; } });`;
+    expect(() => evaluatePluginClientBundle("dock", bundle(duplicate + duplicate))).toThrow(
+      "Duplicate app panel: chat",
+    );
+    expect(() =>
+      evaluatePluginClientBundle(
+        "dock",
+        bundle(
+          `plugin.addAppPanel({ id: "chat", title: "", icon: "Bot", Component() { return null; } })`,
+        ),
+      ),
+    ).toThrow("App panel chat has no title");
+    expect(() =>
+      evaluatePluginClientBundle(
+        "dock",
+        bundle(`plugin.addAppPanel({ id: "chat", title: "Chat", icon: "Bot", Component: 1 })`),
+      ),
+    ).toThrow("App panel chat is not a component");
   });
 
   it("normalizes and validates workspace panel locations", () => {

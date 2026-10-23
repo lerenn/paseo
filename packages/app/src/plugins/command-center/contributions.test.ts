@@ -82,6 +82,7 @@ function plugin(onAgentSelect: AgentCommandItem["onSelect"]): InstalledPlugin {
     sidebarItems: { header: [], footer: [] },
     legacySidebarItems: [],
     filePanels: [],
+    appPanels: [],
     workspacePanels: [
       {
         id: "details",

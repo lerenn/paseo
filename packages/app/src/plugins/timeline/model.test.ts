@@ -25,6 +25,7 @@ function plugin(input: {
     legacySidebarItems: [],
     filePanels: [],
     workspacePanels: [],
+    appPanels: [],
     commandCenterItems: [],
     clientSlashCommands: [],
     attachmentSources: [],

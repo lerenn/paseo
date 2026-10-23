@@ -28,3 +28,4 @@ export { useToast } from "./toast";
 export { StreamedText } from "./streamed-text";
 
 export { Markdown } from "./markdown";
+export { AgentChat } from "./agent-chat-lazy";
