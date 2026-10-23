@@ -102,6 +102,7 @@ export class PluginRegistry {
           workspacePanels: [],
           commandCenterItems: [],
           clientSlashCommands: [],
+          createOptions: [],
           attachmentSources: [],
           workspaceLocations: [],
           themes: [],

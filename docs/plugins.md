@@ -686,6 +686,20 @@ the agent. Built-in client commands win name and alias collisions, plugin comman
 provider-command collisions, and the first plugin in stable catalog order wins collisions between
 plugins. Plugin slash commands do not run when the composer has attachments.
 
+## Create options
+
+`addCreateOption` is the extension point for choices that must exist before an agent does, which
+`addComposerPill` cannot offer because it needs an `agentId`. Keep it generic: the host renders a
+select and carries `{ [pluginId]: { [optionId]: value } }` through `agent.create.request` and
+`workspace.create.request`'s initial agent into the `agent.create` before hook. Paseo never reads
+the values. Do not add plugin-specific fields to the request.
+
+Selections live in `packages/app/src/plugins/create-options/store.ts`, not in drafts, so they reset
+after a successful creation. They are read at submit time in the two create paths (the New workspace
+screen and the workspace draft tab). A daemon without `features.pluginCreateOptions` would strip
+`pluginOptions` while parsing, so the app hides the picker there. The shape mirrors the provider
+composer `select` control so a plugin that is not a provider gets the same vocabulary.
+
 ## Contribute composer attachments
 
 Register a declarative attachment source backed by a plugin RPC. Paseo owns the attachment menu,

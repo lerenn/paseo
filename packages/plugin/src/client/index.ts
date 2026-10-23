@@ -47,6 +47,7 @@ export type {
   PluginWorkspaceLocationRef,
   PluginWorkspaceLocationAgent,
   PluginWorkspaceLocationResult,
+  PluginCreateOptionContribution,
   SettingsState,
 } from "./contracts.js";
 export type {

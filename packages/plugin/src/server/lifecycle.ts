@@ -70,7 +70,15 @@ export interface PluginLifecycleEvents {
 }
 
 export interface PluginBeforeRequests {
-  "agent.create": { config: AgentSessionConfig; env?: Record<string, string> };
+  "agent.create": {
+    config: AgentSessionConfig;
+    env?: Record<string, string>;
+    /**
+     * Values the user picked in plugin-contributed create options
+     * (`addCreateOption`), keyed by plugin id, then option id.
+     */
+    pluginOptions?: Record<string, Record<string, string>>;
+  };
   "agent.session_open": PluginSessionOpenRequest;
   "workspace.create": Omit<WorkspaceCreateRequest, "type" | "requestId">;
 }

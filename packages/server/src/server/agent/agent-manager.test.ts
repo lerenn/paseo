@@ -7749,6 +7749,32 @@ test("workspace ownership does not turn an ordinary agent into a disposable help
   expect(beforeHookCalls).toContain("agent.create");
 });
 
+test("agent.create hooks receive the plugin options chosen on the create composer", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-test-"));
+  const storage = new AgentStorage(join(workdir, "agents"), logger);
+  const seen: unknown[] = [];
+  const manager = new AgentManager({
+    clients: { codex: new TestAgentClient() },
+    registry: storage,
+    logger,
+    pluginLifecycle: {
+      emit: () => {},
+      before: async (name, request) => {
+        if (name === "agent.create")
+          seen.push((request as { pluginOptions?: unknown }).pluginOptions);
+        return request;
+      },
+    },
+  });
+
+  await manager.createAgent({ provider: "codex", cwd: workdir }, undefined, {
+    workspaceId: "wks_options",
+    pluginOptions: { "agent-roles": { role: "reviewer" } },
+  });
+
+  expect(seen).toEqual([{ "agent-roles": { role: "reviewer" } }]);
+});
+
 test("global subscribers receive internal agent events only when they opt in", async () => {
   const internalAgentId = "00000000-0000-4000-8000-000000000116";
   const workdir = mkdtempSync(join(tmpdir(), "agent-manager-test-"));

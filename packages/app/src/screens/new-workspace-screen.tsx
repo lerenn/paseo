@@ -2,6 +2,7 @@ import type {
   CreateAgentRequestOptions,
   CreateWorkspaceRequestOptions,
 } from "@getpaseo/client/internal/daemon-client";
+import { readPluginOptions, resetPluginOptions } from "@/plugins/create-options/store";
 import type { AgentSnapshotPayload, CreationSnapshot } from "@getpaseo/protocol/messages";
 import { encodeImages } from "@/utils/encode-images";
 import { getHostRuntimeStore } from "@/runtime/host-runtime";
@@ -460,6 +461,7 @@ async function createWorkspaceChatAgent(input: CreateChatAgentInput): Promise<Su
     },
     initialPrompt: text,
     clientMessageId: `${input.draftId}:initial-message`,
+    pluginOptions: readPluginOptions(serverId),
     images: images?.length ? images : undefined,
     attachments: wirePayload.attachments?.length ? wirePayload.attachments : undefined,
   };
@@ -521,6 +523,7 @@ async function createWorkspaceChatAgent(input: CreateChatAgentInput): Promise<Su
       }),
   };
   await agentCreation.result;
+  resetPluginOptions(serverId);
   if (outcome === "background") clearConsumedDraft();
   return outcome;
 }

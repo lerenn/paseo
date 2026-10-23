@@ -4375,6 +4375,7 @@ export class Session {
       images,
       attachments,
       env,
+      pluginOptions,
     } = msg;
     this.sessionLogger.info(
       { cwd: config.cwd, provider: config.provider, worktreeName },
@@ -4449,6 +4450,7 @@ export class Session {
           attachments,
           labels: resolvedIntent.intent.labels,
           env,
+          pluginOptions,
           provisionalTitle,
           firstAgentContext,
         },

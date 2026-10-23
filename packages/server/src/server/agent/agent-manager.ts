@@ -310,6 +310,7 @@ export interface CreateAgentOptions {
   labels?: Record<string, string>;
   initialPrompt?: string;
   env?: Record<string, string>;
+  pluginOptions?: Record<string, Record<string, string>>;
   persistSession?: boolean;
   initialTitle?: string | null;
   // undefined is an explicit decision: the agent never appears in the sidebar.
@@ -1287,6 +1288,7 @@ export class AgentManager {
       const request = await this.pluginLifecycle.before("agent.create", {
         config,
         env: options.env,
+        pluginOptions: options.pluginOptions,
       });
       config = { ...request.config, internal: config.internal };
       options = { ...options, env: request.env };

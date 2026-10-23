@@ -39,6 +39,7 @@ function installation(invoked: string[]): InstalledPlugin {
     workspacePanels: [],
     commandCenterItems: [],
     clientSlashCommands: [],
+    createOptions: [],
     attachmentSources: [],
     workspaceLocations: [],
     themes: [],
