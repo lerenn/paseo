@@ -2426,6 +2426,15 @@ export const ru: TranslationResources = {
         },
         moveUp: "Переместить вверх",
         moveDown: "Переместить вниз",
+        groups: {
+          name: "Название группы",
+          newPlaceholder: "Новая группа",
+          add: "Добавить группу",
+          delete: "Удалить группу {{name}}",
+          moveToGroup: "Переместить {{name}} в группу",
+          moveTo: "Переместить в {{name}}",
+          removeFromGroup: "Убрать из группы",
+        },
       },
       fonts: {
         title: "Шрифты",

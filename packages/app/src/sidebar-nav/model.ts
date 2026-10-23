@@ -20,6 +20,8 @@ export type BuiltinSidebarNavId = BuiltinSidebarItemId<"header">;
 export interface SidebarNavPreference {
   key: string;
   visible: boolean;
+  /** Id of the user group the item sits in. Group markers (`group:<id>`) never have one. */
+  group?: string;
 }
 
 export interface BuiltinSidebarNavItem<Section extends SidebarSection = SidebarSection> {
@@ -82,7 +84,7 @@ export function pluginSidebarNavKey(
   return `plugin:${group.pluginId}:${group.contributionId}`;
 }
 
-function isBuiltinSidebarItemId<Section extends SidebarSection>(
+export function isBuiltinSidebarItemId<Section extends SidebarSection>(
   section: Section,
   key: string,
 ): key is BuiltinSidebarItemId<Section> {

@@ -2439,6 +2439,15 @@ export const fr: TranslationResources = {
         },
         moveUp: "Monter",
         moveDown: "Descendre",
+        groups: {
+          name: "Nom du groupe",
+          newPlaceholder: "Nouveau groupe",
+          add: "Ajouter un groupe",
+          delete: "Supprimer le groupe {{name}}",
+          moveToGroup: "Déplacer {{name}} dans un groupe",
+          moveTo: "Déplacer vers {{name}}",
+          removeFromGroup: "Retirer du groupe",
+        },
       },
       fonts: {
         title: "Polices",

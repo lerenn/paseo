@@ -2422,6 +2422,15 @@ export const ar: TranslationResources = {
         },
         moveUp: "نقل لأعلى",
         moveDown: "نقل لأسفل",
+        groups: {
+          name: "اسم المجموعة",
+          newPlaceholder: "مجموعة جديدة",
+          add: "إضافة مجموعة",
+          delete: "حذف المجموعة {{name}}",
+          moveToGroup: "نقل {{name}} إلى مجموعة",
+          moveTo: "نقل إلى {{name}}",
+          removeFromGroup: "إزالة من المجموعة",
+        },
       },
       fonts: {
         title: "الخطوط",

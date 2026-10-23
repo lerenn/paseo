@@ -249,6 +249,24 @@ describe("evaluatePluginClientBundle", () => {
     expect(plugin.legacySidebarItems).toEqual([]);
   });
 
+  it("keeps a trimmed group hint on a sidebar item and drops an empty one", () => {
+    const plugin = evaluatePluginClientBundle(
+      "example",
+      bundle(`
+        function Item() { return null; }
+        plugin.addSidebarHeaderItem({ id: "a", title: "A", group: " Agents ", Component: Item });
+        plugin.addSidebarHeaderItem({ id: "b", title: "B", group: "  ", Component: Item });
+        plugin.addSidebarHeaderItem({ id: "c", title: "C", Component: Item });
+      `),
+    );
+
+    expect(plugin.sidebarItems.header.map(({ id, group }) => ({ id, group }))).toEqual([
+      { id: "a", group: "Agents" },
+      { id: "b", group: undefined },
+      { id: "c", group: undefined },
+    ]);
+  });
+
   it.each([
     [`plugin.addScreen("main", Screen);`, "addScreen takes { id, title, Component }"],
     [`plugin.addScreen({ id: "main", Component: Screen });`, "Screen main needs a title"],
