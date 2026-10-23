@@ -549,9 +549,6 @@ one section's order from built-ins, plugin groups, and the section's preference
   anchors to its section container.
 - `SidebarSeparator` reuses the app's separator and cancels the footer's horizontal padding, so
   the line runs edge to edge in both sections.
-- `SidebarRow.subtitle` renders under the label inside the row's button, so a press on it presses the
-  row. `HostBadge` (`plugins/react-native/host-badge.tsx`) is the intended content: it wraps the
-  app's host badge and renders nothing unless two or more hosts are connected, like conversation rows.
 - `SidebarRow.trailing` sits in a second `Pressable` beside the row's button, since web cannot nest
   buttons. Its `onPress` is the row's, so a press on non-interactive trailing content presses the
   row; a button inside it wins its own press because only the innermost pressable responds.

@@ -165,20 +165,9 @@ export interface SidebarRowProps {
   label?: string;
   onPress(): void;
   active?: boolean;
-  /** A line under the label, e.g. a `HostBadge`. A press on it presses the row. */
-  subtitle?: ReactNode;
   /** Right slot. Renders beside the row's pressable, so a button here presses on its own. */
   trailing?: ReactNode;
 }
-export interface HostBadgeProps {
-  /** The host's `id`, as in `PluginScreenProps.host`. */
-  hostId: string;
-}
-/**
- * The host's coloured badge, drawn as conversation rows draw it. Renders nothing when only one
- * host is connected, when the host is unknown, or when the user hides that host's badge.
- */
-export declare const HostBadge: ComponentType<HostBadgeProps>;
 /** A sidebar navigation row. Render it from a sidebar item's `Component`. */
 export declare const SidebarRow: ComponentType<SidebarRowProps>;
 /** A line between groups of rows. Render it from a sidebar item's `Component`. */
