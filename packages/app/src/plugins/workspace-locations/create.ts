@@ -1,4 +1,5 @@
 import type {
+  PluginWorkspaceLocationAgent,
   PluginWorkspaceLocationProject,
   PluginWorkspaceLocationRef,
 } from "@getpaseo/plugin/client";
@@ -30,6 +31,21 @@ export function checkoutRequestToPluginRef(
           },
         }
       : {}),
+  };
+}
+
+/** The composer's agent config as a plugin sees it. */
+export function composerAgentToPluginAgent(
+  agent: CreateWorkspaceRequestOptions["agent"],
+): PluginWorkspaceLocationAgent | null {
+  const config = agent?.config;
+  if (!config?.provider) return null;
+  return {
+    provider: config.provider,
+    ...(config.model ? { model: config.model } : {}),
+    ...(config.thinkingOptionId ? { thinkingOptionId: config.thinkingOptionId } : {}),
+    ...(config.modeId ? { modeId: config.modeId } : {}),
+    ...(config.featureValues ? { featureValues: config.featureValues } : {}),
   };
 }
 
@@ -67,6 +83,7 @@ export async function createWorkspaceThroughPlugin(input: {
     prompt: input.prompt,
     slug: input.slug,
     ref: checkoutRequestToPluginRef(input.checkout),
+    agent: composerAgentToPluginAgent(input.agent),
   });
   const workspaceId = typeof result?.workspaceId === "string" ? result.workspaceId.trim() : "";
   if (!workspaceId) {

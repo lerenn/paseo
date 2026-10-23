@@ -2344,17 +2344,17 @@ Composer 菜单、搜索选择器、选中后的胶囊、草稿状态和提交�
 `client.addWorkspaceLocation({ id, title, icon, createWorkspace, isAvailable?, Settings?, defaultValue?, usesRef? })`
 会在“新建工作区”表单的位置下拉菜单中，于“本地”和“新建 worktree”之后增加一个选项。
 
-| 字段              | 含义                                                                                                                                                                     |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `id`、`title`     | 小写 ID，在插件内唯一；`title` 是下拉菜单中显示的标签。                                                                                                                  |
-| `icon`            | 任意[图标](#icons)形式。                                                                                                                                                 |
-| `isAvailable`     | `({ hostId, project }) => boolean`。对其拒绝的项目隐藏该选项；抛出异常同样会隐藏。                                                                                       |
-| `Settings`        | 可选。选中该选项时作为表单字段渲染的组件；省略它，并用 `slug` 为环境命名。Props：`theme`、`host`、`layout`、`project`、`value`、`onChange`、`disabled`。                 |
-| `defaultValue`    | 在调用 `onChange` 之前的设置值。                                                                                                                                         |
-| `usesRef`         | 默认 `true`：与“新建 worktree”一样保留分支选择器。没有可用的 ref 时设为 `false`。                                                                                        |
-| `createWorkspace` | `({ hostId, project, settings, idempotencyKey, prompt, slug, ref }) => Promise<{ workspaceId, agentId? }>`。在客户端运行，替代内置的创建流程。抛出异常会向用户显示错误。 |
+| 字段              | 含义                                                                                                                                                                            |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`、`title`     | 小写 ID，在插件内唯一；`title` 是下拉菜单中显示的标签。                                                                                                                         |
+| `icon`            | 任意[图标](#icons)形式。                                                                                                                                                        |
+| `isAvailable`     | `({ hostId, project }) => boolean`。对其拒绝的项目隐藏该选项；抛出异常同样会隐藏。                                                                                              |
+| `Settings`        | 可选。选中该选项时作为表单字段渲染的组件；省略它，并用 `slug` 为环境命名。Props：`theme`、`host`、`layout`、`project`、`value`、`onChange`、`disabled`。                        |
+| `defaultValue`    | 在调用 `onChange` 之前的设置值。                                                                                                                                                |
+| `usesRef`         | 默认 `true`：与“新建 worktree”一样保留分支选择器。没有可用的 ref 时设为 `false`。                                                                                               |
+| `createWorkspace` | `({ hostId, project, settings, idempotencyKey, prompt, slug, ref, agent }) => Promise<{ workspaceId, agentId? }>`。在客户端运行，替代内置的创建流程。抛出异常会向用户显示错误。 |
 
-`project` 为 `{ id, name, directory }`。`slug` 是 Paseo 为新 worktree 生成的随机短名（例如 `brave-otter-12`），同一草稿内保持不变：用 `${project.name}-${slug}` 命名环境，而不是询问用户。`ref` 是分支选择器的选择，与“新建 worktree”收到的一致：`{ action: "branch-off" | "checkout", refName?, changeRequest?: { forge, number, projectPath? } }`，没有选择时为 `null`。未返回 `agentId` 时，Paseo 会在返回的工作区中启动第一个智能体。
+`project` 为 `{ id, name, directory }`。`slug` 是 Paseo 为新 worktree 生成的随机短名（例如 `brave-otter-12`），同一草稿内保持不变：用 `${project.name}-${slug}` 命名环境，而不是询问用户。`ref` 是分支选择器的选择，与“新建 worktree”收到的一致：`{ action: "branch-off" | "checkout", refName?, changeRequest?: { forge, number, projectPath? } }`，没有选择时为 `null`。`agent` 是输入框中的智能体选择，`{ provider, model?, thinkingOptionId?, modeId?, featureValues? }`；创建空工作区时为 `null`：用它启动你的智能体。未返回 `agentId` 时，Paseo 会在返回的工作区中启动第一个智能体。
 用户上一次的选择会被记住；`Settings` 的值不会。
 
 ## 插件来源 {#plugin-sources}
