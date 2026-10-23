@@ -1063,6 +1063,7 @@ export function NewWorkspaceScreen({
   });
   const selectedLocation = location.selected;
   const selectedLocationSettings = location.settings;
+  const pluginUsesRef = location.usesRef(canCreateWorktree);
   const { clear: clearLocation } = location;
   const handleSelectBuiltInIsolation = useCallback(
     (value: "local" | "worktree") => {
@@ -1264,6 +1265,22 @@ export function NewWorkspaceScreen({
         throw new Error("Choose a host for this project");
       }
       const connectedClient = withConnectedClient();
+      const createsWorktree =
+        !selectedLocation && (!supportsWorkspaceMultiplicity || effectiveIsolation === "worktree");
+      const needsCheckout = createsWorktree || pluginUsesRef;
+      const checkoutStatusForCreate = needsCheckout
+        ? await ensureCheckoutStatus({
+            queryClient,
+            client: connectedClient,
+            serverId: selectedServerId,
+            cwd: selectedSourceDirectory,
+          })
+        : null;
+      const checkoutRequest = checkoutStatusForCreate
+        ? pickerItemToCheckoutRequest(
+            selectedItem ?? defaultBasePickerItem(checkoutStatusForCreate),
+          )
+        : undefined;
       if (selectedLocation && pluginLocationProject) {
         const created = await createWorkspaceThroughPlugin({
           entry: selectedLocation,
@@ -1273,6 +1290,8 @@ export function NewWorkspaceScreen({
           settings: selectedLocationSettings,
           idempotencyKey: creationIdentity.draftId,
           prompt: input.prompt,
+          slug: creationIdentity.worktreeSlug,
+          checkout: checkoutRequest,
           withInitialAgent: input.withInitialAgent,
           agent: input.agent,
           onWorkspace: (descriptor) =>
@@ -1295,20 +1314,6 @@ export function NewWorkspaceScreen({
         setCreationResult(created);
         return created;
       }
-      const createsWorktree = !supportsWorkspaceMultiplicity || effectiveIsolation === "worktree";
-      const checkoutStatusForCreate = createsWorktree
-        ? await ensureCheckoutStatus({
-            queryClient,
-            client: connectedClient,
-            serverId: selectedServerId,
-            cwd: selectedSourceDirectory,
-          })
-        : null;
-      const checkoutRequest = checkoutStatusForCreate
-        ? pickerItemToCheckoutRequest(
-            selectedItem ?? defaultBasePickerItem(checkoutStatusForCreate),
-          )
-        : undefined;
       const normalizedWorkspace = await createMultiplicityWorkspace({
         idempotencyKey: creationIdentity.draftId,
         worktreeSlug: creationIdentity.worktreeSlug,
@@ -1335,6 +1340,7 @@ export function NewWorkspaceScreen({
       effectiveIsolation,
       mergeWorkspaces,
       pluginLocationProject,
+      pluginUsesRef,
       selectedLocation,
       selectedLocationSettings,
       queryClient,
@@ -1572,7 +1578,7 @@ export function NewWorkspaceScreen({
       onSelect: handleSelectOption,
       setSearchQuery: setPickerSearchQuery,
       emptyText: pickerEmptyText,
-      showRefPicker: location.allowsRefPicker(showRefPicker),
+      showRefPicker: location.showsRefPicker(showRefPicker, canCreateWorktree),
     },
     launch: {
       serverId: selectedServerId,

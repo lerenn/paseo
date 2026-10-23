@@ -1,4 +1,7 @@
-import type { PluginWorkspaceLocationProject } from "@getpaseo/plugin/client";
+import type {
+  PluginWorkspaceLocationProject,
+  PluginWorkspaceLocationRef,
+} from "@getpaseo/plugin/client";
 import type { AgentSnapshotPayload } from "@getpaseo/protocol/messages";
 import type {
   CreateWorkspaceRequestOptions,
@@ -6,7 +9,29 @@ import type {
   FetchWorkspacesEntry,
 } from "@getpaseo/client/internal/daemon-client";
 import { normalizeWorkspaceDescriptor } from "@/stores/session-store";
+import type { PickerCheckoutRequest } from "@/screens/new-workspace-picker-item";
 import type { WorkspaceLocationEntry } from "./model";
+
+/** The branch picker's choice as a plugin sees it: the same choice New worktree receives. */
+export function checkoutRequestToPluginRef(
+  checkout: PickerCheckoutRequest | undefined,
+): PluginWorkspaceLocationRef | null {
+  if (!checkout?.action) return null;
+  const source = checkout.checkoutSource;
+  return {
+    action: checkout.action,
+    ...(checkout.refName ? { refName: checkout.refName } : {}),
+    ...(source
+      ? {
+          changeRequest: {
+            forge: source.forge ?? "github",
+            number: source.number,
+            ...(source.projectPath ? { projectPath: source.projectPath } : {}),
+          },
+        }
+      : {}),
+  };
+}
 
 type WorkspaceCreationClient = Pick<DaemonClient, "fetchWorkspaces" | "fetchAgent" | "createAgent">;
 
@@ -23,6 +48,8 @@ export async function createWorkspaceThroughPlugin(input: {
   settings: unknown;
   idempotencyKey: string;
   prompt: string;
+  slug: string;
+  checkout: PickerCheckoutRequest | undefined;
   withInitialAgent: boolean;
   agent?: CreateWorkspaceRequestOptions["agent"];
   /** Called once the workspace exists, before the first agent starts. */
@@ -38,6 +65,8 @@ export async function createWorkspaceThroughPlugin(input: {
     settings: input.settings,
     idempotencyKey: input.idempotencyKey,
     prompt: input.prompt,
+    slug: input.slug,
+    ref: checkoutRequestToPluginRef(input.checkout),
   });
   const workspaceId = typeof result?.workspaceId === "string" ? result.workspaceId.trim() : "";
   if (!workspaceId) {
