@@ -1079,6 +1079,23 @@ import { Markdown } from "@getpaseo/plugin/client/ui";
 组件不添加页面内边距或滚动容器。需要时请在外层使用布局或滚动视图。
 内容获取以及加载和错误状态由插件负责。
 
+### 智能体聊天 {#agent-chat}
+
+`@getpaseo/plugin/client/ui` 的 `AgentChat` 渲染宿主的对话（消息流和输入框），可用于插件所在主机上的任意智能体。用它在面板中显示你创建的智能体。
+
+```tsx
+import { AgentChat } from "@getpaseo/plugin/client/ui";
+
+<AgentChat agentId={agentId} />;
+```
+
+| 属性          | 含义                               |
+| ------------- | ---------------------------------- |
+| `agentId`     | 要显示的智能体。                   |
+| `workspaceId` | 可选。默认为该智能体所属的工作区。 |
+
+在客户端知道该智能体之前，它显示“不可用”提示。后台工作区同样可用。这里没有标签页、拆分和“在侧边面板中打开”，因此这些操作不会执行任何动作。
+
 ### Modal {#modal}
 
 `Modal` 在紧凑布局中使用底部面板，否则使用居中的对话框。`open` 状态由插件负责。
@@ -1656,6 +1673,26 @@ Agent 快照字段：
 | `labels`            | `Record<string, string>`                                       |
 
 标签页的焦点、拆分、关闭、持久化、查询状态、API/RPC Provider 以及渲染错误边界都由 Paseo 负责。如果恢复的标签页所对应的插件、面板、上下文、工作区或 Agent 不可用，该标签页会保持打开并显示“不可用”消息，而不会让工作区崩溃。
+
+### 应用面板 {#app-panels}
+
+`addAppPanel` 向**应用停靠栏**添加面板。停靠栏是位于窗口最右侧的侧边面板，属于应用而不是某个工作区。打开状态、宽度和所选面板只保存一份，因此切换工作区时停靠栏不会变化。宽布局下它位于最右侧并压缩内容（包括资源管理器）；紧凑布局下它覆盖整个屏幕并提供关闭按钮。
+
+```tsx
+client.addAppPanel({ id: "inbox", title: "Inbox", icon: "Inbox", Component: InboxPanel });
+
+// 在任何回调中调用，例如头部按钮的 onPress：
+client.toggleAppPanel("inbox");
+```
+
+| 字段        | 必填 | 含义                                                    |
+| ----------- | ---- | ------------------------------------------------------- |
+| `id`        | 是   | 插件内唯一的面板 ID。                                   |
+| `title`     | 是   | 停靠栏标题。                                            |
+| `icon`      | 是   | Lucide 名称、`{ svg }` 或组件。参见[图标](#icons)。     |
+| `Component` | 是   | 接收 `PluginAppPanelProps`：`theme`、`host`、`layout`。 |
+
+应用面板没有 `workspaceId`；需要时使用 `usePaseo()` 或 `useWorkspace`。`client.openAppPanel(id)` 显示面板，`client.toggleAppPanel(id)` 在停靠栏已显示该面板时关闭它，`client.closeAppPanel()` 在停靠栏显示你的面板时关闭它。传入未知面板 ID 会抛出错误。停靠栏一次显示一个面板。
 
 ## 文件面板 {#file-panels}
 

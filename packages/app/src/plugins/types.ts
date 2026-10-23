@@ -20,6 +20,7 @@ import type {
   PluginTimelineTransformerContribution,
   PluginPanelLocation,
   PluginWorkspacePanelContribution as SDKPluginWorkspacePanelContribution,
+  PluginAppPanelContribution as SDKPluginAppPanelContribution,
 } from "@getpaseo/plugin/client";
 
 type PluginFilePanelContribution = SDKPluginFilePanelContribution<PluginText>;
@@ -39,6 +40,8 @@ type PluginWorkspacePanelContribution =
 
 export type PluginSidebarSection = "header" | "footer";
 
+export type EvaluatedPluginAppPanelContribution = SDKPluginAppPanelContribution<PluginText>;
+
 export type EvaluatedPluginWorkspacePanelContribution = PluginWorkspacePanelContribution & {
   locations: readonly PluginPanelLocation[];
 };
@@ -54,6 +57,7 @@ export interface EvaluatedPlugin {
   legacySidebarItems: PluginSidebarContribution[];
   filePanels: PluginFilePanelContribution[];
   workspacePanels: EvaluatedPluginWorkspacePanelContribution[];
+  appPanels: EvaluatedPluginAppPanelContribution[];
   commandCenterItems: PluginCommandCenterItemContribution[];
   clientSlashCommands: PluginClientSlashCommandContribution[];
   attachmentSources: PluginAttachmentSourceContribution[];

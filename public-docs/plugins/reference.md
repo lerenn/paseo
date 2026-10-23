@@ -1240,6 +1240,25 @@ The component adds no page padding or scroll container. Use a surrounding layout
 scroll view when needed. Fetching content and showing loading or error states belong
 to your plugin.
 
+### Agent chat
+
+`AgentChat` from `@getpaseo/plugin/client/ui` renders the host's conversation, stream and composer,
+for any agent on the plugin's host. Use it to show an agent you created in a panel.
+
+```tsx
+import { AgentChat } from "@getpaseo/plugin/client/ui";
+
+<AgentChat agentId={agentId} />;
+```
+
+| Prop          | Meaning                                                   |
+| ------------- | --------------------------------------------------------- |
+| `agentId`     | The agent to show.                                        |
+| `workspaceId` | Optional. Defaults to the workspace the agent belongs to. |
+
+It renders an unavailable message until the agent is known to the client. Background workspaces work.
+Tabs, splits, and Open in side pane do not exist here, so those actions do nothing.
+
 ### Modal
 
 `Modal` uses a bottom sheet on compact layouts and a centered dialog otherwise. The plugin owns
@@ -1903,6 +1922,32 @@ Agent snapshot fields:
 | `labels`            | `Record<string, string>`                                       |
 
 Paseo owns tab focus, splitting, closing, persistence, query state, the API/RPC providers, and the render error boundary. A restored tab whose plugin, panel, context, workspace, or agent is unavailable stays open with an unavailable message instead of crashing the workspace.
+
+### App panels
+
+`addAppPanel` adds a panel to the **app dock**, a right-hand side panel that belongs to the app, not
+to a workspace. Open state, width, and the selected panel are stored once, so the dock does not
+change when the user switches workspace. On wide layouts it sits at the far right and shrinks the
+content, Explorer included; on compact layouts it covers the screen with a Close button.
+
+```tsx
+client.addAppPanel({ id: "inbox", title: "Inbox", icon: "Inbox", Component: InboxPanel });
+
+// From any callback, for example a header button's onPress:
+client.toggleAppPanel("inbox");
+```
+
+| Field       | Required | Meaning                                                    |
+| ----------- | -------- | ---------------------------------------------------------- |
+| `id`        | Yes      | Plugin-local panel ID.                                     |
+| `title`     | Yes      | Dock header title.                                         |
+| `icon`      | Yes      | Lucide name, `{ svg }`, or component. See [Icons](#icons). |
+| `Component` | Yes      | Receives `PluginAppPanelProps`: `theme`, `host`, `layout`. |
+
+An app panel has no `workspaceId`; read what you need with `usePaseo()` or `useWorkspace`.
+`client.openAppPanel(id)` shows the panel, `client.toggleAppPanel(id)` closes the dock when it already
+shows the panel, and `client.closeAppPanel()` closes it when it shows one of your panels. They throw
+for an unknown panel ID. The dock shows one panel at a time.
 
 ## File panels
 

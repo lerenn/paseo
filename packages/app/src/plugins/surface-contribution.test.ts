@@ -37,6 +37,7 @@ function installation(
     })),
     filePanels: [],
     workspacePanels: [],
+    appPanels: [],
     commandCenterItems: [],
     clientSlashCommands: [],
     attachmentSources: [],
