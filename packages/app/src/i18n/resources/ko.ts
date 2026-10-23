@@ -2397,6 +2397,15 @@ export const ko: TranslationResources = {
         },
         moveUp: "위로 이동",
         moveDown: "아래로 이동",
+        groups: {
+          name: "그룹 이름",
+          newPlaceholder: "새 그룹",
+          add: "그룹 추가",
+          delete: "그룹 {{name}} 삭제",
+          moveToGroup: "{{name}}을(를) 그룹으로 이동",
+          moveTo: "{{name}}(으)로 이동",
+          removeFromGroup: "그룹에서 제거",
+        },
       },
       fonts: {
         title: "글꼴",

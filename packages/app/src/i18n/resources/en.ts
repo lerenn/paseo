@@ -2510,6 +2510,15 @@ export const en = {
         },
         moveUp: "Move up",
         moveDown: "Move down",
+        groups: {
+          name: "Group name",
+          newPlaceholder: "New group",
+          add: "Add group",
+          delete: "Delete group {{name}}",
+          moveToGroup: "Move {{name}} to a group",
+          moveTo: "Move to {{name}}",
+          removeFromGroup: "Remove from group",
+        },
       },
       fonts: {
         title: "Fonts",

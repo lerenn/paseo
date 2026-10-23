@@ -2406,6 +2406,15 @@ export const ja: TranslationResources = {
         },
         moveUp: "上に移動",
         moveDown: "下に移動",
+        groups: {
+          name: "グループ名",
+          newPlaceholder: "新しいグループ",
+          add: "グループを追加",
+          delete: "グループ {{name}} を削除",
+          moveToGroup: "{{name}} をグループに移動",
+          moveTo: "{{name}} に移動",
+          removeFromGroup: "グループから外す",
+        },
       },
       fonts: {
         title: "フォント",
