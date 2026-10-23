@@ -46,10 +46,17 @@ export function useWorkspaceLocationSelection(input: {
     }),
     [entries, selected, select, project, settings, changeSettings],
   );
-  // A plugin location has no starting ref, so it takes the ref picker's place.
-  const allowsRefPicker = useCallback(
-    (builtInShowsRefPicker: boolean) => builtInShowsRefPicker && !selected,
+  // A plugin location shows the branch picker like New worktree, unless it opts out with
+  // `usesRef: false`. Without a checkout to choose from (not a git project) there is nothing to pick.
+  const usesRef = useCallback(
+    (canCreateWorktree: boolean) =>
+      selected !== null && selected.location.usesRef !== false && canCreateWorktree,
     [selected],
   );
-  return { formProps, selected, settings, clear, allowsRefPicker };
+  const showsRefPicker = useCallback(
+    (builtInShowsRefPicker: boolean, canCreateWorktree: boolean) =>
+      selected ? usesRef(canCreateWorktree) : builtInShowsRefPicker,
+    [selected, usesRef],
+  );
+  return { formProps, selected, settings, clear, usesRef, showsRefPicker };
 }

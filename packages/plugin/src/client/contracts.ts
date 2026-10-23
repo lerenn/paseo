@@ -215,8 +215,29 @@ export interface PluginWorkspaceLocationCreateContext {
   settings: unknown;
   /** Stable for one New workspace draft; a retry of the same draft passes the same key. */
   idempotencyKey: string;
-  /** The text the user typed, for naming. Paseo still sends it to the first agent. */
+  /** The text the user typed. Paseo still sends it to the first agent. */
   prompt: string;
+  /**
+   * A short random name, such as `brave-otter-12`, stable for one New workspace draft. It is the
+   * slug Paseo gives a new worktree, so a plugin can name its environment the same way, for
+   * example `${project.name}-${slug}`, without asking the user.
+   */
+  slug: string;
+  /**
+   * What the user chose in the branch picker, as New worktree receives it. Null when the picker
+   * is not shown (`usesRef: false`) or the project has no checkout to choose from.
+   */
+  ref: PluginWorkspaceLocationRef | null;
+}
+
+/** The branch picker's choice. */
+export interface PluginWorkspaceLocationRef {
+  /** `branch-off` starts a new branch from `refName`; `checkout` opens an existing change request. */
+  action: "branch-off" | "checkout";
+  /** The base ref (for example `refs/heads/main`), or a change request's head branch. */
+  refName?: string;
+  /** Set when the user picked a pull or merge request. */
+  changeRequest?: { forge: string; number: number; projectPath?: string };
 }
 
 export interface PluginWorkspaceLocationResult {
@@ -239,9 +260,11 @@ export interface PluginWorkspaceLocationContribution<Text extends PluginText = s
   icon: PluginIcon;
   /** Offer the option only for some projects. Default: always. A throw hides it. */
   isAvailable?(context: PluginWorkspaceLocationAvailabilityContext): boolean;
-  /** Rendered as a field in the form while this option is selected. */
+  /** Rendered as a field in the form while this option is selected. Optional: name the environment from `slug` instead of asking. */
   Settings?: ComponentType<PluginWorkspaceLocationSettingsProps>;
   defaultValue?: unknown;
+  /** Show the branch picker, as New worktree does. Default true; set false when no ref applies. */
+  usesRef?: boolean;
   /** Runs on this client in place of the built-in creation. Throw to show the user an error. */
   createWorkspace(
     context: PluginWorkspaceLocationCreateContext,

@@ -554,7 +554,11 @@ one section's order from built-ins, plugin groups, and the section's preference
   `createWorkspace` runs on the client in place of `client.createWorkspace`; the app then reads the
   returned workspace back from `fetchWorkspaces` and, unless the plugin returned an `agentId`,
   starts the first agent in it. The remembered choice is `FormPreferences.workspaceLocation`;
-  `Settings` values are kept in memory only.
+  `Settings` values are kept in memory only. A plugin location keeps the branch picker, as New
+  worktree does, unless it sets `usesRef: false`; the choice reaches `createWorkspace` as `ref`,
+  converted from the same `PickerCheckoutRequest` worktree creation sends. `slug` is the
+  `worktreeSlug` Paseo generates for the draft, so plugins name environments like worktrees
+  instead of asking for a name.
 - `SidebarRow.trailing` sits in a second `Pressable` beside the row's button, since web cannot nest
   buttons. Its `onPress` is the row's, so a press on non-interactive trailing content presses the
   row; a button inside it wins its own press because only the innermost pressable responds.
