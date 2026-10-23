@@ -1,6 +1,13 @@
 import { router, usePathname } from "expo-router";
-import { CalendarClock, History, Plus, Search } from "lucide-react-native";
-import { memo, useCallback, useMemo, useRef, type ComponentType, type ReactNode } from "react";
+import {
+  CalendarClock,
+  ChevronDown,
+  ChevronRight,
+  History,
+  Plus,
+  Search,
+} from "lucide-react-native";
+import { memo, useCallback, useRef, type ComponentType, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
@@ -13,8 +20,10 @@ import {
   builtinSidebarNavLabelKey,
   builtinSidebarNavShortcutAction,
   type BuiltinSidebarNavId,
+  type SidebarNavItem,
 } from "@/sidebar-nav/model";
-import { useSidebarNavItems } from "@/sidebar-nav/use-sidebar-nav-items";
+import type { SidebarNavGroup } from "@/sidebar-nav/groups";
+import { useSidebarNavEntries } from "@/sidebar-nav/use-sidebar-nav-items";
 import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
 import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { useWorkspace } from "@/stores/session-store-hooks";
@@ -41,13 +50,10 @@ interface SidebarNavRowsProps extends SidebarNavRowProps {
  * wrapper — when every item is hidden and there is no `firstRowTrailing`.
  */
 export function SidebarNavRows({ style, onBeforeNavigate, firstRowTrailing }: SidebarNavRowsProps) {
-  const { items } = useSidebarNavItems("header");
-  const visibleItems = useMemo(() => items.filter((item) => item.visible), [items]);
+  const { entries, setGroupCollapsed } = useSidebarNavEntries();
   const groupRef = useRef<View | null>(null);
 
-  if (visibleItems.length === 0 && !firstRowTrailing) return null;
-
-  const [firstRow, ...restRows] = visibleItems.map((item) => {
+  const renderItem = (item: SidebarNavItem<"header">) => {
     if (item.kind === "plugin") {
       return (
         <PluginSidebarItem
@@ -61,7 +67,25 @@ export function SidebarNavRows({ style, onBeforeNavigate, firstRowTrailing }: Si
     }
     const Row = BUILTIN_ROWS[item.id];
     return <Row key={item.key} onBeforeNavigate={onBeforeNavigate} />;
-  });
+  };
+
+  const rows: ReactNode[] = [];
+  for (const entry of entries) {
+    if (entry.kind !== "group") {
+      if (entry.visible) rows.push(renderItem(entry));
+      continue;
+    }
+    const visibleItems = entry.items.filter((item) => item.visible);
+    if (visibleItems.length === 0) continue;
+    rows.push(
+      <SidebarNavGroupRows key={entry.key} group={entry} onSetCollapsed={setGroupCollapsed}>
+        {visibleItems.map(renderItem)}
+      </SidebarNavGroupRows>,
+    );
+  }
+
+  if (rows.length === 0 && !firstRowTrailing) return null;
+  const [firstRow, ...restRows] = rows;
 
   return (
     <View ref={groupRef} collapsable={false} style={style}>
@@ -74,6 +98,32 @@ export function SidebarNavRows({ style, onBeforeNavigate, firstRowTrailing }: Si
         firstRow
       )}
       {restRows}
+    </View>
+  );
+}
+
+interface SidebarNavGroupRowsProps {
+  group: SidebarNavGroup<"header">;
+  onSetCollapsed: (id: string, collapsed: boolean) => void;
+  children: ReactNode;
+}
+
+/** A user group: a chevron row that folds its plugin and nav rows, indented beneath it. */
+function SidebarNavGroupRows({ group, onSetCollapsed, children }: SidebarNavGroupRowsProps) {
+  const handlePress = useCallback(
+    () => onSetCollapsed(group.id, !group.collapsed),
+    [group.collapsed, group.id, onSetCollapsed],
+  );
+  return (
+    <View testID={`sidebar-nav-group-${group.id}`}>
+      <SidebarHeaderRow
+        icon={group.collapsed ? ChevronRight : ChevronDown}
+        label={group.title}
+        onPress={handlePress}
+        testID={`sidebar-nav-group-toggle-${group.id}`}
+        variant="compact"
+      />
+      {group.collapsed ? null : <View style={styles.groupItems}>{children}</View>}
     </View>
   );
 }
@@ -192,7 +242,10 @@ const BUILTIN_ROWS: Record<BuiltinSidebarNavId, ComponentType<SidebarNavRowProps
   schedules: SidebarSchedulesRow,
 };
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
+  groupItems: {
+    paddingLeft: theme.spacing[3],
+  },
   firstRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -201,4 +254,4 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-});
+}));

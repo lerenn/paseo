@@ -1048,9 +1048,15 @@ screen with other params shows the new params.
 
 `addSidebarHeaderItem` adds a row to the list at the top of the sidebar. `addSidebarFooterItem`
 adds a row to the footer, between **Add project** and the footer's icon row. The icon row is fixed;
-plugins can't add to it. Both take `{ id, title, Component }`. `title` labels the item in
-Settings > Sidebar, where users reorder and hide items, and is the default label and accessibility
-label of `SidebarRow`. Settings shows a generic plugin icon for these items; a row from the
+plugins can't add to it. Both take `{ id, title, Component }`, and header items also take an
+optional `group`. `title` labels the item in Settings > Sidebar, where users reorder, hide, and
+group items, and is the default label and accessibility label of `SidebarRow`.
+
+`group` names a collapsible sidebar group, for example `group: "Agents"`. Users can also make their
+own groups in Settings > Sidebar, move rows into them, and fold them in the sidebar. Paseo uses
+`group` only as the default for a row the user has not placed: it goes in the group with that name
+(ignoring case), which Paseo creates if none exists. Once the user moves the row, their choice
+wins. Footer items ignore `group`. Leave it out unless several of your items belong together. Settings shows a generic plugin icon for these items; a row from the
 deprecated `addSidebarItem` keeps its registered icon.
 
 With the plugin on several hosts, an item renders from the host of the screen the app shows. Off a

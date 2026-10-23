@@ -2361,6 +2361,15 @@ export const zhCN: TranslationResources = {
         },
         moveUp: "上移",
         moveDown: "下移",
+        groups: {
+          name: "分组名称",
+          newPlaceholder: "新分组",
+          add: "添加分组",
+          delete: "删除分组 {{name}}",
+          moveToGroup: "将 {{name}} 移到分组",
+          moveTo: "移到 {{name}}",
+          removeFromGroup: "移出分组",
+        },
       },
       fonts: {
         title: "字体",

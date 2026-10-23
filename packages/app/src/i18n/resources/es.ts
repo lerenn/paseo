@@ -2440,6 +2440,15 @@ export const es: TranslationResources = {
         },
         moveUp: "Mover hacia arriba",
         moveDown: "Mover hacia abajo",
+        groups: {
+          name: "Nombre del grupo",
+          newPlaceholder: "Grupo nuevo",
+          add: "Añadir grupo",
+          delete: "Eliminar el grupo {{name}}",
+          moveToGroup: "Mover {{name}} a un grupo",
+          moveTo: "Mover a {{name}}",
+          removeFromGroup: "Quitar del grupo",
+        },
       },
       fonts: {
         title: "Fuentes",

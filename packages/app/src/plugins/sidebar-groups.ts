@@ -27,6 +27,8 @@ interface PluginSidebarGroupBase {
   pluginId: string;
   contributionId: string;
   title: string;
+  /** The plugin's default sidebar group name, from its first target. Header items only. */
+  group?: string;
 }
 
 /**
@@ -81,6 +83,7 @@ export function groupPluginSidebarItems(
           pluginId: plugin.id,
           contributionId: item.id,
           title: plugin.i18n.resolve(item.title, plugin.locale),
+          group: item.group,
           targets: [{ plugin, item }],
         });
       }
