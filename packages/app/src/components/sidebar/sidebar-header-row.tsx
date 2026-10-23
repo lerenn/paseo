@@ -30,6 +30,8 @@ interface SidebarHeaderRowProps {
   variant?: SidebarHeaderRowVariant;
   /** Shown in the right slot while the row is hovered, when `trailing` is not set. */
   shortcutKeys?: ShortcutKey[][] | null;
+  /** A line under the label. Part of the row's button, so a press on it presses the row. */
+  subtitle?: ReactNode;
   /**
    * The right slot. A sibling of the row's button, never inside it (web cannot nest buttons). A
    * press on the slot presses the row; a button inside it presses on its own.
@@ -48,6 +50,7 @@ export function SidebarHeaderRow({
   accessibilityLabel,
   variant = "header",
   shortcutKeys = null,
+  subtitle,
   trailing,
   rowRef,
 }: SidebarHeaderRowProps) {
@@ -95,7 +98,10 @@ export function SidebarHeaderRow({
           ) : (
             <View style={variant === "header" ? styles.iconSpacer : styles.iconSpacerCompact} />
           )}
-          <Text style={[styles.label, isHighlighted && styles.labelHighlighted]}>{label}</Text>
+          <View style={styles.text}>
+            <Text style={[styles.label, isHighlighted && styles.labelHighlighted]}>{label}</Text>
+            {subtitle}
+          </View>
         </Pressable>
         {right === null ? null : (
           <Pressable
@@ -167,6 +173,10 @@ const styles = StyleSheet.create((theme) => ({
   },
   iconSpacer: { width: densityIconBox("md"), height: densityIconBox("md") },
   iconSpacerCompact: { width: densityIconBox("sm"), height: densityIconBox("sm") },
+  text: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
   label: {
     flexShrink: 1,
     fontSize: theme.fontSize.base,
