@@ -2686,6 +2686,24 @@ plugin's status as the reload's outcome: while the reload is queued, `plugin ls`
 logs show the plugin's previous state, and while the daemon stops and starts it, a status read
 reports `failed` because the plugin is absent from the runtime catalog until its start completes.
 
+## New workspace locations
+
+`client.addWorkspaceLocation({ id, title, icon, createWorkspace, isAvailable?, Settings?, defaultValue?, usesRef? })`
+adds an option beside Local and New worktree in the New workspace form's location dropdown.
+
+| Field             | Meaning                                                                                                                                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`, `title`     | Lowercase id, unique in the plugin; the label shown in the dropdown.                                                                                                                              |
+| `icon`            | Any [icon](#icons) form.                                                                                                                                                                          |
+| `isAvailable`     | `({ hostId, project }) => boolean`. Hides the option for projects it rejects. A throw hides it.                                                                                                   |
+| `Settings`        | Optional. Component rendered as a field while the option is selected; skip it and name the environment from `slug`. Props: `theme`, `host`, `layout`, `project`, `value`, `onChange`, `disabled`. |
+| `defaultValue`    | The settings value until `onChange` is called.                                                                                                                                                    |
+| `usesRef`         | Default `true`: the branch picker stays visible, as for New worktree. Set `false` when no ref applies.                                                                                            |
+| `createWorkspace` | `({ hostId, project, settings, idempotencyKey, prompt, slug, ref, agent }) => Promise<{ workspaceId, agentId? }>`. Runs on the client in place of the built-in creation. Throw to show an error.  |
+
+`project` is `{ id, name, directory }`. `slug` is the short random name Paseo gives a new worktree (for example `brave-otter-12`), stable for one draft: name the environment `${project.name}-${slug}` instead of asking the user. `ref` is the branch picker's choice as New worktree receives it: `{ action: "branch-off" | "checkout", refName?, changeRequest?: { forge, number, projectPath? } }`, or `null` without a choice. `agent` is the composer's agent choice, `{ provider, model?, thinkingOptionId?, modeId?, featureValues? }`, or `null` for an empty workspace: start your agent with it. Without `agentId`, Paseo starts the first agent in the
+returned workspace. The user's last choice is remembered; `Settings` values are not.
+
 ## Plugin sources
 
 Paste one of these source identifiers into **Settings → Plugins**, or pass it to

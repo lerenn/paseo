@@ -194,6 +194,9 @@ export interface PluginClientContext extends PluginCommandCapabilities, PluginCl
     contribution: PluginComposerPillContribution<PluginText>,
   ): PluginButtonRegistration<PluginText>;
   addAttachmentSource(contribution: PluginAttachmentSourceContribution<PluginText>): PluginCleanup;
+  addWorkspaceLocation(
+    contribution: PluginWorkspaceLocationContribution<PluginText>,
+  ): PluginCleanup;
   addTheme(contribution: PluginThemeContribution<PluginText>): PluginCleanup;
   addFilePanel(contribution: PluginFilePanelContribution<PluginText>): PluginCleanup;
   addTimelineTransformer<ItemType extends AgentTimelineItem["type"]>(
@@ -203,6 +206,105 @@ export interface PluginClientContext extends PluginCommandCapabilities, PluginCl
     contribution: PluginTimelineRendererContribution<Schema>,
   ): PluginCleanup;
   openPanel(id: string, options: PluginClientOpenPanelOptions): void;
+}
+
+/** The project a New workspace form has selected, on the host the plugin is installed on. */
+export interface PluginWorkspaceLocationProject {
+  id: string;
+  name: string;
+  /** The project's checkout directory on that host. */
+  directory: string;
+}
+
+export interface PluginWorkspaceLocationAvailabilityContext {
+  hostId: string;
+  project: PluginWorkspaceLocationProject;
+}
+
+export interface PluginWorkspaceLocationSettingsProps extends PluginHostProps {
+  project: PluginWorkspaceLocationProject;
+  /** The current settings: `defaultValue` until `onChange` is called. */
+  value: unknown;
+  onChange(value: unknown): void;
+  /** True while the workspace is being created. */
+  disabled: boolean;
+}
+
+export interface PluginWorkspaceLocationCreateContext {
+  hostId: string;
+  project: PluginWorkspaceLocationProject;
+  /** The settings as last passed to `onChange`, else `defaultValue`. */
+  settings: unknown;
+  /** Stable for one New workspace draft; a retry of the same draft passes the same key. */
+  idempotencyKey: string;
+  /** The text the user typed. Paseo still sends it to the first agent. */
+  prompt: string;
+  /**
+   * A short random name, such as `brave-otter-12`, stable for one New workspace draft. It is the
+   * slug Paseo gives a new worktree, so a plugin can name its environment the same way, for
+   * example `${project.name}-${slug}`, without asking the user.
+   */
+  slug: string;
+  /**
+   * What the user chose in the branch picker, as New worktree receives it. Null when the picker
+   * is not shown (`usesRef: false`) or the project has no checkout to choose from.
+   */
+  ref: PluginWorkspaceLocationRef | null;
+  /**
+   * The agent the user configured in the composer, so the plugin can start its agent the same
+   * way. Null when the workspace is created without an agent (an empty workspace).
+   */
+  agent: PluginWorkspaceLocationAgent | null;
+}
+
+/** The composer's agent choices for the first agent. */
+export interface PluginWorkspaceLocationAgent {
+  provider: string;
+  model?: string;
+  thinkingOptionId?: string;
+  modeId?: string;
+  featureValues?: Record<string, unknown>;
+}
+
+/** The branch picker's choice. */
+export interface PluginWorkspaceLocationRef {
+  /** `branch-off` starts a new branch from `refName`; `checkout` opens an existing change request. */
+  action: "branch-off" | "checkout";
+  /** The base ref (for example `refs/heads/main`), or a change request's head branch. */
+  refName?: string;
+  /** Set when the user picked a pull or merge request. */
+  changeRequest?: { forge: string; number: number; projectPath?: string };
+}
+
+export interface PluginWorkspaceLocationResult {
+  /** A workspace that exists on the host. */
+  workspaceId: string;
+  /**
+   * An agent the plugin already started in that workspace. Without it, Paseo starts the first
+   * agent there the way it does for a built-in location.
+   */
+  agentId?: string;
+}
+
+/**
+ * An option in the New workspace form's location dropdown, beside Local and New worktree. Picking
+ * it hands workspace creation to the plugin.
+ */
+export interface PluginWorkspaceLocationContribution<Text extends PluginText = string> {
+  id: string;
+  title: Text;
+  icon: PluginIcon;
+  /** Offer the option only for some projects. Default: always. A throw hides it. */
+  isAvailable?(context: PluginWorkspaceLocationAvailabilityContext): boolean;
+  /** Rendered as a field in the form while this option is selected. Optional: name the environment from `slug` instead of asking. */
+  Settings?: ComponentType<PluginWorkspaceLocationSettingsProps>;
+  defaultValue?: unknown;
+  /** Show the branch picker, as New worktree does. Default true; set false when no ref applies. */
+  usesRef?: boolean;
+  /** Runs on this client in place of the built-in creation. Throw to show the user an error. */
+  createWorkspace(
+    context: PluginWorkspaceLocationCreateContext,
+  ): Promise<PluginWorkspaceLocationResult>;
 }
 
 export type PluginClientContribution = (client: PluginClientContext) => PluginCleanup;

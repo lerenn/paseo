@@ -39,6 +39,14 @@ export type {
   PluginAgentCommandContext,
   PluginCommandCenterItemContribution,
   PluginClientSlashCommandContribution,
+  PluginWorkspaceLocationContribution,
+  PluginWorkspaceLocationProject,
+  PluginWorkspaceLocationAvailabilityContext,
+  PluginWorkspaceLocationSettingsProps,
+  PluginWorkspaceLocationCreateContext,
+  PluginWorkspaceLocationRef,
+  PluginWorkspaceLocationAgent,
+  PluginWorkspaceLocationResult,
   SettingsState,
 } from "./contracts.js";
 export type {

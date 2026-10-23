@@ -6,6 +6,11 @@ import type { TerminalProfile } from "@getpaseo/protocol/messages";
 import { Combobox, type ComboboxOption, type ComboboxProps } from "@/components/ui/combobox";
 import { HostStatusDot } from "@/components/host-status-dot";
 import { HostPicker } from "@/components/hosts/host-picker";
+import type { PluginIcon } from "@getpaseo/plugin/client";
+import { DensityIcon } from "@/components/ui/density-icon";
+import { pluginIconComponent, parsePluginIcon } from "@/plugins/icons";
+import type { WorkspaceLocationEntry } from "@/plugins/workspace-locations/model";
+import { WorkspaceLocationSettings } from "@/plugins/workspace-locations/view";
 import type { LaunchTarget } from "@/new-workspace-launch/target";
 import type { HostProjectListItem } from "@/projects/host-projects";
 import type { HostProfile } from "@/types/host-connection";
@@ -56,6 +61,17 @@ export interface NewWorkspaceFormProps {
     effectiveIsolation: Isolation;
     canCreateWorktree: boolean;
     onSelect: (isolation: Isolation) => void;
+  };
+  /** Options plugins add to the isolation dropdown, and the selected one's settings field. */
+  locations: {
+    entries: readonly WorkspaceLocationEntry[];
+    selected: WorkspaceLocationEntry | null;
+    onSelect: (key: string) => void;
+    settings: {
+      project: { id: string; name: string; directory: string };
+      value: unknown;
+      onChange: (value: unknown) => void;
+    } | null;
   };
   base: PickerControl & {
     selectedSourceDirectory: string | null;
@@ -125,29 +141,101 @@ function useProjectPicker(
 
 function useIsolationPicker(
   isolation: NewWorkspaceFormProps["isolation"],
+  locations: NewWorkspaceFormProps["locations"],
   isPending: boolean,
 ): { options: ComboboxOption[]; onSelect: (id: string) => void; renderOption: RenderOption } {
   const { t } = useTranslation();
   const { canCreateWorktree, onSelect, onOpenChange } = isolation;
+  const { entries, onSelect: onSelectLocation } = locations;
   // "New worktree" is omitted entirely (not disabled) when the project isn't a
   // git checkout, since worktree isolation is impossible there.
+  const entryByKey = useMemo(() => new Map(entries.map((entry) => [entry.key, entry])), [entries]);
   const options = useMemo<ComboboxOption[]>(() => {
     const local = { id: "local", label: t("newWorkspace.isolation.local") };
-    if (!canCreateWorktree) return [local];
-    return [local, { id: "worktree", label: t("newWorkspace.isolation.worktree") }];
-  }, [canCreateWorktree, t]);
+    const builtIn = canCreateWorktree
+      ? [local, { id: "worktree", label: t("newWorkspace.isolation.worktree") }]
+      : [local];
+    const plugin = entries.map((entry) => ({
+      id: entry.key,
+      label: entry.installation.i18n.resolve(entry.location.title, entry.installation.locale),
+    }));
+    return [...builtIn, ...plugin];
+  }, [canCreateWorktree, entries, t]);
   const handleSelect = useCallback(
     (id: string) => {
-      onSelect(id === "worktree" ? "worktree" : "local");
+      if (entryByKey.has(id)) onSelectLocation(id);
+      else onSelect(id === "worktree" ? "worktree" : "local");
       onOpenChange(false);
     },
-    [onOpenChange, onSelect],
+    [entryByKey, onOpenChange, onSelect, onSelectLocation],
   );
   const renderOption = useCallback<RenderOption>(
-    (row) => <IsolationOption {...row} disabled={isPending} />,
-    [isPending],
+    (row) => (
+      <IsolationOption
+        {...row}
+        icon={locationIconById(entryByKey, row.option.id)}
+        disabled={isPending}
+      />
+    ),
+    [entryByKey, isPending],
   );
   return { options, onSelect: handleSelect, renderOption };
+}
+
+function locationIconById(
+  entryByKey: ReadonlyMap<string, WorkspaceLocationEntry>,
+  id: string,
+): ReactElement | undefined {
+  const entry = entryByKey.get(id);
+  if (!entry) return undefined;
+  return <LocationIcon icon={entry.location.icon} />;
+}
+
+function LocationIcon({ icon }: { icon: PluginIcon }): ReactElement {
+  const component = pluginIconComponent(parsePluginIcon("Workspace location", icon));
+  return <DensityIcon icon={component} size="sm" color="foregroundMuted" />;
+}
+
+function LocationSettingsField({
+  locations,
+  disabled,
+}: {
+  locations: NewWorkspaceFormProps["locations"];
+  disabled: boolean;
+}): ReactElement | null {
+  const { selected, settings } = locations;
+  if (!selected || !settings) return null;
+  return (
+    <WorkspaceLocationSettings
+      entry={selected}
+      project={settings.project}
+      value={settings.value}
+      onChange={settings.onChange}
+      disabled={disabled}
+    />
+  );
+}
+
+function describeIsolation(input: {
+  selectedLocation: WorkspaceLocationEntry | null;
+  isWorktree: boolean;
+  worktreeLabel: string;
+  localLabel: string;
+}): { value: string; icon: ReactElement } {
+  const { selectedLocation, isWorktree } = input;
+  if (selectedLocation) {
+    return {
+      value: selectedLocation.installation.i18n.resolve(
+        selectedLocation.location.title,
+        selectedLocation.installation.locale,
+      ),
+      icon: <LocationIcon icon={selectedLocation.location.icon} />,
+    };
+  }
+  return {
+    value: isWorktree ? input.worktreeLabel : input.localLabel,
+    icon: isWorktree ? branchIcon : folderIcon,
+  };
 }
 
 function useRefRenderOption(itemById: Map<string, PickerItem>, isPending: boolean): RenderOption {
@@ -165,10 +253,10 @@ function useRefRenderOption(itemById: Map<string, PickerItem>, isPending: boolea
  */
 export function useNewWorkspaceForm(props: NewWorkspaceFormProps): ReactElement {
   const { t } = useTranslation();
-  const { isCompact, isPending, project, host, isolation, base, launch } = props;
+  const { isCompact, isPending, project, host, isolation, locations, base, launch } = props;
   const variant: FieldTriggerVariant = isCompact ? "field" : "badge";
   const projectPicker = useProjectPicker(project, isPending);
-  const isolationPicker = useIsolationPicker(isolation, isPending);
+  const isolationPicker = useIsolationPicker(isolation, locations, isPending);
   const renderRefOption = useRefRenderOption(base.itemById, isPending);
 
   const selectedHostLabel =
@@ -195,9 +283,13 @@ export function useNewWorkspaceForm(props: NewWorkspaceFormProps): ReactElement 
     [host.selectedServerId],
   );
   const isWorktree = isolation.effectiveIsolation === "worktree";
-  const isolationValue = isWorktree
-    ? t("newWorkspace.isolation.worktree")
-    : t("newWorkspace.isolation.local");
+  const selectedLocation = locations.selected;
+  const { value: isolationValue, icon: isolationIcon } = describeIsolation({
+    selectedLocation,
+    isWorktree,
+    worktreeLabel: t("newWorkspace.isolation.worktree"),
+    localLabel: t("newWorkspace.isolation.local"),
+  });
   const refIcon = base.selectedItem?.kind === "github-pr" ? pullRequestIcon : branchIcon;
 
   const projectField = (
@@ -244,20 +336,21 @@ export function useNewWorkspaceForm(props: NewWorkspaceFormProps): ReactElement 
       />
     </HostPicker>
   );
-  const isolationField = isolation.canCreateWorktree ? (
-    <FieldTrigger
-      ref={isolation.anchorRef}
-      variant={variant}
-      label={t("newWorkspace.isolation.label")}
-      accessibilityLabel="Workspace isolation"
-      tooltip={t("newWorkspace.tooltips.isolation")}
-      icon={isWorktree ? branchIcon : folderIcon}
-      value={isolationValue}
-      onPress={isolation.open}
-      disabled={isPending}
-      testID="workspace-create-isolation-trigger"
-    />
-  ) : null;
+  const isolationField =
+    isolation.canCreateWorktree || locations.entries.length > 0 ? (
+      <FieldTrigger
+        ref={isolation.anchorRef}
+        variant={variant}
+        label={t("newWorkspace.isolation.label")}
+        accessibilityLabel="Workspace isolation"
+        tooltip={t("newWorkspace.tooltips.isolation")}
+        icon={isolationIcon}
+        value={isolationValue}
+        onPress={isolation.open}
+        disabled={isPending}
+        testID="workspace-create-isolation-trigger"
+      />
+    ) : null;
   const baseField = base.showRefPicker ? (
     <FieldTrigger
       ref={base.anchorRef}
@@ -272,6 +365,7 @@ export function useNewWorkspaceForm(props: NewWorkspaceFormProps): ReactElement 
       testID="new-workspace-ref-picker-trigger"
     />
   ) : null;
+  const settingsField = <LocationSettingsField locations={locations} disabled={isPending} />;
   const launchField = (
     <LaunchControl
       variant={variant}
@@ -303,7 +397,7 @@ export function useNewWorkspaceForm(props: NewWorkspaceFormProps): ReactElement 
       />
       <Combobox
         options={isolationPicker.options}
-        value={isolation.effectiveIsolation}
+        value={selectedLocation ? selectedLocation.key : isolation.effectiveIsolation}
         onSelect={isolationPicker.onSelect}
         title={t("newWorkspace.isolation.label")}
         open={isolation.openState}
@@ -337,6 +431,7 @@ export function useNewWorkspaceForm(props: NewWorkspaceFormProps): ReactElement 
         {hostField}
         {isolationField}
         {baseField}
+        {settingsField}
         {launchField}
         {/* Isolation and Base come and go with the project; their rows stay reserved so the
             stack keeps one height and nothing above the composer jumps. */}
@@ -353,6 +448,7 @@ export function useNewWorkspaceForm(props: NewWorkspaceFormProps): ReactElement 
       <View style={styles.desktopControl}>{hostField}</View>
       {isolationField ? <View style={styles.desktopControl}>{isolationField}</View> : null}
       {baseField ? <View style={styles.desktopControl}>{baseField}</View> : null}
+      <View style={styles.desktopControl}>{settingsField}</View>
       <View style={styles.launchSpacer} pointerEvents="none" />
       {launchField}
       {pickers}
