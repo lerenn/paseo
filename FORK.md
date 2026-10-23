@@ -19,8 +19,8 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   (`slug` is the worktree slug, `ref` the branch picker's choice, `agent` the composer's agent
   settings) and returns `{ workspaceId, agentId? }`. Reference: `public-docs/plugins/reference.md`,
   section "New workspace locations".
-- **Fork PRs:** #4 (`b10be7b16`), #6 (`d8ffef51e`, branch picker and slug), #8 (composer agent
-  settings; add the merge commit here when it lands).
+- **Fork PRs:** #4 (`b10be7b16`), #6 (`d8ffef51e`, branch picker and slug), #8 (`9f240d678`,
+  composer agent settings).
 - **Upstream branch:** `lerenn:workspace-location-options-upstream` (one squashed commit on
   upstream main; rebuild it from the fork PRs above after each change).
 - **Upstream Discussion / PR:** drafts only, not posted (drafts live in the agent session that
