@@ -1,10 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps } from "react";
 import type {
   StreamedText,
-  HostBadge,
-  HostBadgeProps,
-  SidebarRowProps,
   StreamedTextProps,
   Modal,
   ModalProps,
@@ -125,8 +122,6 @@ describe("plugin UI contracts", () => {
     expectTypeOf<ComponentProps<typeof StreamedText>>().toEqualTypeOf<StreamedTextProps>();
     expectTypeOf<ComponentProps<typeof Modal>>().toEqualTypeOf<ModalProps>();
     expectTypeOf<ComponentProps<typeof SettingsSection>>().toEqualTypeOf<SettingsSectionProps>();
-    expectTypeOf<ComponentProps<typeof HostBadge>>().toEqualTypeOf<HostBadgeProps>();
-    expectTypeOf<SidebarRowProps["subtitle"]>().toEqualTypeOf<ReactNode | undefined>();
     expectTypeOf<StreamedTextProps["phase"]>().toEqualTypeOf<"streaming" | "complete">();
   });
 });

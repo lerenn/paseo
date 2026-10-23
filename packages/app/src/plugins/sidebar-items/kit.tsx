@@ -12,15 +12,7 @@ import { useSidebarItemFrame } from "./frame";
  * makes that row the popover anchor: the capture-phase responder check runs before the pressed
  * child claims the touch (native and web), and returns false so the child still handles it.
  */
-export function SidebarRow({
-  id,
-  icon,
-  label,
-  onPress,
-  active,
-  subtitle,
-  trailing,
-}: SidebarRowProps) {
+export function SidebarRow({ id, icon, label, onPress, active, trailing }: SidebarRowProps) {
   const frame = useSidebarItemFrame("SidebarRow");
   const { anchorTo, offerAnchor, releaseAnchor } = frame;
   const rowRef = useRef<View | null>(null);
@@ -50,7 +42,6 @@ export function SidebarRow({
         label={label ?? frame.title}
         onPress={handlePress}
         isActive={active}
-        subtitle={subtitle}
         trailing={trailing}
         testID={id ? `${frame.testID}-${id}` : frame.testID}
         variant={frame.section === "footer" ? "inline" : "compact"}
