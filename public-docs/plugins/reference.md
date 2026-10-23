@@ -2662,6 +2662,23 @@ plugin's status as the reload's outcome: while the reload is queued, `plugin ls`
 logs show the plugin's previous state, and while the daemon stops and starts it, a status read
 reports `failed` because the plugin is absent from the runtime catalog until its start completes.
 
+## New workspace locations
+
+`client.addWorkspaceLocation({ id, title, icon, createWorkspace, isAvailable?, Settings?, defaultValue? })`
+adds an option beside Local and New worktree in the New workspace form's location dropdown.
+
+| Field             | Meaning                                                                                                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`, `title`     | Lowercase id, unique in the plugin; the label shown in the dropdown.                                                                                                           |
+| `icon`            | Any [icon](#icons) form.                                                                                                                                                       |
+| `isAvailable`     | `({ hostId, project }) => boolean`. Hides the option for projects it rejects. A throw hides it.                                                                                |
+| `Settings`        | Component rendered as a field while the option is selected. Props: `theme`, `host`, `layout`, `project`, `value`, `onChange`, `disabled`.                                      |
+| `defaultValue`    | The settings value until `onChange` is called.                                                                                                                                 |
+| `createWorkspace` | `({ hostId, project, settings, idempotencyKey, prompt }) => Promise<{ workspaceId, agentId? }>`. Runs on the client in place of the built-in creation. Throw to show an error. |
+
+`project` is `{ id, name, directory }`. Without `agentId`, Paseo starts the first agent in the
+returned workspace. The user's last choice is remembered; `Settings` values are not.
+
 ## Plugin sources
 
 Paste one of these source identifiers into **Settings → Plugins**, or pass it to
@@ -2854,20 +2871,3 @@ Use `paseo plugin ls` to read the current status and error.
 | Edited code does not appear                                           | Run `npm run typecheck`, then `paseo plugin reload <id>`.                                                                                          |
 | Reload fails                                                          | Read `paseo plugin ls` and `paseo plugin logs <id>`, fix the source error, then reload; Paseo does not restore the previous bundle.                |
 | Plugin exits unexpectedly                                             | Read `paseo plugin logs <id>` for retained initialization, cleanup, stderr, and final crash output.                                                |
-
-## New workspace locations
-
-`client.addWorkspaceLocation({ id, title, icon, createWorkspace, isAvailable?, Settings?, defaultValue? })`
-adds an option beside Local and New worktree in the New workspace form's location dropdown.
-
-| Field             | Meaning                                                                                                                                                                        |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `id`, `title`     | Lowercase id, unique in the plugin; the label shown in the dropdown.                                                                                                           |
-| `icon`            | Any [icon](#icons) form.                                                                                                                                                       |
-| `isAvailable`     | `({ hostId, project }) => boolean`. Hides the option for projects it rejects. A throw hides it.                                                                                |
-| `Settings`        | Component rendered as a field while the option is selected. Props: `theme`, `host`, `layout`, `project`, `value`, `onChange`, `disabled`.                                      |
-| `defaultValue`    | The settings value until `onChange` is called.                                                                                                                                 |
-| `createWorkspace` | `({ hostId, project, settings, idempotencyKey, prompt }) => Promise<{ workspaceId, agentId? }>`. Runs on the client in place of the built-in creation. Throw to show an error. |
-
-`project` is `{ id, name, directory }`. Without `agentId`, Paseo starts the first agent in the
-returned workspace. The user's last choice is remembered; `Settings` values are not.
