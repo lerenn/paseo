@@ -92,7 +92,12 @@ export function IsolationOption({
   active,
   onPress,
   disabled,
-}: OptionRowState & { disabled: boolean }): ReactElement {
+  icon,
+}: OptionRowState & { disabled: boolean; icon?: ReactElement }): ReactElement {
+  const leadingSlot = useMemo(() => {
+    if (icon) return <IconBox>{icon}</IconBox>;
+    return option.id === "worktree" ? worktreeLeading : localLeading;
+  }, [icon, option.id]);
   return (
     <ComboboxItem
       testID={`workspace-create-isolation-${option.id}`}
@@ -101,7 +106,7 @@ export function IsolationOption({
       active={active}
       disabled={disabled}
       onPress={onPress}
-      leadingSlot={option.id === "worktree" ? worktreeLeading : localLeading}
+      leadingSlot={leadingSlot}
     />
   );
 }

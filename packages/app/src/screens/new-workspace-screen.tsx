@@ -60,6 +60,8 @@ import {
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
 import type { KeyboardActionId } from "@/keyboard/keyboard-action-dispatcher";
 import { useFormPreferences } from "@/hooks/use-form-preferences";
+import { createWorkspaceThroughPlugin } from "@/plugins/workspace-locations/create";
+import { useWorkspaceLocationSelection } from "@/plugins/workspace-locations/use-selection";
 import type { CreateAgentInitialValues } from "@/hooks/use-agent-form-state";
 import { toErrorMessage } from "@/utils/error-messages";
 import { buildSettingsAddHostRoute } from "@/utils/host-routes";
@@ -209,7 +211,7 @@ function useWorkspaceIsolation(input: {
   const setIsolation = useCallback(
     (value: "local" | "worktree") => {
       setManualIsolation(value);
-      void updatePreferences({ isolation: value });
+      void updatePreferences({ isolation: value, workspaceLocation: "" });
     },
     [updatePreferences],
   );
@@ -1044,6 +1046,32 @@ export function NewWorkspaceScreen({
       worktreeSupport,
     });
 
+  const pluginLocationProject = useMemo(() => {
+    const hostProjectId = selectedProject
+      ? getHostProjectId(selectedProject, selectedServerId)
+      : null;
+    if (!selectedProject || !hostProjectId || !selectedSourceDirectory) return null;
+    return {
+      id: hostProjectId,
+      name: selectedProject.projectName,
+      directory: selectedSourceDirectory,
+    };
+  }, [selectedProject, selectedServerId, selectedSourceDirectory]);
+  const location = useWorkspaceLocationSelection({
+    serverId: selectedServerId,
+    project: pluginLocationProject,
+  });
+  const selectedLocation = location.selected;
+  const selectedLocationSettings = location.settings;
+  const { clear: clearLocation } = location;
+  const handleSelectBuiltInIsolation = useCallback(
+    (value: "local" | "worktree") => {
+      clearLocation();
+      setIsolation(value);
+    },
+    [clearLocation, setIsolation],
+  );
+
   const branchSuggestionsQuery = useQuery({
     queryKey: [
       "branch-suggestions",
@@ -1236,6 +1264,37 @@ export function NewWorkspaceScreen({
         throw new Error("Choose a host for this project");
       }
       const connectedClient = withConnectedClient();
+      if (selectedLocation && pluginLocationProject) {
+        const created = await createWorkspaceThroughPlugin({
+          entry: selectedLocation,
+          client: connectedClient,
+          serverId: selectedServerId,
+          project: pluginLocationProject,
+          settings: selectedLocationSettings,
+          idempotencyKey: creationIdentity.draftId,
+          prompt: input.prompt,
+          withInitialAgent: input.withInitialAgent,
+          agent: input.agent,
+          onWorkspace: (descriptor) =>
+            input.onEvent?.({
+              kind: "workspace",
+              idempotencyKey: creationIdentity.draftId,
+              revision: 0,
+              phase: "workspace_ready",
+              workspaceId: descriptor.id,
+              agentId: null,
+              workspace: descriptor,
+              error: null,
+            }),
+        });
+        mergeWorkspaces(selectedServerId, [
+          input.withInitialAgent
+            ? { ...created.workspace, status: "running", statusEnteredAt: new Date() }
+            : created.workspace,
+        ]);
+        setCreationResult(created);
+        return created;
+      }
       const createsWorktree = !supportsWorkspaceMultiplicity || effectiveIsolation === "worktree";
       const checkoutStatusForCreate = createsWorktree
         ? await ensureCheckoutStatus({
@@ -1275,6 +1334,9 @@ export function NewWorkspaceScreen({
       creationResult,
       effectiveIsolation,
       mergeWorkspaces,
+      pluginLocationProject,
+      selectedLocation,
+      selectedLocationSettings,
       queryClient,
       selectedItem,
       selectedProject,
@@ -1493,8 +1555,9 @@ export function NewWorkspaceScreen({
       onOpenChange: handleIsolationPickerOpenChange,
       effectiveIsolation,
       canCreateWorktree,
-      onSelect: setIsolation,
+      onSelect: handleSelectBuiltInIsolation,
     },
+    locations: location.formProps,
     base: {
       anchorRef: pickerAnchorRef,
       open: openPicker,
@@ -1509,7 +1572,7 @@ export function NewWorkspaceScreen({
       onSelect: handleSelectOption,
       setSearchQuery: setPickerSearchQuery,
       emptyText: pickerEmptyText,
-      showRefPicker,
+      showRefPicker: location.allowsRefPicker(showRefPicker),
     },
     launch: {
       serverId: selectedServerId,

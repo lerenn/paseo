@@ -40,6 +40,7 @@ function installation(
     commandCenterItems: [],
     clientSlashCommands: [],
     attachmentSources: [],
+    workspaceLocations: [],
     themes: [],
     timelineTransformers: [],
     timelineRenderers: [],

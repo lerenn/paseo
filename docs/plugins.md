@@ -549,6 +549,12 @@ one section's order from built-ins, plugin groups, and the section's preference
   anchors to its section container.
 - `SidebarSeparator` reuses the app's separator and cancels the footer's horizontal padding, so
   the line runs edge to edge in both sections.
+- `addWorkspaceLocation` adds an option to the New workspace form's Local / New worktree dropdown.
+  The app picks options from plugins installed on the selected host (`plugins/workspace-locations`).
+  `createWorkspace` runs on the client in place of `client.createWorkspace`; the app then reads the
+  returned workspace back from `fetchWorkspaces` and, unless the plugin returned an `agentId`,
+  starts the first agent in it. The remembered choice is `FormPreferences.workspaceLocation`;
+  `Settings` values are kept in memory only.
 - `SidebarRow.trailing` sits in a second `Pressable` beside the row's button, since web cannot nest
   buttons. Its `onPress` is the row's, so a press on non-interactive trailing content presses the
   row; a button inside it wins its own press because only the innermost pressable responds.
