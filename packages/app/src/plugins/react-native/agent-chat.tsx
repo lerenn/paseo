@@ -1,5 +1,5 @@
 import type { AgentChatProps } from "@getpaseo/plugin/client/ui";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { WorkspaceComposerEditingSessionsProvider } from "@/composer/editing-session";
@@ -29,6 +29,9 @@ export function AgentChat({ agentId, workspaceId }: AgentChatProps) {
     );
   });
   const resolvedWorkspaceId = workspaceId ?? agentWorkspaceId;
+  const viewedTimelineSync = useSessionStore(
+    (state) => state.sessions[serverId]?.viewedTimelineSync ?? null,
+  );
   const tabId = `plugin-agent-chat:${agentId}`;
   const value = useMemo<PaneContextValue | null>(
     () =>
@@ -51,6 +54,13 @@ export function AgentChat({ agentId, workspaceId }: AgentChatProps) {
     [agentId, resolvedWorkspaceId, serverId, tabId],
   );
   const tabIds = useMemo(() => [tabId], [tabId]);
+
+  // A workspace screen tells the timeline sync which chats are on screen; this chat has no tab.
+  useEffect(() => {
+    if (!viewedTimelineSync) return;
+    viewedTimelineSync.replaceVisibleAgentIds(tabId, [agentId]);
+    return () => viewedTimelineSync.replaceVisibleAgentIds(tabId, []);
+  }, [agentId, tabId, viewedTimelineSync]);
 
   if (!value) {
     return (
