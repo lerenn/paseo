@@ -65,6 +65,7 @@ jobs:
           publish=false
           publish_latest=false
           prerelease=false
+          extra_tags=""
 
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             install_version="${REF_NAME#v}"
@@ -74,6 +75,11 @@ jobs:
             else
               publish_latest=true
             fi
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main" && "${owner}" != "getpaseo" ]]; then
+            # Forks publish every main build under moving and immutable-by-sha tags.
+            # The version tag stays reserved for release tags.
+            publish=true
+            extra_tags="${image}:main"$'\n'"${image}:sha-${GITHUB_SHA}"
           elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             if [[ "${INPUT_PUBLISH:-false}" == "true" ]]; then
               if [[ -z "${INPUT_PASEO_VERSION}" || "${INPUT_PASEO_VERSION}" == "latest" ]]; then
@@ -94,6 +100,9 @@ jobs:
 
           check_tag="${image}:check-${GITHUB_SHA::12}"
           publish_tags="${image}:${install_version}"
+          if [[ -n "${extra_tags}" ]]; then
+            publish_tags="${extra_tags}"
+          fi
           if [[ "${publish_latest}" == "true" ]]; then
             publish_tags="${publish_tags}"$'\n'"${image}:latest"
           fi
@@ -163,6 +172,9 @@ jobs:
           build-args: |
             PASEO_VERSION=${{ needs.setup.outputs.install_version }}
           tags: ${{ needs.setup.outputs.publish_tags }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
           push: true
           provenance: false
           cache-from: type=gha,scope=paseo
