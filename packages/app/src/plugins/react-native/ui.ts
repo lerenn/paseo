@@ -12,6 +12,8 @@ export { ExternalLink } from "@/components/ui/external-link";
 
 export { SidebarRow, SidebarSeparator } from "@/plugins/sidebar-items/kit";
 
+export { HostBadge } from "./host-badge";
+
 export { DocumentFrame } from "@/file-panels/document-frame";
 
 export { FilePanelLoading as Loading } from "@/file-panels/loading";
