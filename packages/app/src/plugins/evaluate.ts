@@ -27,6 +27,7 @@ import type {
   EvaluatedPlugin,
   PluginSidebarSection,
   PluginAttachmentSourceContribution,
+  PluginWorkspaceLocationContribution,
   PluginThemeContribution,
   PluginCommandCenterItemContribution,
   PluginClientSlashCommandContribution,
@@ -128,6 +129,7 @@ export function runPluginClientBundle(
     commandCenterItems: [],
     clientSlashCommands: [],
     attachmentSources: [],
+    workspaceLocations: [],
     themes: [],
     timelineTransformers: [],
     timelineRenderers: [],
@@ -143,6 +145,7 @@ export function runPluginClientBundle(
   const commandCenterItemIds = new Set<string>();
   const clientSlashCommandNames = new Set<string>();
   const attachmentSourceIds = new Set<string>();
+  const workspaceLocationIds = new Set<string>();
   const themeIds = new Set<string>();
   const timelineTransformerIds = new Set<string>();
   const timelineRendererIds = new Set<string>();
@@ -397,6 +400,33 @@ export function runPluginClientBundle(
         () => clientSlashCommandNames.delete(name),
       );
     },
+    addWorkspaceLocation(contribution: PluginWorkspaceLocationContribution) {
+      const normalizedId = requireId(contribution.id, "workspace location id");
+      if (workspaceLocationIds.has(normalizedId)) {
+        throw new Error(`Duplicate workspace location: ${normalizedId}`);
+      }
+      const title = normalizePluginText(contribution.title);
+      if (!title) throw new Error(`Workspace location ${normalizedId} has no title`);
+      const icon = parsePluginIcon(`Workspace location ${normalizedId}`, contribution.icon);
+      if (typeof contribution.createWorkspace !== "function") {
+        throw new Error(`Workspace location ${normalizedId} has no createWorkspace callback`);
+      }
+      if (
+        contribution.isAvailable !== undefined &&
+        typeof contribution.isAvailable !== "function"
+      ) {
+        throw new Error(`Workspace location ${normalizedId} has an invalid isAvailable`);
+      }
+      if (contribution.Settings !== undefined && !isComponentType(contribution.Settings)) {
+        throw new Error(`Workspace location ${normalizedId} Settings is not a component`);
+      }
+      workspaceLocationIds.add(normalizedId);
+      return register(
+        collector.workspaceLocations,
+        { ...contribution, id: normalizedId, title, icon },
+        () => workspaceLocationIds.delete(normalizedId),
+      );
+    },
     addAttachmentSource(contribution: PluginAttachmentSourceContribution) {
       const normalizedId = requireId(contribution.id, "attachment source id");
       if (attachmentSourceIds.has(normalizedId)) {
@@ -573,6 +603,7 @@ export function runPluginClientBundle(
     commandCenterItems: collector.commandCenterItems,
     clientSlashCommands: collector.clientSlashCommands,
     attachmentSources: collector.attachmentSources,
+    workspaceLocations: collector.workspaceLocations,
     themes: collector.themes,
     timelineTransformers: collector.timelineTransformers,
     timelineRenderers: collector.timelineRenderers,
