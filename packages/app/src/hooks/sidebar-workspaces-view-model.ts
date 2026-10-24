@@ -40,6 +40,7 @@ export interface SidebarStatusWorkspacePlacement extends SidebarWorkspacePlaceme
 
 export interface SidebarWorkspaceEntry extends SidebarStatusWorkspacePlacement {
   workspaceDirectory: string;
+  runtimeId?: string;
   workspaceDirectoryLabel: string;
   // Raw user-set title (null when the name is derived from branch/directory).
   // Prefills the rename input and signals whether a reset is available.
@@ -171,6 +172,7 @@ export function createSidebarWorkspaceEntry(input: {
     statusBucket: effectiveStatus.status,
     statusEnteredAt: effectiveStatus.enteredAt,
     archivingAt: input.workspace.archivingAt,
+    runtimeId: input.workspace.runtimeId,
     diffStat: input.workspace.diffStat,
     prHint: selectPrHintFromStatus(
       input.workspace.githubRuntime?.pullRequest,

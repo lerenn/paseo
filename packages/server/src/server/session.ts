@@ -2512,7 +2512,25 @@ export class Session {
     }
   }
 
+  private dispatchWorkspaceRuntimeMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    if (msg.type === "workspace.runtimes.list.request") {
+      this.emit({
+        type: "workspace.runtimes.list.response",
+        payload: {
+          requestId: msg.requestId,
+          runtimes: this.pluginRuntime?.workspaceRuntimes?.list() ?? [],
+        },
+      });
+      return undefined;
+    }
+    return undefined;
+  }
+
   private dispatchPluginMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    return this.dispatchPluginRpcMessage(msg) ?? this.dispatchWorkspaceRuntimeMessage(msg);
+  }
+
+  private dispatchPluginRpcMessage(msg: SessionInboundMessage): Promise<void> | undefined {
     if (msg.type === "plugin.list.request") {
       return (this.pluginRuntime?.listPlugins() ?? Promise.resolve([])).then((plugins) => {
         this.emit({

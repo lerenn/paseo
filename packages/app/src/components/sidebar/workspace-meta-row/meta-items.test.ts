@@ -143,3 +143,19 @@ describe("selectMetaRowItems", () => {
     expect(kinds(items)).toEqual(["host", "changeRequest", "services", "labels"]);
   });
 });
+
+describe("runtime item", () => {
+  it("follows the host and shows even when no host badge does", () => {
+    expect(kinds(select({ runtimeId: "pod" }))).toContain("runtime");
+    const items = select({ runtimeId: "pod" });
+    expect(items.findIndex((item) => item.kind === "runtime")).toBe(
+      items.findIndex((item) => item.kind === "host") + 1,
+    );
+    expect(kinds(select({ runtimeId: "pod", hasHostBadge: false }))).toContain("runtime");
+  });
+
+  it("draws nothing for a workspace on the daemon host", () => {
+    expect(kinds(select({ runtimeId: undefined }))).not.toContain("runtime");
+    expect(kinds(select({ runtimeId: null }))).not.toContain("runtime");
+  });
+});
