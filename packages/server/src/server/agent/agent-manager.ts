@@ -90,6 +90,17 @@ import {
   type ProviderSubagentDescriptor,
   type ProviderSubagentStoreEvent,
 } from "./provider-subagents/store.js";
+import type { JsonValue } from "@getpaseo/protocol/agent-types";
+import type { WorkspaceRuntimeActivity, WorkspaceRuntimeOptions } from "@getpaseo/plugin/server";
+import {
+  createRuntimeProcessLauncher,
+  type ProviderProcessLauncher,
+} from "../workspace-runtime/process-launcher.js";
+import type { WorkspaceRuntimeRegistry } from "../workspace-runtime/registry.js";
+import {
+  RemoteLaunchUnsupportedError,
+  type WorkspaceRuntimeBackend,
+} from "../workspace-runtime/types.js";
 import { withTimeout } from "../../utils/promise-timeout.js";
 import { extractAttention } from "../persistence-hooks.js";
 
@@ -317,8 +328,34 @@ export interface CreateAgentOptions {
   owner?: AgentOwner;
 }
 
+/** How the manager reaches the workspace runtime a workspace selected. */
+export interface AgentManagerWorkspaceRuntimes {
+  registry: WorkspaceRuntimeRegistry;
+  getWorkspaceRuntime(
+    workspaceId: string,
+  ): Promise<{ id: string; options?: WorkspaceRuntimeOptions } | null>;
+}
+
+function runtimeActivityForEvent(event: AgentStreamEvent): WorkspaceRuntimeActivity | null {
+  switch (event.type) {
+    case "turn_started":
+      return "turn_started";
+    case "turn_completed":
+    case "turn_failed":
+    case "turn_canceled":
+      return "turn_ended";
+    case "permission_requested":
+      return "permission_requested";
+    case "permission_resolved":
+      return "permission_resolved";
+    default:
+      return null;
+  }
+}
+
 export interface AgentManagerOptions {
   pluginLifecycle?: PluginLifecycle;
+  workspaceRuntimes?: AgentManagerWorkspaceRuntimes;
   /** An internal workspace makes every agent created inside it internal. */
   clients?: ProviderClientMap;
   providerDefinitions?: ProviderEnabledMap;
@@ -763,6 +800,11 @@ export class AgentManager {
   private mcpBaseUrl: string | null;
   private readonly mcpAuthToken: string | null;
   private paseoToolsEnabled = true;
+  private workspaceRuntimes: AgentManagerWorkspaceRuntimes | null = null;
+  private readonly launcherMcpServers = new WeakMap<
+    AgentLaunchContext,
+    Record<string, JsonValue> | undefined
+  >();
   private paseoToolCatalogFactory: PaseoToolCatalogFactory | null = null;
   private readonly paseoToolPolicies = new Map<string, ProviderPaseoToolsPolicy | undefined>();
   private readonly resolvePaseoToolPolicy: (
@@ -779,6 +821,7 @@ export class AgentManager {
 
   constructor(options: AgentManagerOptions) {
     this.pluginLifecycle = options.pluginLifecycle;
+    this.configureWorkspaceRuntimes(options);
     this.timelineStore = options.timelineStore ?? new InMemoryAgentTimelineStore();
     this.idFactory = options.idFactory ?? (() => randomUUID());
     this.registry = options?.registry;
@@ -810,6 +853,10 @@ export class AgentManager {
       providerDefinitions: options.providerDefinitions ?? {},
       clients: options.clients ?? {},
     });
+  }
+
+  private configureWorkspaceRuntimes(options: AgentManagerOptions): void {
+    this.workspaceRuntimes = options.workspaceRuntimes ?? null;
   }
 
   private configurePaseoTools(options: AgentManagerOptions): void {
@@ -2628,6 +2675,11 @@ export class AgentManager {
     const streamForwarder = async function* streamForwarder(this: AgentManager) {
       let turnId: string;
       let turnStream: ReturnType<AgentRunState["createTurnStream"]> | null = null;
+      // A suspended workspace runtime resumes before the prompt reaches the provider.
+      if (this.workspaceRuntimes) {
+        await this.awaitRuntimeBeforeInput(agentId);
+        this.signalRuntimeActivity(agentId, "input");
+      }
       turnId = await this.startPendingForegroundTurn({
         agent,
         agentId,
@@ -3101,6 +3153,10 @@ export class AgentManager {
     agent.inFlightPermissionResponses.add(requestId);
 
     try {
+      if (this.workspaceRuntimes) {
+        await this.awaitRuntimeBeforeInput(agentId);
+        this.signalRuntimeActivity(agentId, "input");
+      }
       const result = await agent.session.respondToPermission(requestId, response);
       agent.pendingPermissions.delete(requestId);
 
@@ -4296,6 +4352,10 @@ export class AgentManager {
     const eventTurnId = identified.turnId;
     const isForegroundEvent = agent.activeForegroundTurnId === eventTurnId;
     this.traceHandleStreamEventStart(agent, event, eventTurnId, isForegroundEvent);
+    if (!options?.fromHistory) {
+      const activity = runtimeActivityForEvent(event);
+      if (activity) this.signalRuntimeActivity(agent.id, activity);
+    }
     if (
       eventTurnId &&
       isTurnTerminalEvent(event) &&
@@ -5367,6 +5427,13 @@ export class AgentManager {
         paseoToolPolicy,
       });
     }
+    const launcher = await this.resolveProcessLauncher({
+      agentId,
+      client,
+      workspaceId: opening?.workspaceId ?? null,
+      getMcpServers: () => this.launcherMcpServers.get(context),
+    });
+    if (launcher) context.processLauncher = launcher;
     return context;
   }
 
@@ -5374,7 +5441,82 @@ export class AgentManager {
     launchConfig: AgentSessionConfig,
     launchContext: AgentLaunchContext,
   ): AgentSessionConfig {
-    return launchContext.paseoTools ? stripInternalPaseoMcpServer(launchConfig) : launchConfig;
+    const resolved = launchContext.paseoTools
+      ? stripInternalPaseoMcpServer(launchConfig)
+      : launchConfig;
+    this.launcherMcpServers.set(
+      launchContext,
+      resolved.mcpServers as Record<string, JsonValue> | undefined,
+    );
+    return resolved;
+  }
+
+  /**
+   * The launcher for an agent in a runtime workspace, or null on the daemon host. A workspace
+   * that names a runtime never falls back to the host, and a provider that cannot launch
+   * remotely is refused rather than run on the host.
+   */
+  private async resolveProcessLauncher(input: {
+    agentId: string;
+    client: AgentClient;
+    workspaceId: string | null;
+    getMcpServers: () => Record<string, JsonValue> | undefined;
+  }): Promise<ProviderProcessLauncher | null> {
+    if (!input.workspaceId || !this.workspaceRuntimes) return null;
+    const selected = await this.workspaceRuntimes.getWorkspaceRuntime(input.workspaceId);
+    if (!selected) return null;
+    const backend = this.workspaceRuntimes.registry.require(selected.id);
+    if (!input.client.capabilities.supportsRemoteLaunch) {
+      throw new RemoteLaunchUnsupportedError(input.client.provider, selected.id);
+    }
+    const { agentId, workspaceId } = input;
+    return createRuntimeProcessLauncher({
+      backend,
+      workspaceId,
+      runtimeOptions: selected.options,
+      agentId,
+      provider: input.client.provider,
+      mcpServers: input.getMcpServers,
+      onNotice: (notice) => {
+        if (!this.getAgent(agentId)) return;
+        this.recordAndDispatchTimelineItem(
+          agentId,
+          { type: "notification", level: notice.level, message: notice.message },
+          input.client.provider,
+        );
+      },
+    });
+  }
+
+  /** Runs the workspace runtime's hook for an agent, if its workspace has one. */
+  private async withAgentRuntime<T>(
+    agentId: string,
+    run: (
+      backend: WorkspaceRuntimeBackend,
+      workspaceId: string,
+      options?: WorkspaceRuntimeOptions,
+    ) => Promise<T> | T,
+  ): Promise<T | undefined> {
+    if (!this.workspaceRuntimes) return undefined;
+    const workspaceId = this.getAgent(agentId)?.workspaceId;
+    if (!workspaceId) return undefined;
+    const selected = await this.workspaceRuntimes.getWorkspaceRuntime(workspaceId);
+    if (!selected) return undefined;
+    return run(this.workspaceRuntimes.registry.require(selected.id), workspaceId, selected.options);
+  }
+
+  private async awaitRuntimeBeforeInput(agentId: string): Promise<void> {
+    await this.withAgentRuntime(agentId, (backend, workspaceId, options) =>
+      backend.beforeInput({ workspaceId, agentId, options }),
+    );
+  }
+
+  private signalRuntimeActivity(agentId: string, activity: WorkspaceRuntimeActivity): void {
+    void this.withAgentRuntime(agentId, (backend, workspaceId, options) =>
+      backend.activity({ workspaceId, agentId, options, activity }),
+    ).catch((error) => {
+      this.logger.debug({ err: error, agentId, activity }, "Workspace runtime activity failed");
+    });
   }
 
   private async requireAvailableClient(options: { provider: AgentProvider }): Promise<AgentClient> {

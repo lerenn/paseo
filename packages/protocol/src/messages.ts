@@ -2678,6 +2678,15 @@ export const WorkspaceCreateRequestSchema = z.object({
   idempotencyKey: z.string().min(1).max(512).optional(),
   // Optional user-set title applied to the created workspace.
   title: z.string().optional(),
+  // Workspace runtime that owns where this workspace's agent processes run. The id names a
+  // runtime a plugin registered; options are opaque to Paseo and handed to that runtime.
+  // Only directory sources support a runtime.
+  runtime: z
+    .object({
+      id: z.string().min(1),
+      options: z.record(z.string(), z.unknown()).optional(),
+    })
+    .optional(),
   // Optional prompt context for workspace-level name/branch generation.
   firstAgentContext: FirstAgentContextSchema.optional(),
   // Retained for wire parsing; public internal creation is no longer supported.
@@ -3625,6 +3634,9 @@ export const ServerInfoStatusPayloadSchema = z
         // COMPAT(workspaceRequestReceipts): added in v0.8.0; remove gate after 2027-03-07.
         workspaceRequestReceipts: z.boolean().optional(),
         creationLifecycle: z.boolean().optional(),
+        // The daemon honors `runtime` on workspace.create.request. An older daemon ignores it
+        // and would run the workspace on its host, so clients must check before sending it.
+        workspaceRuntimes: z.boolean().optional(),
         // COMPAT(hubAgentRpc): added in v0.8.0; remove gate after 2027-03-05.
         hubAgentRpc: z.boolean().optional(),
         // COMPAT(internalAgents): added in v0.9.0; remove gate after 2027-03-17.
@@ -4094,6 +4106,8 @@ export const WorkspaceDescriptorPayloadSchema = z
     projectCustomIconRevision: z.string().nullable().optional(),
     projectRootPath: z.string(),
     workspaceDirectory: z.string().optional(),
+    // Id of the workspace runtime the workspace's agents run in. Absent means the daemon host.
+    runtimeId: z.string().optional(),
     // COMPAT(workspaceSetupObservation): added in v0.12.0, remove optional after 2027-04-19.
     setupStatus: z.enum(["running", "completed", "failed", "blocked"]).nullable().optional(),
     // COMPAT(worktreeSlug): added in v0.2.6, remove optional after 2027-01-31.

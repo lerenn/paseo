@@ -19,6 +19,12 @@ import {
   type ManagedAgent,
 } from "./agent-manager.js";
 import { AgentStorage } from "./agent-storage.js";
+import { WorkspaceRuntimeRegistry } from "../workspace-runtime/registry.js";
+import {
+  RemoteLaunchUnsupportedError,
+  WorkspaceRuntimeUnavailableError,
+  type WorkspaceRuntimeBackend,
+} from "../workspace-runtime/types.js";
 import { InMemoryAgentTimelineStore } from "./agent-timeline-store.js";
 import { toAgentPayload } from "./agent-projections.js";
 import { projectTimelineRows } from "./timeline-projection.js";
@@ -12082,4 +12088,124 @@ test("reads the last durable assistant response without loading a stored-only ch
     "Partial work saved before restart",
   );
   expect(manager.getAgent("stored-child")).toBeNull();
+});
+
+class FakeWorkspaceRuntime implements WorkspaceRuntimeBackend {
+  readonly label = "Fake runtime";
+  readonly events: string[] = [];
+  constructor(readonly id: string) {}
+  async describe() {
+    return { protocolVersion: 1, capabilities: { pipes: true, pty: false } };
+  }
+  async create() {}
+  async inspect() {
+    return { state: "running" as const };
+  }
+  async pause() {}
+  async resume() {}
+  async destroy() {}
+  async reconcile() {}
+  async prepare() {
+    this.events.push("prepare");
+  }
+  async beforeInput() {
+    this.events.push("beforeInput");
+  }
+  activity(event: { activity: string }) {
+    this.events.push(`activity:${event.activity}`);
+  }
+  exec() {
+    this.events.push("exec");
+    return { writeStdin() {}, signal() {}, abort() {} };
+  }
+  onNotice() {
+    return () => {};
+  }
+}
+
+class LaunchContextRecordingClient extends TestAgentClient {
+  override readonly capabilities = { ...TEST_CAPABILITIES, supportsRemoteLaunch: true };
+  launchContexts: Array<AgentLaunchContext | undefined> = [];
+  override async createSession(
+    config: AgentSessionConfig,
+    launchContext?: AgentLaunchContext,
+  ): Promise<AgentSession> {
+    this.launchContexts.push(launchContext);
+    return new TestAgentSession(config);
+  }
+}
+
+function createRuntimeManager(client: TestAgentClient, runtimeId: string | null) {
+  const registry = new WorkspaceRuntimeRegistry();
+  const backend = new FakeWorkspaceRuntime("fake");
+  registry.register(backend);
+  const manager = new AgentManager({
+    clients: { codex: client },
+    logger,
+    idFactory: () => "00000000-0000-4000-8000-00000000f001",
+    workspaceRuntimes: {
+      registry,
+      getWorkspaceRuntime: async (workspaceId) =>
+        workspaceId === "wks_runtime" && runtimeId ? { id: runtimeId } : null,
+    },
+  });
+  return { manager, backend };
+}
+
+test("an agent in a runtime workspace launches provider processes through the runtime", async () => {
+  const client = new LaunchContextRecordingClient();
+  const { manager, backend } = createRuntimeManager(client, "fake");
+  await manager.createAgent({ provider: "codex", cwd: process.cwd() }, undefined, {
+    workspaceId: "wks_runtime",
+  });
+  const launcher = client.launchContexts[0]?.processLauncher;
+  expect(launcher?.runtimeId).toBe("fake");
+  const child = launcher!.spawn({ command: "codex", args: ["app-server"], env: {} });
+  await new Promise<void>((resolve) => setTimeout(resolve, 20));
+  child.kill();
+  expect(backend.events).toEqual(["prepare", "exec"]);
+});
+
+test("an agent in a host workspace gets no process launcher", async () => {
+  const client = new LaunchContextRecordingClient();
+  const { manager } = createRuntimeManager(client, "fake");
+  await manager.createAgent({ provider: "codex", cwd: process.cwd() }, undefined, {
+    workspaceId: "wks_host",
+  });
+  expect(client.launchContexts[0]?.processLauncher).toBeUndefined();
+});
+
+test("a provider that cannot launch remotely is refused in a runtime workspace", async () => {
+  const client = new TestAgentClient();
+  const { manager } = createRuntimeManager(client, "fake");
+  await expect(
+    manager.createAgent({ provider: "codex", cwd: process.cwd() }, undefined, {
+      workspaceId: "wks_runtime",
+    }),
+  ).rejects.toThrow(RemoteLaunchUnsupportedError);
+  expect(client.createdConfigs).toHaveLength(0);
+});
+
+test("a workspace naming an unregistered runtime never falls back to the host", async () => {
+  const client = new LaunchContextRecordingClient();
+  const { manager } = createRuntimeManager(client, "missing");
+  await expect(
+    manager.createAgent({ provider: "codex", cwd: process.cwd() }, undefined, {
+      workspaceId: "wks_runtime",
+    }),
+  ).rejects.toThrow(WorkspaceRuntimeUnavailableError);
+  expect(client.launchContexts).toHaveLength(0);
+});
+
+test("the runtime resumes before a prompt is delivered and sees turn activity", async () => {
+  const client = new LaunchContextRecordingClient();
+  const { manager, backend } = createRuntimeManager(client, "fake");
+  const agent = await manager.createAgent({ provider: "codex", cwd: process.cwd() }, undefined, {
+    workspaceId: "wks_runtime",
+  });
+  await manager.runAgent(agent.id, "hello");
+  await expect.poll(() => backend.events.includes("activity:turn_ended")).toBe(true);
+  expect(backend.events.indexOf("beforeInput")).toBeLessThan(
+    backend.events.indexOf("activity:turn_started"),
+  );
 });

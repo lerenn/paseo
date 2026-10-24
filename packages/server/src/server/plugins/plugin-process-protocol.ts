@@ -24,6 +24,35 @@ export interface PluginProviderMetadata {
   iconPath?: string;
 }
 
+export interface PluginWorkspaceRuntimeMetadata {
+  id: string;
+  label: string;
+  /** SVG markup, read from the plugin directory. */
+  icon?: string;
+}
+
+export type PluginRuntimeCallVerb =
+  | "describe"
+  | "create"
+  | "inspect"
+  | "pause"
+  | "resume"
+  | "destroy"
+  | "reconcile"
+  | "prepare"
+  | "before_input";
+
+export interface PluginRuntimeExecEnvelope {
+  workspaceId: string;
+  options?: Record<string, unknown>;
+  agentId?: string;
+  provider?: string;
+  purpose: "session" | "probe";
+  argv: string[];
+  cwd?: string;
+  env: Record<string, string>;
+}
+
 export interface PluginUsageSourceMetadata {
   id: string;
   label: string;
@@ -69,6 +98,30 @@ export type PluginProcessRequest =
       input: ProviderInput;
     }
   | { type: "provider.close"; connectionId: string }
+  | {
+      type: "runtime.call";
+      requestId: string;
+      runtimeId: string;
+      verb: PluginRuntimeCallVerb;
+      input: unknown;
+    }
+  | {
+      type: "runtime.activity";
+      runtimeId: string;
+      workspaceId: string;
+      agentId: string;
+      activity: string;
+      options?: Record<string, unknown>;
+    }
+  | {
+      type: "runtime.exec.start";
+      execId: string;
+      runtimeId: string;
+      request: PluginRuntimeExecEnvelope;
+    }
+  | { type: "runtime.exec.abort"; execId: string }
+  | { type: "runtime.exec.stdin"; execId: string; data: Uint8Array | null }
+  | { type: "runtime.exec.signal"; execId: string; signal: string }
   | { type: "shutdown" }
   | { type: "paseo_frame"; data: string | Uint8Array; isBinary: boolean }
   | { type: "paseo_close" };
@@ -81,6 +134,7 @@ export type PluginProcessMessage =
       methods: string[];
       providers: PluginProviderMetadata[];
       usageSources?: PluginUsageSourceMetadata[];
+      workspaceRuntimes?: PluginWorkspaceRuntimeMetadata[];
       hooks?: { events: string[]; before: string[] };
     }
   | { type: "result"; requestId: string; output: unknown }
@@ -102,6 +156,25 @@ export type PluginProcessMessage =
     }
   | { type: "provider.event"; connectionId: string; event: ProviderEvent }
   | { type: "provider.closed"; connectionId: string; error?: string }
+  | {
+      type: "runtime.notice";
+      runtimeId: string;
+      workspaceId: string;
+      level: string;
+      message: string;
+    }
+  | { type: "runtime.exec.started"; execId: string }
+  | { type: "runtime.exec.stdout"; execId: string; data: Uint8Array }
+  | { type: "runtime.exec.stderr"; execId: string; data: Uint8Array }
+  | {
+      type: "runtime.exec.exit";
+      execId: string;
+      code: number | null;
+      signal: string | null;
+      reason: "exited" | "runtime-lost";
+      message?: string;
+    }
+  | { type: "runtime.exec.failed"; execId: string; error: string }
   | { type: "paseo_frame"; data: string | Uint8Array; isBinary: boolean }
   | { type: "paseo_close" };
 
@@ -234,6 +307,69 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
       })
       .strict(),
     z.object({ type: z.literal("provider.close"), connectionId: z.string().min(1) }).strict(),
+    z
+      .object({
+        type: z.literal("runtime.call"),
+        requestId: z.string().min(1),
+        runtimeId: z.string().min(1),
+        verb: z.enum([
+          "describe",
+          "create",
+          "inspect",
+          "pause",
+          "resume",
+          "destroy",
+          "reconcile",
+          "prepare",
+          "before_input",
+        ]),
+        input: z.unknown(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("runtime.activity"),
+        runtimeId: z.string().min(1),
+        workspaceId: z.string().min(1),
+        agentId: z.string().min(1),
+        activity: z.string().min(1),
+        options: z.record(z.string(), z.unknown()).optional(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("runtime.exec.start"),
+        execId: z.string().min(1),
+        runtimeId: z.string().min(1),
+        request: z
+          .object({
+            workspaceId: z.string().min(1),
+            options: z.record(z.string(), z.unknown()).optional(),
+            agentId: z.string().optional(),
+            provider: z.string().optional(),
+            purpose: z.enum(["session", "probe"]),
+            argv: z.array(z.string()).min(1),
+            cwd: z.string().optional(),
+            env: z.record(z.string(), z.string()),
+          })
+          .strict(),
+      })
+      .strict(),
+    z.object({ type: z.literal("runtime.exec.abort"), execId: z.string().min(1) }).strict(),
+    z
+      .object({
+        type: z.literal("runtime.exec.stdin"),
+        execId: z.string().min(1),
+        data: z.instanceof(Uint8Array).nullable(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("runtime.exec.signal"),
+        execId: z.string().min(1),
+        signal: z.string().min(1),
+      })
+      .strict(),
     z.object({ type: z.literal("shutdown") }).strict(),
     z.object({ type: z.literal("paseo_frame"), ...frameFields }).strict(),
     z.object({ type: z.literal("paseo_close") }).strict(),
@@ -251,6 +387,17 @@ export const PluginProcessMessageSchema: z.ZodType<PluginProcessMessage> = z.dis
         methods: z.array(z.string()),
         providers: z.array(providerMetadataSchema),
         usageSources: z.array(usageSourceMetadataSchema).optional(),
+        workspaceRuntimes: z
+          .array(
+            z
+              .object({
+                id: z.string().min(1),
+                label: z.string().min(1),
+                icon: z.string().optional(),
+              })
+              .strict(),
+          )
+          .optional(),
         hooks: hooksSchema.optional(),
       })
       .strict(),
@@ -303,6 +450,47 @@ export const PluginProcessMessageSchema: z.ZodType<PluginProcessMessage> = z.dis
         type: z.literal("provider.closed"),
         connectionId: z.string().min(1),
         error: z.string().optional(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("runtime.notice"),
+        runtimeId: z.string().min(1),
+        workspaceId: z.string().min(1),
+        level: z.string(),
+        message: z.string(),
+      })
+      .strict(),
+    z.object({ type: z.literal("runtime.exec.started"), execId: z.string().min(1) }).strict(),
+    z
+      .object({
+        type: z.literal("runtime.exec.stdout"),
+        execId: z.string().min(1),
+        data: z.instanceof(Uint8Array),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("runtime.exec.stderr"),
+        execId: z.string().min(1),
+        data: z.instanceof(Uint8Array),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("runtime.exec.exit"),
+        execId: z.string().min(1),
+        code: z.number().nullable(),
+        signal: z.string().nullable(),
+        reason: z.enum(["exited", "runtime-lost"]),
+        message: z.string().optional(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("runtime.exec.failed"),
+        execId: z.string().min(1),
+        error: z.string(),
       })
       .strict(),
     z.object({ type: z.literal("paseo_frame"), ...frameFields }).strict(),

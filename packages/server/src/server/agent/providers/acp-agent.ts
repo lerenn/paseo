@@ -125,6 +125,8 @@ import {
   createStringCommandShellEnvOverlay,
 } from "../../../utils/string-command-shell.js";
 import { spawnProcess } from "../../../utils/spawn.js";
+import type { ProviderProcessLauncher } from "../../workspace-runtime/process-launcher.js";
+import { spawnProviderProcess } from "../../workspace-runtime/spawn-provider-process.js";
 import {
   type DiagnosticEntry,
   toDiagnosticErrorMessage,
@@ -273,6 +275,7 @@ export const DEFAULT_ACP_CAPABILITIES: AgentCapabilityFlags = {
   supportsSessionListing: true,
   supportsDynamicModes: true,
   supportsMcpServers: true,
+  supportsRemoteLaunch: true,
   supportsReasoningStream: true,
   supportsToolInvocations: true,
   supportsRewindConversation: false,
@@ -521,6 +524,7 @@ interface ACPAgentSessionOptions {
   configuredModelIds?: readonly string[];
   agentId?: string;
   launchEnv?: Record<string, string>;
+  processLauncher?: ProviderProcessLauncher;
   waitForInitialCommands?: boolean;
   initialCommandsWaitTimeoutMs?: number;
   terminateProcess?: ProcessTerminator;
@@ -1020,6 +1024,7 @@ export class ACPAgentClient implements AgentClient {
         configuredModelIds: options?.configuredModelIds,
         agentId: launchContext?.agentId,
         launchEnv: launchContext?.env,
+        processLauncher: launchContext?.processLauncher,
         extensionCommandsParser: this.extensionCommandsParser,
         waitForInitialCommands: this.waitForInitialCommands,
         initialCommandsWaitTimeoutMs: this.initialCommandsWaitTimeoutMs,
@@ -1080,6 +1085,7 @@ export class ACPAgentClient implements AgentClient {
       configuredModelIds: options?.configuredModelIds,
       agentId: launchContext?.agentId,
       launchEnv: launchContext?.env,
+      processLauncher: launchContext?.processLauncher,
       extensionCommandsParser: this.extensionCommandsParser,
       waitForInitialCommands: this.waitForInitialCommands,
       initialCommandsWaitTimeoutMs: this.initialCommandsWaitTimeoutMs,
@@ -1724,6 +1730,7 @@ export class ACPAgentSession implements AgentSession, ACPClient {
   ) => Promise<void>;
   private readonly agentId?: string;
   private readonly launchEnv?: Record<string, string>;
+  private readonly processLauncher?: ProviderProcessLauncher;
   private readonly usageProvider?: string;
   private readonly usageSessionKey = randomUUID();
   private readonly harnessEnvironment: Record<string, string>;
@@ -1790,6 +1797,7 @@ export class ACPAgentSession implements AgentSession, ACPClient {
     this.availableModes = options.defaultModes;
     this.agentId = options.agentId;
     this.launchEnv = options.launchEnv;
+    this.processLauncher = options.processLauncher;
     this.usageProvider = options.usageProvider;
     this.harnessEnvironment = createProviderEnv({
       runtimeSettings: options.runtimeSettings,
@@ -2777,15 +2785,25 @@ export class ACPAgentSession implements AgentSession, ACPClient {
       terminalCommand.shell === false
         ? [this.launchEnv, env, createStringCommandShellEnvOverlay()]
         : [this.launchEnv, env];
-    const child = spawnProcess(terminalCommand.command, terminalCommand.args, {
-      cwd: params.cwd ?? this.config.cwd,
-      ...createProviderEnvSpec({
-        runtimeSettings: this.runtimeSettings,
-        overlays: commandEnvOverlays,
-      }),
-      shell: terminalCommand.shell,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+    // A terminal the agent asks for runs where the agent runs: in the workspace runtime, if any.
+    const remoteShell = this.processLauncher && terminalCommand.shell !== false;
+    const child = spawnProviderProcess(
+      remoteShell ? "/bin/sh" : terminalCommand.command,
+      remoteShell
+        ? ["-c", [terminalCommand.command, ...terminalCommand.args].join(" ")]
+        : terminalCommand.args,
+      {
+        launcher: this.processLauncher,
+        cwd: params.cwd ?? this.config.cwd,
+        ...createProviderEnvSpec({
+          runtimeSettings: this.runtimeSettings,
+          overlays: commandEnvOverlays,
+        }),
+        shell: remoteShell ? undefined : terminalCommand.shell,
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+    if (this.processLauncher) child.stdin?.end();
 
     let resolveExit!: (exit: TerminalExit) => void;
     let rejectExit!: (error: Error) => void;
@@ -2873,14 +2891,18 @@ export class ACPAgentSession implements AgentSession, ACPClient {
       commandConfig: this.runtimeSettings?.command,
       defaultBinary: this.defaultCommand[0],
     });
-    const availability = await checkProviderLaunchAvailable(prefix);
-    if (!availability.available) {
-      throw new Error(`${this.provider} command '${this.defaultCommand[0]}' not found`);
+    // In a workspace runtime the command resolves inside the runtime, not on the daemon host.
+    if (!this.processLauncher) {
+      const availability = await checkProviderLaunchAvailable(prefix);
+      if (!availability.available) {
+        throw new Error(`${this.provider} command '${this.defaultCommand[0]}' not found`);
+      }
     }
 
     const command = prefix.command;
     const args = [...prefix.args, ...this.defaultCommand.slice(1)];
-    const child = spawnProcess(command, args, {
+    const child = spawnProviderProcess(command, args, {
+      launcher: this.processLauncher,
       cwd: await this.resolveProcessCwd(),
       ...createProviderEnvSpec({
         runtimeSettings: this.runtimeSettings,

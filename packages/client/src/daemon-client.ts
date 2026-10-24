@@ -502,6 +502,8 @@ export interface CreateWorkspaceRequestOptions {
   >;
   onEvent?: (snapshot: CreationSnapshot) => void;
   firstAgentContext?: WorkspaceCreateRequest["firstAgentContext"];
+  /** Runs the workspace's agents in a workspace runtime a plugin registered. */
+  runtime?: WorkspaceCreateRequest["runtime"];
   requestId?: string;
 }
 
@@ -4891,6 +4893,9 @@ export class DaemonClient {
   ): Promise<WorkspaceCreatePayload> {
     const resolvedRequestId = this.createRequestId(requestId ?? input.requestId);
     if (input.background !== undefined || input.callerAgentId) this.requireBackgroundWorkspaces();
+    if (input.runtime && this.lastServerInfoMessage?.features?.workspaceRuntimes !== true) {
+      throw new Error("Update the host to use workspace runtimes.");
+    }
     if (input.agent?.background !== undefined)
       throw new Error("Configure background on the workspace, not its initial agent.");
     const result = await this.creations.createWorkspace({
@@ -4924,6 +4929,7 @@ export class DaemonClient {
           ? { idempotencyKey: input.idempotencyKey }
           : {}),
         ...(input.title !== undefined ? { title: input.title } : {}),
+        ...(input.runtime ? { runtime: input.runtime } : {}),
         ...(input.background !== undefined ? { background: input.background } : {}),
         ...(input.callerAgentId ? { callerAgentId: input.callerAgentId } : {}),
         ...(input.firstAgentContext !== undefined
