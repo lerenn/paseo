@@ -54,6 +54,15 @@ export interface WorkspaceRuntimeBackend {
   onNotice(listener: (notice: RuntimeNotice) => void): () => void;
 }
 
+/** The reserved id for the daemon host. A plugin cannot register it; a request can name it. */
+export const LOCAL_WORKSPACE_RUNTIME_ID = "local";
+
+/** What a workspace stores to select its runtime. */
+export interface WorkspaceRuntimeSelection {
+  id: string;
+  options?: Record<string, unknown>;
+}
+
 /** Thrown when a workspace selects a runtime nobody registered. There is no host fallback. */
 export class WorkspaceRuntimeUnavailableError extends Error {
   constructor(

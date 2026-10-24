@@ -17,6 +17,7 @@ import {
   createPersistedWorkspaceRecord,
   type WorkspaceRegistry,
 } from "../../workspace-registry.js";
+import { WorkspaceRuntimeRegistry } from "../../workspace-runtime/registry.js";
 import { checkoutLiteFromGitSnapshot } from "../../workspace-registry-model.js";
 import type { CreatePaseoWorktreeWorkflowResult } from "../../worktree-session.js";
 import {
@@ -978,4 +979,83 @@ test("a directory that goes away while the git read is in flight keeps its place
     kind: "local_checkout",
     branch: "feature/vanishing",
   });
+});
+
+function runtimeProvisioning(created: Array<{ workspaceId: string; cwd?: string }>) {
+  const runtimes = new WorkspaceRuntimeRegistry();
+  const make = (id: string) =>
+    ({
+      id,
+      label: id,
+      create: async (request: { workspaceId: string; cwd?: string }) => {
+        created.push({ workspaceId: `${id}:${request.workspaceId}`, cwd: request.cwd });
+      },
+    }) as never;
+  runtimes.register(make("pod"));
+  runtimes.register(make("other"));
+  return createWorkspaceProvisioningService({
+    workspaceRegistry,
+    projectRegistry,
+    workspaceGitService: gitService(),
+    isDirectory,
+    runtimes,
+    logger,
+  });
+}
+
+test("a workspace an agent creates inherits the caller's runtime unless the call names one", async () => {
+  const created: Array<{ workspaceId: string; cwd?: string }> = [];
+  provisioning = runtimeProvisioning(created);
+  const callerDir = path.join(tmpDir, "caller");
+  const caller = await provisioning.createWorkspaceForDirectory(callerDir, null, undefined, {
+    runtime: { id: "pod", options: { image: "agent" } },
+  });
+  expect(caller.runtime).toEqual({ id: "pod", options: { image: "agent" } });
+  expect(created).toEqual([{ workspaceId: `pod:${caller.workspaceId}`, cwd: callerDir }]);
+
+  const inherited = await provisioning.createWorkspaceForDirectory(
+    path.join(tmpDir, "child"),
+    null,
+    undefined,
+    { callerWorkspaceId: caller.workspaceId },
+  );
+  expect(inherited.runtime).toEqual({ id: "pod", options: { image: "agent" } });
+
+  const explicit = await provisioning.createWorkspaceForDirectory(
+    path.join(tmpDir, "explicit"),
+    null,
+    undefined,
+    { callerWorkspaceId: caller.workspaceId, runtime: { id: "other" } },
+  );
+  expect(explicit.runtime).toEqual({ id: "other" });
+
+  const local = await provisioning.createWorkspaceForDirectory(
+    path.join(tmpDir, "local"),
+    null,
+    undefined,
+    { callerWorkspaceId: caller.workspaceId, runtime: { id: "local" } },
+  );
+  expect(local.runtime).toBeUndefined();
+});
+
+test("a workspace created from a host workspace stays on the host", async () => {
+  provisioning = runtimeProvisioning([]);
+  const host = await provisioning.createWorkspaceForDirectory(path.join(tmpDir, "host"));
+  const child = await provisioning.createWorkspaceForDirectory(
+    path.join(tmpDir, "child"),
+    null,
+    undefined,
+    { callerWorkspaceId: host.workspaceId },
+  );
+  expect(child.runtime).toBeUndefined();
+});
+
+test("a runtime nobody registered fails creation instead of falling back to the host", async () => {
+  provisioning = runtimeProvisioning([]);
+  await expect(
+    provisioning.createWorkspaceForDirectory(path.join(tmpDir, "gone"), null, undefined, {
+      runtime: { id: "missing" },
+    }),
+  ).rejects.toThrow(/does not fall back to running on the host/);
+  expect(await workspaceRegistry.list()).toHaveLength(0);
 });
