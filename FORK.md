@@ -20,12 +20,15 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   settings), plus `autoName` (default true): the daemon renames the workspace from the first prompt
   via the optional `workspaceTitleToReplace` field on agent creation and returns `{ workspaceId, agentId? }`. Reference: `public-docs/plugins/reference.md`,
   section "New workspace locations".
-- **Fork PRs:** #4 (`b10be7b16`), #6 (`d8ffef51e`, branch picker and slug), #8 (`9f240d678`,
-  composer agent settings).
-- **Upstream branch:** `lerenn:workspace-location-options-upstream` (one squashed commit on
-  upstream main; rebuild it from the fork PRs above after each change).
-- **Upstream Discussion / PR:** drafts only, not posted (drafts live in the agent session that
-  prepared them; ask Louis).
+- **Fork PRs:** #4 (`b10be7b16`, option), #6 (`d8ffef51e`, branch picker, slug, ref), #8 (`9f240d678`,
+  composer agent settings), #23 (`19dacb64d`, automatic naming).
+- **Upstream branches (one aspect each, stacked, cut from upstream main):**
+  `upstream/workspace-location-1-option`, `upstream/workspace-location-2-ref-slug`,
+  `upstream/workspace-location-3-agent`, `upstream/workspace-location-4-autoname`
+  (on `lerenn/paseo`). Step 4 also adds the optional `workspaceTitleToReplace` protocol field.
+- **Upstream Discussion / PRs:** one Discussion, four PRs; drafts at
+  `/home/paseo/work/upstream-drafts/workspace-location/` (`discussion.md`, `pr-1-option.md` ..
+  `pr-4-autoname.md`), not posted.
 - **Status:** in fork.
 
 ### Create options
