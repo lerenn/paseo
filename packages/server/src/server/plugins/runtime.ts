@@ -1,3 +1,5 @@
+import { PluginRuntimeBackend } from "./plugin-runtime-backend.js";
+import type { WorkspaceRuntimeRegistry } from "../workspace-runtime/registry.js";
 import type { UsageScope } from "@getpaseo/plugin/server/usage";
 import {
   ProviderStatusSchema,
@@ -30,6 +32,7 @@ import type {
   PluginProcessMessage,
   PluginProcessRequest,
   PluginProviderMetadata,
+  PluginWorkspaceRuntimeMetadata,
   PluginUsageSourceMetadata,
 } from "./plugin-process-protocol.js";
 import { PluginProcessMessageSchema } from "./plugin-process-protocol.js";
@@ -75,6 +78,9 @@ interface LoadedPlugin {
   hooks: { events: string[]; before: string[] };
   providers: readonly PluginProviderMetadata[];
   usageSources: readonly PluginUsageSourceMetadata[];
+  workspaceRuntimes: readonly PluginWorkspaceRuntimeMetadata[];
+  runtimeBackends: Map<string, PluginRuntimeBackend>;
+  runtimeUnregister: Array<() => void>;
   child: PluginChild | null;
   outputCapture: PluginOutputCapture | null;
   pending: Map<string, PendingInvocation>;
@@ -126,6 +132,8 @@ interface PluginRuntimeDependencies {
   onSettingsChanged?: (pluginId: string, settingsId: string) => void;
   spawnChild?: () => PluginChild;
   sessionHost?: PluginPaseoSessionHost;
+  /** Where plugin-registered workspace runtimes are published to core. */
+  workspaceRuntimes?: WorkspaceRuntimeRegistry;
 }
 
 interface PluginLogTail {
@@ -340,6 +348,7 @@ export class PluginRuntime {
       throw new Error(`Plugin start cancelled: ${pluginId}`);
     }
     this.plugins.set(pluginId, loaded);
+    this.publishWorkspaceRuntimes(loaded);
     this.appendLog(pluginId, "stdout", "[paseo] Plugin ready");
   }
 
@@ -363,6 +372,7 @@ export class PluginRuntime {
       clientBundle: bundles.clientBundle ?? "",
     });
     this.plugins.set(input.id, loaded);
+    this.publishWorkspaceRuntimes(loaded);
     this.appendLog(input.id, "stdout", "[paseo] Plugin ready");
   }
 
@@ -378,6 +388,7 @@ export class PluginRuntime {
     const loaded = this.plugins.get(pluginId);
     if (!loaded) return false;
     this.plugins.delete(pluginId);
+    this.withdrawWorkspaceRuntimes(loaded, `Plugin stopped: ${pluginId}`);
     this.rejectPending(loaded, `Plugin stopped: ${pluginId}`);
     await this.stopPlugin(loaded);
     return true;
@@ -623,6 +634,7 @@ export class PluginRuntime {
     const loaded = [...this.plugins.values()];
     this.plugins.clear();
     for (const plugin of loaded) {
+      this.withdrawWorkspaceRuntimes(plugin, `Plugin stopped: ${plugin.id}`);
       this.rejectPending(plugin, `Plugin stopped: ${plugin.id}`);
     }
     await Promise.all(loaded.map((plugin) => this.stopPlugin(plugin)));
@@ -647,6 +659,9 @@ export class PluginRuntime {
         hooks: { events: [], before: [] },
         providers: [],
         usageSources: [],
+        workspaceRuntimes: [],
+        runtimeBackends: new Map(),
+        runtimeUnregister: [],
         child: null,
         outputCapture: null,
         pending: new Map(),
@@ -775,6 +790,9 @@ export class PluginRuntime {
       hooks: ready.hooks ?? { events: [], before: [] },
       providers: ready.providers ?? [],
       usageSources: ready.usageSources ?? [],
+      workspaceRuntimes: ready.workspaceRuntimes ?? [],
+      runtimeBackends: new Map(),
+      runtimeUnregister: [],
       child,
       outputCapture,
       pending,
@@ -850,6 +868,36 @@ export class PluginRuntime {
     );
   }
 
+  private publishWorkspaceRuntimes(loaded: LoadedPlugin): void {
+    const registry = this.dependencies.workspaceRuntimes;
+    const child = loaded.child;
+    if (!registry || !child) return;
+    for (const metadata of loaded.workspaceRuntimes) {
+      const backend = new PluginRuntimeBackend(metadata.id, metadata.label, metadata.icon, {
+        call: (message) => this.request(loaded, message),
+        post: (message) => {
+          void send(child, message).catch(() => undefined);
+        },
+      });
+      try {
+        loaded.runtimeUnregister.push(registry.register(backend));
+        loaded.runtimeBackends.set(metadata.id, backend);
+      } catch (error) {
+        this.appendLog(
+          loaded.id,
+          "stderr",
+          `[paseo] Workspace runtime ${metadata.id} not published: ${describeError(error)}`,
+        );
+      }
+    }
+  }
+
+  private withdrawWorkspaceRuntimes(loaded: LoadedPlugin, reason: string): void {
+    for (const unregister of loaded.runtimeUnregister.splice(0)) unregister();
+    for (const backend of loaded.runtimeBackends.values()) backend.failAll(reason);
+    loaded.runtimeBackends.clear();
+  }
+
   private handleChildMessage(loaded: LoadedPlugin, message: PluginProcessMessage): void {
     if (message.type === "hooks.changed") {
       loaded.hooks = message.hooks;
@@ -861,6 +909,12 @@ export class PluginRuntime {
     }
     if (message.type.startsWith("provider.")) {
       this.handleProviderMessage(loaded, message);
+      return;
+    }
+    if (message.type.startsWith("runtime.")) {
+      for (const backend of loaded.runtimeBackends.values()) {
+        backend.handleMessage(message as Parameters<PluginRuntimeBackend["handleMessage"]>[0]);
+      }
       return;
     }
     if (message.type !== "result" && message.type !== "error") return;
@@ -1167,6 +1221,7 @@ export class PluginRuntime {
     if (wasPublished) {
       this.plugins.delete(loaded.id);
     }
+    this.withdrawWorkspaceRuntimes(loaded, `Plugin process exited: ${loaded.id}`);
     this.rejectPending(loaded, `Plugin process exited: ${loaded.id}`);
     for (const state of loaded.providerConnections.values()) {
       this.failRemoteProviderConnection(state, new Error(`Plugin process exited: ${loaded.id}`));

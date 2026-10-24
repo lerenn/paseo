@@ -67,6 +67,26 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   196ab4d0; ask Louis).
 - **Status:** in fork.
 
+### Workspace runtimes
+
+- **API:** `server.registerWorkspaceRuntime({ id, label, icon?, describe, create?, inspect?, pause?,
+resume?, destroy?, reconcile?, prepare?, beforeInput?, onActivity?, exec })` in the plugin server
+  SDK. A workspace selects a runtime with `runtime: { id, options? }` on `workspace.create.request`
+  (directory workspaces; gated by `server_info.features.workspaceRuntimes`). Every provider process
+  starts through `spawnProviderProcess` with the `processLauncher` of its `AgentLaunchContext`;
+  providers declare `supportsRemoteLaunch` (Claude, Codex and the ACP providers do) and others are
+  refused in a runtime workspace. Phase 1 only: files, Git, terminals and scripts stay on the host.
+  Verbs and names follow getpaseo/paseo#3360 (workspace runtime contract), which registers
+  executables in daemon config; this layer registers plugin objects and can move onto #3360 if it
+  merges. Reference: `public-docs/plugins/reference.md`, "Workspace runtimes"; `docs/plugins.md`,
+  "Contribute a workspace runtime".
+- **Fork PRs:** see the PR that introduced this entry.
+- **Upstream branch:** `lerenn:workspace-runtimes-upstream` (rebuild from the fork PR after each
+  change).
+- **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/workspace-runtimes-pr.md`
+  and `workspace-runtimes-discussion.md` (agent session 2wwhd7fm; ask Louis).
+- **Status:** in fork.
+
 ### Queue action modifier (#7686)
 
 - **Change:** show the queue action while Cmd/Ctrl is held (`feat(app): show queue action while

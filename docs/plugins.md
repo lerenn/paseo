@@ -441,6 +441,38 @@ Emit from the operation owner, not a client subscription. Provider history repla
 live hooks. Observers must not be awaited inside agent mutations: a callback can send a prompt or
 answer a permission through its own daemon session. Awaiting it there deadlocks that command.
 
+## Contribute a workspace runtime
+
+A workspace runtime owns where a workspace's agent processes run. Local is the built-in runtime and
+needs no registration. A plugin registers another one from `index.server.ts` with
+`server.registerWorkspaceRuntime`, and a workspace selects it by id through the `runtime` field of
+`workspace.create.request` (set by a New workspace location, or by a `workspace.create` hook).
+Reference: `public-docs/plugins/reference.md`, section "Workspace runtimes".
+
+The verbs mirror the workspace runtime contract in getpaseo/paseo#3360 (`describe`, `create`,
+`inspect`, `exec`, `signal`, `pause`, `resume`, `destroy`, `reconcile`), so a runtime written here
+can move to that contract. The difference is registration: #3360 registers an executable in daemon
+config, this registers an in-process object from a plugin. `prepare`, `beforeInput` and `onActivity`
+are extensions for runtimes that suspend and resume a sandbox.
+
+Rules the code can't show:
+
+- **One seam.** Every provider process starts through `spawnProviderProcess`
+  (`packages/server/src/server/workspace-runtime/spawn-provider-process.ts`) with the
+  `processLauncher` of its `AgentLaunchContext`. A provider that does this declares
+  `supportsRemoteLaunch`; one that does not is refused in a runtime workspace. Plugin providers
+  start their processes inside the plugin process and are refused for now.
+- **No host fallback.** A workspace that names a runtime nobody registered fails, and so does a
+  provider that cannot launch remotely. Nothing runs on the daemon host instead.
+- **The runtime gets a delta, not the daemon environment.** `exec.env` is the provider's own
+  settings, plugin env and Paseo variables. The daemon's environment holds its tokens.
+- **Same path.** Paths inside provider protocols (a Codex `thread/start` cwd, a Claude session
+  file) are the daemon's. Present the workspace to the process at the daemon's absolute path.
+  `exec.cwd` is informational.
+- **Probes stay on the host.** Model and version discovery runs on the daemon, so the provider
+  binary must exist there too until a later phase moves discovery behind the runtime.
+- **Phase 1 only.** Files, Git, terminals and workspace scripts still use the daemon host.
+
 ## Contribute a provider
 
 Register a provider from `index.server.ts`. The provider connection is callback-based and owns all

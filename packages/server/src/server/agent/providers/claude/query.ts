@@ -8,6 +8,8 @@ import {
 } from "../../provider-launch-config.js";
 import { buildSelfNodeCommand } from "../../../paseo-env.js";
 import { spawnProcess } from "../../../../utils/spawn.js";
+import type { ProviderProcessLauncher } from "../../../workspace-runtime/process-launcher.js";
+import { spawnProviderProcess } from "../../../workspace-runtime/spawn-provider-process.js";
 
 // Keep the raw SDK query import in this module only. Claude process launch behavior
 // must stay shared between production and tests so Windows .cmd/.bat handling cannot
@@ -21,12 +23,23 @@ export interface ClaudeQueryContext {
   runtimeSettings?: ProviderRuntimeSettings;
   launchEnv?: Record<string, string>;
   queryFactory?: ClaudeQueryFactory;
+  /** Runs the Claude process in the agent's workspace runtime instead of on the daemon host. */
+  processLauncher?: ProviderProcessLauncher;
   /** Called with the spawned child process so the caller can tree-kill it on close. */
   onChildProcess?: (child: ChildProcess) => void;
 }
 
 function isChildProcessWithStreams(child: ChildProcess): child is ChildProcessWithoutNullStreams {
   return child.stdin !== null && child.stdout !== null && child.stderr !== null;
+}
+
+/** What the SDK added to the environment it was given, relative to the daemon's own. */
+function diffAgainstProcessEnv(env: SpawnOptions["env"]): Record<string, string> {
+  const delta: Record<string, string> = {};
+  for (const [key, value] of Object.entries(env ?? {})) {
+    if (typeof value === "string" && process.env[key] !== value) delta[key] = value;
+  }
+  return delta;
 }
 
 function resolveClaudeSpawnCommand(
@@ -58,11 +71,35 @@ function applyRuntimeSettingsToClaudeOptions(
   options: ClaudeOptions,
   context: ClaudeQueryContext,
 ): ClaudeOptions {
-  const { runtimeSettings, launchEnv, onChildProcess } = context;
+  const { runtimeSettings, launchEnv, onChildProcess, processLauncher } = context;
   return {
     ...options,
     spawnClaudeCodeProcess: (spawnOptions) => {
       const resolved = resolveClaudeSpawnCommand(spawnOptions, runtimeSettings);
+      if (processLauncher) {
+        // The runtime receives the provider and SDK environment delta, never the daemon's own.
+        const providerEnvSpec = createProviderEnvSpec({
+          baseEnv: spawnOptions.env,
+          runtimeSettings,
+          overlays: [launchEnv],
+        });
+        const child = spawnProviderProcess(resolved.command, resolved.args, {
+          launcher: processLauncher,
+          cwd: spawnOptions.cwd,
+          signal: spawnOptions.signal,
+          envOverlay: { ...diffAgainstProcessEnv(spawnOptions.env), ...providerEnvSpec.envOverlay },
+        });
+        onChildProcess?.(child);
+        if (typeof options.stderr === "function") {
+          child.stderr?.on("data", (chunk: Buffer | string) => {
+            options.stderr?.(chunk.toString());
+          });
+        }
+        if (!isChildProcessWithStreams(child)) {
+          throw new Error("Claude process was spawned without stdio streams");
+        }
+        return child;
+      }
       // When the SDK passes a default JS runtime ("node"/"bun"), replace it with
       // process.execPath — the actual node binary running the daemon. This avoids
       // PATH lookup failures in the managed runtime bundle.

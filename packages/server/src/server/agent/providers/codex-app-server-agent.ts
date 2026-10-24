@@ -1,3 +1,5 @@
+import type { ProviderProcessLauncher } from "../../workspace-runtime/process-launcher.js";
+import { spawnProviderProcess } from "../../workspace-runtime/spawn-provider-process.js";
 import { validateProviderOptions } from "../provider-options.js";
 import {
   getAgentStreamEventTurnId,
@@ -63,6 +65,7 @@ import {
 import {
   checkProviderLaunchAvailable,
   createProviderEnv,
+  createProviderEnvSpec,
   resolveProviderLaunch,
   type ProviderRuntimeSettings,
   type ResolvedProviderLaunch,
@@ -234,6 +237,7 @@ const CODEX_APP_SERVER_CAPABILITIES: AgentCapabilityFlags = {
   supportsSessionListing: true,
   supportsDynamicModes: false,
   supportsMcpServers: true,
+  supportsRemoteLaunch: true,
   supportsReasoningStream: true,
   supportsToolInvocations: true,
   supportsRewindConversation: true,
@@ -7236,9 +7240,17 @@ export class CodexAppServerAgentClient implements AgentClient {
 
   private async spawnAppServer(
     launchEnv?: Record<string, string>,
-    options?: { goalsEnabled?: boolean; agentId?: string; environment?: Record<string, string> },
+    options?: {
+      goalsEnabled?: boolean;
+      agentId?: string;
+      environment?: Record<string, string>;
+      processLauncher?: ProviderProcessLauncher;
+    },
   ): Promise<ChildProcessWithoutNullStreams> {
-    const launchPrefix = await resolveCodexLaunchPrefix(this.runtimeSettings);
+    // In a workspace runtime the binary resolves inside the runtime, not on the daemon host.
+    const launchPrefix = options?.processLauncher
+      ? await resolveCodexLaunch(this.runtimeSettings)
+      : await resolveCodexLaunchPrefix(this.runtimeSettings);
     const args = [...launchPrefix.args, "app-server"];
     if (options?.goalsEnabled) {
       args.push("--enable", "goals");
@@ -7252,11 +7264,19 @@ export class CodexAppServerAgentClient implements AgentClient {
       },
       "provider.codex.spawn",
     );
-    const child = spawnProcess(launchPrefix.command, args, {
-      detached: process.platform !== "win32",
-      stdio: ["pipe", "pipe", "pipe"],
-      baseEnv: options?.environment ?? buildCodexAppServerEnv(this.runtimeSettings, launchEnv),
-    });
+    const child = options?.processLauncher
+      ? spawnProviderProcess(launchPrefix.command, args, {
+          launcher: options.processLauncher,
+          envOverlay: createProviderEnvSpec({
+            runtimeSettings: this.runtimeSettings,
+            overlays: [launchEnv],
+          }).envOverlay,
+        })
+      : spawnProcess(launchPrefix.command, args, {
+          detached: process.platform !== "win32",
+          stdio: ["pipe", "pipe", "pipe"],
+          baseEnv: options?.environment ?? buildCodexAppServerEnv(this.runtimeSettings, launchEnv),
+        });
     assertChildWithPipes(child);
     return child;
   }
@@ -7286,6 +7306,7 @@ export class CodexAppServerAgentClient implements AgentClient {
           goalsEnabled,
           agentId: launchContext?.agentId,
           environment,
+          processLauncher: launchContext?.processLauncher,
         }),
       { ...this.sessionDeps(launchContext?.env), environment },
       options?.persistSession === false,
@@ -7323,6 +7344,7 @@ export class CodexAppServerAgentClient implements AgentClient {
           goalsEnabled,
           agentId: launchContext?.agentId,
           environment,
+          processLauncher: launchContext?.processLauncher,
         }),
       { ...this.sessionDeps(launchContext?.env), environment },
       false,

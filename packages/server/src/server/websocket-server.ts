@@ -1956,6 +1956,7 @@ export class VoiceAssistantWebSocketServer {
         hubAgentRpc: true,
         backgroundWorkspaces: true,
         pluginCreateOptions: true,
+        workspaceRuntimes: true,
         // COMPAT(directorySync): added in v0.3.x, remove gate after 2027-02-12.
         directorySync: true,
         // COMPAT(workspaceLabels): added in v0.5.0, remove after 2027-08-14.

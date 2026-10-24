@@ -72,6 +72,7 @@ export interface WorkspaceProvisioningService {
       workspaceId?: string;
       background?: boolean;
       callerWorkspaceId?: string;
+      runtime?: PersistedWorkspaceRecord["runtime"];
     },
   ): Promise<PersistedWorkspaceRecord>;
   createWorkspaceForWorktree(
@@ -244,6 +245,7 @@ export function createWorkspaceProvisioningService(deps: {
       workspaceId?: string;
       background?: boolean;
       callerWorkspaceId?: string;
+      runtime?: PersistedWorkspaceRecord["runtime"];
     },
   ): Promise<PersistedWorkspaceRecord> {
     const normalizedCwd = resolve(cwd);
@@ -260,6 +262,7 @@ export function createWorkspaceProvisioningService(deps: {
       title: title?.trim() || null,
       createdAt: timestamp,
       updatedAt: timestamp,
+      ...(context?.runtime ? { runtime: context.runtime } : {}),
       background: await resolveBackground(context),
     });
     await workspaceRegistry.upsert(workspace, {

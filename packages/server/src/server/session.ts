@@ -1,3 +1,6 @@
+import { generateWorkspaceId } from "./workspace-registry-model.js";
+import { WorkspaceRuntimeUnavailableError } from "./workspace-runtime/types.js";
+import type { WorkspaceRuntimeOptions } from "@getpaseo/plugin/server";
 import { type WorkspaceRuntimeStore } from "./workspace-runtime-store/index.js";
 import type { AgentMessageDelivery } from "./agent/agent-messages/index.js";
 import { AgentDirectory } from "./agent/directory.js";
@@ -482,6 +485,7 @@ export interface SessionOptions {
   workspaceAutoName: WorkspaceAutoName;
   daemonConfigStore: DaemonConfigStore;
   pluginRuntime?: {
+    workspaceRuntimes?: import("./workspace-runtime/registry.js").WorkspaceRuntimeRegistry;
     before: import("./plugins/lifecycle/index.js").PluginLifecycle["before"];
     emit: import("./plugins/lifecycle/index.js").PluginLifecycle["emit"];
     listPlugins(): Promise<import("@getpaseo/protocol/messages").PluginListItem[]>;
@@ -5639,6 +5643,7 @@ export class Session {
       projectCustomIconRevision: resolvedProjectRecord?.customIconRevision ?? null,
       projectRootPath: resolvedProjectRecord?.rootPath ?? workspace.cwd,
       workspaceDirectory: workspace.cwd,
+      ...(workspace.runtime ? { runtimeId: workspace.runtime.id } : {}),
       setupStatus: this.workspaceSetupObservation.status(workspace),
       worktreeSlug,
       projectKind: (resolvedProjectRecord?.kind ?? "directory") === "git" ? "git" : "non_git",
@@ -6799,12 +6804,28 @@ export class Session {
 
     const explicitTitle = request.title?.trim() || null;
     const promptTitle = resolveFirstAgentPromptTitle(request.firstAgentContext);
+    if (request.runtime) {
+      // No host fallback: a workspace that names a runtime nobody registered is refused.
+      const backend = this.pluginRuntime?.workspaceRuntimes?.find(request.runtime.id);
+      if (!backend) {
+        throw new SessionRequestError(
+          "runtime_unavailable",
+          new WorkspaceRuntimeUnavailableError(request.runtime.id).message,
+        );
+      }
+      workspaceId ??= generateWorkspaceId();
+      await backend.create({
+        workspaceId,
+        options: request.runtime.options as WorkspaceRuntimeOptions | undefined,
+      });
+    }
     const workspace = await this.workspaceProvisioning.createWorkspaceForDirectory(
       cwd,
       explicitTitle ?? promptTitle,
       request.source.projectId,
       {
         expectsInitialAgent: Boolean(request.firstAgentContext),
+        runtime: request.runtime,
         workspaceId,
         background: request.background,
         callerWorkspaceId: this.getCallerWorkspaceId(request.callerAgentId),
@@ -6847,6 +6868,12 @@ export class Session {
     }
 
     const source = request.source;
+    if (request.runtime) {
+      throw new SessionRequestError(
+        "runtime_unsupported_source",
+        "Workspace runtimes support directory workspaces only",
+      );
+    }
 
     if (!source.cwd && !source.projectId) {
       throw new SessionRequestError(

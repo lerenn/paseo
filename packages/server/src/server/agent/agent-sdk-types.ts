@@ -1,3 +1,4 @@
+import type { ProviderProcessLauncher } from "../workspace-runtime/process-launcher.js";
 import type {
   AgentFeature,
   AgentFeatureSelect,
@@ -174,6 +175,12 @@ export interface AgentCapabilityFlags {
   supportsDynamicModes: boolean;
   supportsMcpServers: boolean;
   supportsNativePaseoTools?: boolean;
+  /**
+   * The provider starts every process through `spawnProviderProcess` with the launcher from
+   * its AgentLaunchContext, so it can run in a workspace runtime. Providers that do not set
+   * this are refused in a runtime workspace rather than silently running on the host.
+   */
+  supportsRemoteLaunch?: boolean;
   supportsReasoningStream: boolean;
   supportsToolInvocations: boolean;
   supportsRewindConversation?: boolean;
@@ -623,6 +630,11 @@ export interface AgentLaunchContext {
    * AgentSessionConfig; providers may adapt it to their native tool surface.
    */
   paseoTools?: PaseoToolCatalog;
+  /**
+   * Set when the agent's workspace has a runtime. Spawn provider processes with
+   * `spawnProviderProcess({ launcher })` so they run there. Absent means the daemon host.
+   */
+  processLauncher?: ProviderProcessLauncher;
 }
 
 export interface AgentCreateSessionOptions {
