@@ -24,7 +24,6 @@ export type {
 } from "./lifecycle.js";
 
 export { spawnProcess, execCommand, terminateProcess } from "./process.js";
-export { WORKSPACE_RUNTIME_PROTOCOL_VERSION } from "./workspace-runtime.js";
 export type {
   WorkspaceRuntimeActivity,
   WorkspaceRuntimeActivityEvent,

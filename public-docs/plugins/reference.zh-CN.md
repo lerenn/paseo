@@ -367,6 +367,51 @@ Paseo 刷新 Agent 的方式是关闭它当前的 Provider 会话，再用当前
 
 `ProviderRegistration.icon` 是相对于插件目录的文件路径，例如 `icon.svg`。它必须解析到该目录内一个遵循 [SVG 图标规则](#svg-rules)的普通文件。Paseo 在插件启动时读取并校验该文件；这个字符串从不是内联 SVG 或 URL。
 
+### 工作区运行时 {#workspace-runtimes}
+
+工作区运行时决定一个工作区的 Agent 进程在哪里运行。在服务端入口中注册：
+
+```ts
+import type { PluginServerContext } from "@getpaseo/plugin/server";
+
+export default function contribute(server: PluginServerContext) {
+  server.registerWorkspaceRuntime({
+    id: "sandbox",
+    label: "Sandbox",
+    icon: "icons/sandbox.svg",
+    describe: () => ({ protocolVersion: 1, capabilities: { pipes: true, pty: false } }),
+    prepare: async (request, context) => {
+      context.notice("Starting sandbox");
+      // Create or resume the sandbox. Runs before every session launch, so make it idempotent.
+    },
+    exec: async (request, context) => {
+      // Start request.argv inside the sandbox and return its stdio.
+      return { stdin, stdout, stderr, exit, signal: (signal) => kill(signal) };
+    },
+  });
+  return () => {};
+}
+```
+
+工作区通过 id 选择运行时：目录工作区的 `workspace.create.request` 接受 `runtime: { id, options? }`。`options` 是不透明的 JSON，Paseo 原样交给运行时。先检查 `server_info.features.workspaceRuntimes`；对于较旧的守护进程，客户端会抛出 "Update the host to use workspace runtimes."。
+
+| 方法                                      | 调用时机                                                                               |
+| ----------------------------------------- | -------------------------------------------------------------------------------------- |
+| `describe()`                              | 报告协议版本，以及 `exec` 是否支持管道或 PTY。                                         |
+| `create(request)`                         | 使用该运行时创建工作区时。幂等。                                                       |
+| `inspect`、`pause`、`resume`、`reconcile` | 保留给运行时自身的生命周期，以及 getpaseo/paseo#3360 的动词。                          |
+| `destroy(request)`                        | 工作区归档时。断开连接或守护进程重启时不会调用。                                       |
+| `prepare(request)`                        | 每次启动会话之前，带有最终的 argv、env、cwd 和该 Agent 的 MCP 服务器。                 |
+| `beforeInput(request)`                    | 在投递提示词或权限回答之前等待，使已挂起的沙箱先恢复。                                 |
+| `onActivity(event)`                       | `turn_started`、`turn_ended`、`permission_requested`、`permission_resolved`、`input`。 |
+| `exec(request, { notice, signal })`       | 启动进程。同一工作区的启动依次进行。`signal` 会中止尚未完成的启动。                    |
+
+`exec` 返回 `{ stdin, stdout, stderr, exit, signal }`。`exit` 以 `{ code, signal, reason, message? }` 完成。当沙箱消失而不是进程结束时，使用 `reason: "runtime-lost"`：Paseo 会协调（reconcile）该运行时，下一次输入会重新启动进程。`context.notice(message, level?)` 会在 Agent 的时间线中显示进度或问题。
+
+`request.purpose` 对 Agent 是 `"session"`，对读取元数据是 `"probe"`。probe 不得创建或恢复沙箱。`request.env` 是进程的完整环境，不包含守护进程自身的环境。`request.argv` 恰好是 Provider 要求运行的命令，因此沙箱镜像必须包含 Provider 的可执行文件。
+
+通过 `spawnProviderProcess` 启动进程的 Provider 会设置 `supportsRemoteLaunch`。Claude、Codex 和 ACP Provider 都是如此。其他 Provider，以及由插件提供的 Provider，在运行时工作区中会被拒绝。文件、Git、终端和脚本仍然使用守护进程所在的主机。
+
 ### 用量来源 {#usage-sources}
 
 **需要 Paseo 0.11**。在服务端入口中用 `server.registerUsageSource()` 注册一个来源。从 `@getpaseo/plugin/server/usage` 导入它的契约和辅助函数。

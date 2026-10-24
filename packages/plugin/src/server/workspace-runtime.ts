@@ -9,7 +9,6 @@ import type { JsonValue } from "@getpaseo/protocol/agent-types";
  * daemon-config executable. `prepare`, `beforeInput` and `onActivity` are extensions for
  * runtimes that suspend and resume their sandbox.
  */
-export const WORKSPACE_RUNTIME_PROTOCOL_VERSION = 1;
 
 /** Opaque, trusted JSON the workspace's creator handed to the runtime. Paseo never reads it. */
 export type WorkspaceRuntimeOptions = Record<string, unknown>;
@@ -22,6 +21,7 @@ export interface WorkspaceRuntimeCapabilities {
 }
 
 export interface WorkspaceRuntimeDescription {
+  /** 1 until the contract changes. */
   protocolVersion: number;
   capabilities: WorkspaceRuntimeCapabilities;
 }
