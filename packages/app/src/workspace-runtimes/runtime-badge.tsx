@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { SvgIcon } from "@/components/provider-icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { densityIconSize } from "@/styles/density";
 import type { Theme } from "@/styles/theme";
 import { useWorkspaceRuntimeBadge } from "./use-workspace-runtime";
 
@@ -21,6 +22,26 @@ function RuntimeGlyphBase({
 
 const ThemedRuntimeGlyph = withUnistyles(RuntimeGlyphBase);
 const mutedColor = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
+const kindIconProps = (theme: Theme, rt: { breakpoint?: string }) => ({
+  color: theme.colors.foregroundMuted,
+  size: densityIconSize(rt, "sm"),
+});
+
+/**
+ * The runtime's icon in the place a workspace's kind icon (monitor, folder, git folder) would
+ * go, sized like it. Null for a host workspace, which keeps its kind icon.
+ */
+export function RuntimeKindIcon({
+  serverId,
+  runtimeId,
+}: {
+  serverId: string;
+  runtimeId: string | null | undefined;
+}) {
+  const badge = useWorkspaceRuntimeBadge(serverId, runtimeId);
+  if (!badge) return null;
+  return <ThemedRuntimeGlyph svg={badge.icon} size={16} uniProps={kindIconProps} />;
+}
 
 /**
  * Where a workspace's agents run, when that is not the daemon host: the runtime's own icon, with
