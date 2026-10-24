@@ -12,7 +12,7 @@ import {
   startGitCommandTrace,
   submitGitCommandTrace,
 } from "./git-command-trace.js";
-import { spawnProcess } from "./spawn.js";
+import { spawnWorkspaceCommand } from "./command-launcher.js";
 import {
   GitProcessScheduler,
   type GitProcessPriority,
@@ -281,6 +281,7 @@ function executeGitCommand<Output>(
   decode: (output: Buffer) => Output,
   provenance?: string,
 ): Promise<GitCommandResult<Output>> {
+  const interactive = gitCommandPriority.getStore() === "high";
   const metricsState = submitGitCommandMetric(args, options.cwd);
   const commandTrace = submitGitCommandTrace(args, options.cwd, {
     active: gitProcessScheduler.activeCount,
@@ -391,16 +392,17 @@ function executeGitCommand<Output>(
         settle(() => reject(processError));
       };
 
-      let child: ReturnType<typeof spawnProcess>;
+      let child: ReturnType<typeof spawnWorkspaceCommand>;
       try {
         // `core.quotepath=false` makes git emit raw UTF-8 paths instead of
         // octal-escaping non-ASCII bytes (e.g. `测试文件.txt` vs `"\346\265\213..."`).
         // `core.fsmonitor=false` prevents repository config from launching a command.
-        child = spawnProcess(
+        child = spawnWorkspaceCommand(
           "git",
           ["-c", "core.quotepath=false", "-c", "core.fsmonitor=false", ...args],
           {
             cwd: options.cwd,
+            interactive,
             envOverlay,
             shell: false,
             stdio: [options.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],

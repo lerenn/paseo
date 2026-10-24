@@ -13,8 +13,10 @@ import type {
 } from "../plugins/plugin-process-protocol.js";
 import { PluginRuntimeBackend } from "../plugins/plugin-runtime-backend.js";
 import { createRuntimeProcessLauncher } from "./process-launcher.js";
+import { setCommandLauncherResolver, spawnWorkspaceCommand } from "../../utils/command-launcher.js";
 import { createLineRewriter, rewritePathPrefix } from "./path-map.js";
 import { WorkspaceRuntimeRegistry } from "./registry.js";
+import { RuntimeWorkspaceIndex } from "./workspace-index.js";
 import { spawnProviderProcess } from "./spawn-provider-process.js";
 import { WorkspaceRuntimeUnavailableError, type RuntimeNotice } from "./types.js";
 
@@ -272,5 +274,62 @@ describe("workspace runtime path mapping", () => {
     });
     expect(harness.stdinSeen).toEqual(['{"cwd":"/pod/ws/sub"}\n']);
     child.kill();
+  });
+});
+
+describe("workspace commands", () => {
+  it("runs a command in the runtime without preparing and keeps binary output intact", async () => {
+    const harness = createHarness({ mapTo: "/pod/ws" });
+    setCommandLauncherResolver((cwd) => (cwd.startsWith("/daemon/ws") ? harness.launcher : null));
+    try {
+      const child = spawnWorkspaceCommand("git", ["status"], {
+        cwd: "/daemon/ws",
+        interactive: true,
+        envOverlay: { GIT_OPTIONAL_LOCKS: "0" },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      const binary = Buffer.from([0xff, 0xfe, 0x00, 0x80]);
+      const out = new Promise<Buffer>((resolve) => {
+        const chunks: Buffer[] = [];
+        child.stdout!.on("data", (chunk: Buffer) => chunks.push(chunk));
+        child.stdout!.on("end", () => resolve(Buffer.concat(chunks)));
+      });
+      child.stdin!.write(binary);
+      child.stdin!.end();
+      await new Promise<void>((resolve) => child.once("spawn", () => resolve()));
+      harness.finishLast({ code: 0, signal: null, reason: "exited" });
+      expect((await out).equals(binary)).toBe(true);
+      expect(harness.calls).toEqual(["exec"]);
+      expect(harness.execs[0]).toMatchObject({
+        purpose: "command",
+        interactive: true,
+        cwd: "/pod/ws",
+        env: { GIT_OPTIONAL_LOCKS: "0" },
+      });
+    } finally {
+      setCommandLauncherResolver(null);
+    }
+  });
+
+  it("finds the deepest runtime workspace for a path and never falls back to the host", async () => {
+    const registry = new WorkspaceRuntimeRegistry();
+    const index = new RuntimeWorkspaceIndex({
+      workspaceRegistry: {
+        list: async () => [
+          { workspaceId: "wks_a", cwd: "/daemon/a", runtime: { id: "gone" }, archivedAt: null },
+          { workspaceId: "wks_host", cwd: "/daemon/host", archivedAt: null },
+        ],
+        subscribeToMutations: () => () => {},
+      } as never,
+      runtimes: registry,
+      logger: { debug() {}, warn() {} } as never,
+    });
+    await index.initialize();
+    expect(index.find("/daemon/a/src/x.ts")?.workspaceId).toBe("wks_a");
+    expect(index.find("/daemon/host")).toBeNull();
+    expect(index.launcherForPath("/daemon/host/src")).toBeNull();
+    const child = index.launcherForPath("/daemon/a")!.spawn({ command: "git", args: [], env: {} });
+    const error = await new Promise<Error>((resolve) => child.once("error", resolve));
+    expect(error).toBeInstanceOf(WorkspaceRuntimeUnavailableError);
   });
 });
