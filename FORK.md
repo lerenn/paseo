@@ -32,9 +32,14 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
 - **API:** `client.addCreateOption({ id, label, icon, options, defaultValue?, description? })`: a
   declarative select beside the mode picker on the New workspace and new-agent composers. The value
   reaches `before("agent.create")` as `request.pluginOptions[pluginId][optionId]`.
-- **Fork PRs:** #7 (branch `create-options-role-picker`, open). Owner: agent ec42a262.
-- **Upstream branch / Discussion / PR:** owner to fill in.
-- **Status:** in fork (PR open on the fork).
+- **Fork PRs:** #7 (`c88616a78`). First consumer: the Role picker of `lerenn/paseo-agents-roles` (#19).
+  Daemons advertise `server_info.features.pluginCreateOptions`; the app hides the picker without it.
+- **Upstream branch:** `lerenn:create-options-upstream` (one commit on upstream main; rebuild it
+  from the fork PR after each change). Shape mirrors upstream #6928's `select` control.
+- **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/`
+  (`pr-create-options.md`, `discussion-create-options.md`, `screenshots/`; screenshots are also on
+  the fork branch `create-options-screenshots`). Ask Louis.
+- **Status:** in fork.
 
 ### App dock and AgentChat
 
