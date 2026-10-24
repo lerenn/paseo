@@ -266,6 +266,32 @@ describe("loadAppSettingsFromStorage", () => {
     expect(result.sidebarNavItems).toEqual([]);
   });
 
+  it("loads sidebar groups and per-item group ids, defaulting to none", async () => {
+    expect((await loadAppSettingsFromStorage(makeDeps())).sidebarNavGroups).toEqual([]);
+
+    const deps = makeDeps({
+      storage: createInMemoryKeyValueStorage({
+        [APP_SETTINGS_KEY]: JSON.stringify({
+          sidebarNavItems: [
+            { key: "group:g1", visible: true },
+            { key: "schedules", visible: true, group: "g1" },
+            { key: "search", visible: false, group: 7 },
+          ],
+          sidebarNavGroups: [{ id: "g1", title: "Agents", collapsed: true }],
+        }),
+      }),
+    });
+
+    const result = await loadAppSettingsFromStorage(deps);
+
+    expect(result.sidebarNavGroups).toEqual([{ id: "g1", title: "Agents", collapsed: true }]);
+    expect(result.sidebarNavItems).toEqual([
+      { key: "group:g1", visible: true },
+      { key: "schedules", visible: true, group: "g1" },
+      { key: "search", visible: false },
+    ]);
+  });
+
   it("loads stored sidebar footer items in order and defaults them to empty", async () => {
     expect((await loadAppSettingsFromStorage(makeDeps())).sidebarFooterItems).toEqual([]);
 

@@ -539,6 +539,16 @@ lives in `packages/app/src/plugins/sidebar-items/`; `packages/app/src/sidebar-na
 one section's order from built-ins, plugin groups, and the section's preference
 (`sidebarNavItems` or `sidebarFooterItems`).
 
+User groups are header-only and live in `packages/app/src/sidebar-nav/groups.ts`. Group definitions
+(`id`, `title`, `collapsed`) are stored in `sidebarNavGroups`; a group's place in the order is a
+`group:<id>` marker entry in `sidebarNavItems`, and each row inside it carries `group: <id>`. Stored
+preferences without these fields resolve to the old flat list, and a row whose group is gone falls
+back to the top level. The plugin `group` hint is the group's _title_, since a plugin cannot know
+user-generated ids. It applies only to rows the user has not placed (not in `sidebarNavItems`),
+matches an existing group by title ignoring case, and otherwise creates a group `hint:<title>`. Any
+edit in Settings stores every row's placement, which ends the hint for those rows. Keep the hint
+generic: Paseo never names a plugin's group itself.
+
 - The item's `Component` renders directly in the section, with no wrapper, so a fragment or array
   of rows lays out like separate items while Settings keeps one entry for the block. Footer items
   are rows between Add project and the footer's icon row. The icon row (Hosts,

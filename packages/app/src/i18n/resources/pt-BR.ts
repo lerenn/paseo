@@ -2421,6 +2421,15 @@ export const ptBR: TranslationResources = {
         },
         moveUp: "Mover para cima",
         moveDown: "Mover para baixo",
+        groups: {
+          name: "Nome do grupo",
+          newPlaceholder: "Novo grupo",
+          add: "Adicionar grupo",
+          delete: "Excluir o grupo {{name}}",
+          moveToGroup: "Mover {{name}} para um grupo",
+          moveTo: "Mover para {{name}}",
+          removeFromGroup: "Remover do grupo",
+        },
       },
       fonts: {
         title: "Fontes",

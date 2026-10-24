@@ -900,7 +900,9 @@ export default function contribute(client: PluginClientContext) {
 
 ### 侧边栏项 {#sidebar-items}
 
-`addSidebarHeaderItem` 在侧边栏顶部的列表中添加一行。`addSidebarFooterItem` 在底部添加一行，位于 **添加 project** 和底部图标行之间。图标行是固定的；插件不能向其中添加内容。两者都接受 `{ id, title, Component }`。`title` 是该项在 **设置 → 侧边栏** 中的标签（用户在那里重新排序和隐藏各项），也是 `SidebarRow` 的默认标签和无障碍标签。设置页面为这些项显示一个通用的插件图标；来自已弃用的 `addSidebarItem` 的行保留其注册时的图标。
+`addSidebarHeaderItem` 在侧边栏顶部的列表中添加一行。`addSidebarFooterItem` 在底部添加一行，位于 **添加 project** 和底部图标行之间。图标行是固定的；插件不能向其中添加内容。两者都接受 `{ id, title, Component }`，顶部项还可以带一个可选的 `group`。`title` 是该项在 **设置 → 侧边栏** 中的标签（用户在那里重新排序、隐藏和分组各项），也是 `SidebarRow` 的默认标签和无障碍标签。设置页面为这些项显示一个通用的插件图标；来自已弃用的 `addSidebarItem` 的行保留其注册时的图标。
+
+`group` 是可折叠侧边栏分组的名称，例如 `group: "Agents"`。用户也可以在 **设置 → 侧边栏** 中创建自己的分组，把行移入其中，并在侧边栏里折叠。Paseo 只把 `group` 当作用户尚未安排的行的默认值：该行进入同名分组（忽略大小写），不存在时由 Paseo 创建。用户移动该行之后，以用户的选择为准。底部项会忽略 `group`。除非你的几个项确实属于同一组，否则不要设置它。
 
 当插件安装在多台主机上时，侧边栏项按应用当前显示的界面所属的主机渲染。不在任何主机的界面上时，它使用最近一次在该插件的某个界面中选择的主机，或最近一次从它的某个项打开的主机，否则使用第一台主机。
 

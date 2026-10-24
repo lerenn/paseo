@@ -4,6 +4,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { DesktopSettings } from "@/desktop/settings/desktop-settings";
 import type { AppLanguage } from "@/i18n/locales";
 import type { SidebarNavPreference } from "@/sidebar-nav/model";
+import type { SidebarNavGroupPreference } from "@/sidebar-nav/groups";
 import {
   DEFAULT_USAGE_PREFERENCES,
   UsagePreferencesSchema,
@@ -95,6 +96,8 @@ export interface AppSettings {
   sidebarChecksDisplay: SidebarChecksDisplay;
   /** Top-level sidebar rows in display order; empty means the default order, all visible. */
   sidebarNavItems: SidebarNavPreference[];
+  /** User-defined groups of the top-level sidebar rows; their place in the order is a `group:<id>` entry of `sidebarNavItems`. */
+  sidebarNavGroups: SidebarNavGroupPreference[];
   /** Sidebar footer items in display order; empty means the default order, all visible. */
   sidebarFooterItems: SidebarNavPreference[];
   /** How usage reads and which windows the sidebar summary shows. */
@@ -153,6 +156,7 @@ export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
   sidebarRowItems: DEFAULT_SIDEBAR_ROW_ITEMS,
   sidebarChecksDisplay: DEFAULT_SIDEBAR_CHECKS_DISPLAY,
   sidebarNavItems: [],
+  sidebarNavGroups: [],
   sidebarFooterItems: [],
   usage: DEFAULT_USAGE_PREFERENCES,
   autoExpandReasoning: false,
@@ -209,6 +213,12 @@ const DEFAULT_STORED_APP_SETTINGS = {
   needsWrite: false,
 } satisfies StoredAppSettingsFallback;
 
+const SidebarNavPreferenceSchema = z.object({
+  key: z.string(),
+  visible: z.boolean(),
+  group: z.string().optional().catch(undefined),
+});
+
 const StoredAppSettingsSchema = z
   .looseObject({
     theme: ThemePreferenceSchema.catch(DEFAULT_THEME_PREFERENCE),
@@ -247,8 +257,11 @@ const StoredAppSettingsSchema = z
       .enum(["iconAndText", "icon", "none"])
       .optional()
       .catch(DEFAULT_SIDEBAR_CHECKS_DISPLAY),
-    sidebarNavItems: z.array(z.object({ key: z.string(), visible: z.boolean() })).catch([]),
-    sidebarFooterItems: z.array(z.object({ key: z.string(), visible: z.boolean() })).catch([]),
+    sidebarNavItems: z.array(SidebarNavPreferenceSchema).catch([]),
+    sidebarNavGroups: z
+      .array(z.object({ id: z.string(), title: z.string(), collapsed: z.boolean().catch(false) }))
+      .catch([]),
+    sidebarFooterItems: z.array(SidebarNavPreferenceSchema).catch([]),
     usage: UsagePreferencesSchema,
     autoExpandReasoning: z.boolean().catch(false),
     toolCallDetailLevel: z

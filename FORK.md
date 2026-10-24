@@ -54,9 +54,18 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
 
 ### Sidebar groups
 
-- **API:** collapsible user groups for the sidebar header rows. Owner: agent 196ab4d0.
-- **Fork PRs:** #9 (branch `sidebar-groups`, open).
-- **Upstream branch:** `lerenn:sidebar-groups-upstream`. Discussion / PR: owner to fill in.
+- **API:** `addSidebarHeaderItem({ ..., group?: string })`: optional default group name for a header
+  row the user has not placed (matched by title, case-insensitive; created if missing; footer items
+  ignore it). Users create, rename, delete and reorder collapsible groups in Settings > Sidebar and
+  move rows into them. Stored as `sidebarNavGroups` plus `group` / `group:<id>` entries in
+  `sidebarNavItems`. Reference: `public-docs/plugins/reference.md`, section "Sidebar items";
+  `docs/plugins.md`, "Contribute sidebar items". No Paseo-side plugin sets `group`.
+- **Fork PRs:** #9 (branch `sidebar-groups`, commits `1c350b770` and `cc76e021c` before the merge
+  commit).
+- **Upstream branch:** `lerenn:sidebar-groups-upstream` (two commits on upstream main).
+- **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/sidebar-groups-pr.md`
+  and `sidebar-groups-discussion.md`, screenshots in `screenshots/` beside them (agent session
+  196ab4d0; ask Louis).
 - **Status:** in fork.
 
 ### Queue action modifier (#7686)
