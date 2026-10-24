@@ -422,6 +422,8 @@ Agent 留在自己的环境中。子 Agent 运行在其调用者的工作区里�
 
 `fs` 接受运行时内的绝对路径，并且必须把它限制在工作区目录内，拒绝指向目录之外的符号链接。错误以 POSIX 错误码开头（`ENOENT: ...`、`EEXIST: ...`），带有 `expectedMtimeMs` 的 `write` 在文件已变化时以 `ECONFLICT` 失败。Paseo 通过轮询发现文件变化，因为运行时没有监听机制。
 
+运行时的 `icon`（插件目录中的 SVG 文件，遵循与其他插件图标相同的规则）和 `label` 会显示在侧边栏中工作区的主机旁边，标签显示在提示框中。在守护进程主机上的工作区不显示额外内容。
+
 通过 `spawnProviderProcess` 启动进程的 Provider 会设置 `supportsRemoteLaunch`。Claude、Codex 和 ACP Provider 都是如此。其他 Provider，以及由插件提供的 Provider，在运行时工作区中会被拒绝。Git 和文件在运行时中运行。终端、脚本和上传仍然使用守护进程所在的主机。
 
 ### 用量来源 {#usage-sources}

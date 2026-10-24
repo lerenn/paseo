@@ -9,6 +9,7 @@ import {
 } from "@getpaseo/protocol/workspace-labels";
 import type { HostBadgeModel } from "@/hosts/appearance";
 import { HostBadge, HOST_BADGE_ICON_SIZE } from "@/hosts/host-badge";
+import { RuntimeBadge } from "@/workspace-runtimes/runtime-badge";
 import { WorkspaceLabelChip, WORKSPACE_LABEL_CHIP_INSET } from "@/workspace-labels/chip";
 import type { PrHint } from "@/git/pr-hint";
 import { getForgePresentation, normalizeForge } from "@/git/forge";
@@ -64,6 +65,8 @@ export function WorkspaceMetaRow({
   currentBranch,
   projectName,
   hostBadge,
+  serverId,
+  runtimeId,
   prHint,
   serviceSummary,
   labels = EMPTY_LABELS,
@@ -71,6 +74,8 @@ export function WorkspaceMetaRow({
   currentBranch: string | null;
   projectName: string | null;
   hostBadge: HostBadgeModel | null;
+  serverId?: string;
+  runtimeId?: string | null;
   prHint: PrHint | null;
   serviceSummary: WorkspaceServiceSummary | null;
   labels?: readonly WorkspaceLabelDefinition[];
@@ -80,6 +85,7 @@ export function WorkspaceMetaRow({
     currentBranch,
     projectName,
     hasHostBadge: hostBadge !== null,
+    runtimeId,
     prHint,
     serviceSummary,
     labels,
@@ -94,7 +100,12 @@ export function WorkspaceMetaRow({
       {items.map((item, index) => (
         <Fragment key={item.kind}>
           {index > 0 ? <Text style={styles.separator}>·</Text> : null}
-          <MetaItemNode item={item} hostBadge={hostBadge} leading={index === 0} />
+          <MetaItemNode
+            item={item}
+            hostBadge={hostBadge}
+            serverId={serverId}
+            leading={index === 0}
+          />
         </Fragment>
       ))}
     </View>
@@ -104,10 +115,12 @@ export function WorkspaceMetaRow({
 function MetaItemNode({
   item,
   hostBadge,
+  serverId,
   leading,
 }: {
   item: MetaRowItem;
   hostBadge: HostBadgeModel | null;
+  serverId?: string;
   /** First on the line, so this item's ink sets the rail the title above it already uses. */
   leading: boolean;
 }): ReactNode {
@@ -119,6 +132,11 @@ function MetaItemNode({
   }
   if (item.kind === "host") {
     return hostBadge ? <HostBadge badge={hostBadge} /> : null;
+  }
+  if (item.kind === "runtime") {
+    return serverId ? (
+      <RuntimeBadge serverId={serverId} runtimeId={item.runtimeId} size={META_ICON_SIZE} />
+    ) : null;
   }
   if (item.kind === "changeRequest") {
     return <PullRequestItem hint={item.hint} />;

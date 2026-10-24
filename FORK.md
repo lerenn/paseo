@@ -96,6 +96,7 @@ resume?, destroy?, reconcile?, prepare?, beforeInput?, onActivity?, exec })` in 
   Archive and removal call `destroy` on every path, `reconcile` receives the live workspace list,
   and `checkCommand` names a missing provider or MCP binary (phase 2, items 4 and 5). Terminals,
   scripts and uploads stay on the host.
+  The sidebar shows the runtime's icon and label beside the host (phase 2, item 6).
   Verbs and names follow getpaseo/paseo#3360 (workspace runtime contract), which registers
   executables in daemon config; this layer registers plugin objects and can move onto #3360 if it
   merges. Reference: `public-docs/plugins/reference.md`, "Workspace runtimes"; `docs/plugins.md`,

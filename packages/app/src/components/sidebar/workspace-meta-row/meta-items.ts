@@ -19,6 +19,7 @@ export type MetaRowItem =
   | { kind: "branch"; name: string }
   | { kind: "project"; name: string }
   | { kind: "host" }
+  | { kind: "runtime"; runtimeId: string }
   | { kind: "changeRequest"; hint: PrHint }
   | { kind: "checks"; summary: CheckSummary; label: boolean }
   | { kind: "services"; summary: WorkspaceServiceSummary }
@@ -38,6 +39,7 @@ export function selectMetaRowItems(input: {
   currentBranch: string | null;
   projectName: string | null;
   hasHostBadge: boolean;
+  runtimeId?: string | null;
   prHint: PrHint | null;
   serviceSummary: WorkspaceServiceSummary | null;
   labels: readonly WorkspaceLabelDefinition[];
@@ -48,6 +50,7 @@ export function selectMetaRowItems(input: {
     currentBranch,
     projectName,
     hasHostBadge,
+    runtimeId,
     prHint,
     serviceSummary,
     labels,
@@ -64,6 +67,10 @@ export function selectMetaRowItems(input: {
   }
   if (hasHostBadge) {
     items.push({ kind: "host" });
+  }
+  // Where the agents run is a fact about the workspace, not a preference: it always shows.
+  if (runtimeId) {
+    items.push({ kind: "runtime", runtimeId });
   }
   if (prHint && visible.changeRequest) {
     items.push({ kind: "changeRequest", hint: prHint });

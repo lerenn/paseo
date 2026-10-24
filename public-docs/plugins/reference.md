@@ -518,6 +518,10 @@ rejecting a symlink that leaves it. Errors start with the POSIX code (`ENOENT: .
 and a `write` with `expectedMtimeMs` fails with `ECONFLICT` when the file changed. Paseo finds file
 changes by polling, since a runtime has no watch.
 
+A runtime's `icon` (an SVG file in the plugin directory, under the same rules as other plugin
+icons) and `label` appear in the sidebar beside the workspace's host, with the label in a tooltip.
+Workspaces on the daemon host show nothing extra.
+
 Providers that start their processes through `spawnProviderProcess` set `supportsRemoteLaunch`.
 Claude, Codex and the ACP providers do. Other providers, and providers contributed by plugins, are
 refused in a runtime workspace. Git and files run in the runtime. Terminals, scripts and uploads
