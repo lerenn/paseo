@@ -92,6 +92,17 @@ export function removeWindowChromeCorner(
   return corner === "top-left" ? "top-right" : "top-left";
 }
 
+/**
+ * A dock beside the content sits at the window's right edge, so the window's right-hand controls
+ * are over the dock and the content gives up that corner.
+ */
+export function resolveContentWindowChromeCorners(
+  corners: WindowChromeCorners,
+  dockBesideContent: boolean,
+): WindowChromeCorners {
+  return dockBesideContent ? removeWindowChromeCorner(corners, "top-right") : corners;
+}
+
 export function resolveWindowChromeObstruction(input: {
   mode: DesktopWindowChromeMode | null;
   isFullscreen: boolean;

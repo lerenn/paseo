@@ -11,12 +11,14 @@ import {
   SIDEBAR_RESIZE_ACTIVATION_OFFSET,
   SIDEBAR_RESIZE_FAIL_OFFSET,
 } from "@/components/sidebar-resize-handle-layout";
+import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { Button } from "@/components/ui/button";
 import { ToolbarButton } from "@/components/ui/pane-content-toolbar";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { AppPluginPanel } from "@/plugins/app-panels/panel";
 import { useInstalledPlugins } from "@/plugins/registry";
 import type { Theme } from "@/styles/theme";
+import { WindowChromeRegion, WindowChromeSafeArea } from "@/utils/desktop-window";
 import {
   APP_DOCK_MIN_WIDTH,
   isSameAppDockPanel,
@@ -98,29 +100,32 @@ function DockHeader({ panel, compact }: { panel: DockPanel; compact: boolean }) 
   const toggleMaximized = useAppDockStore((state) => state.toggleMaximized);
   const MaximizeIcon = maximized ? ThemedMinimize : ThemedMaximize;
   return (
-    <View style={styles.header}>
-      <View style={styles.tabs} accessibilityRole="tablist">
-        {tabs.map((tab) => (
-          <DockTabButton
-            key={`${tab.serverId}/${tab.pluginId}/${tab.panelId}`}
-            tab={tab}
-            selected={isSameAppDockPanel(panel, tab)}
-          />
-        ))}
-      </View>
-      {compact ? null : (
-        <ToolbarButton
-          label={maximized ? "Restore" : "Maximize"}
-          onPress={toggleMaximized}
-          testID="app-dock-maximize"
-        >
-          <MaximizeIcon size={16} />
+    <WindowChromeSafeArea placement="inline" style={styles.headerFrame}>
+      <TitlebarDragRegion />
+      <View style={styles.header}>
+        <View style={styles.tabs} accessibilityRole="tablist">
+          {tabs.map((tab) => (
+            <DockTabButton
+              key={`${tab.serverId}/${tab.pluginId}/${tab.panelId}`}
+              tab={tab}
+              selected={isSameAppDockPanel(panel, tab)}
+            />
+          ))}
+        </View>
+        {compact ? null : (
+          <ToolbarButton
+            label={maximized ? "Restore" : "Maximize"}
+            onPress={toggleMaximized}
+            testID="app-dock-maximize"
+          >
+            <MaximizeIcon size={16} />
+          </ToolbarButton>
+        )}
+        <ToolbarButton label="Close" onPress={close} testID="app-dock-close">
+          <ThemedX size={16} />
         </ToolbarButton>
-      )}
-      <ToolbarButton label="Close" onPress={close} testID="app-dock-close">
-        <ThemedX size={16} />
-      </ToolbarButton>
-    </View>
+      </View>
+    </WindowChromeSafeArea>
   );
 }
 
@@ -139,10 +144,13 @@ function CompactAppDock({ panel }: { panel: DockPanel }) {
     [insets.bottom, insets.top],
   );
   return (
-    <View style={style} testID="app-dock-compact">
-      <DockHeader panel={panel} compact />
-      <DockBody panel={panel} />
-    </View>
+    // The overlay covers the whole window, so the dock owns both corners of the title bar.
+    <WindowChromeRegion corners="both">
+      <View style={style} testID="app-dock-compact">
+        <DockHeader panel={panel} compact />
+        <DockBody panel={panel} />
+      </View>
+    </WindowChromeRegion>
   );
 }
 
@@ -200,7 +208,10 @@ function WideAppDock({ panel }: { panel: DockPanel }) {
   return (
     <Animated.View style={style} testID="app-dock">
       <View style={styles.dockFrame}>
-        <DockHeader panel={panel} compact={false} />
+        {/* The dock is the rightmost surface, so the window's right-hand controls are over it. */}
+        <WindowChromeRegion corners="top-right">
+          <DockHeader panel={panel} compact={false} />
+        </WindowChromeRegion>
         <DockBody panel={panel} />
         <SidebarResizeHandle
           edge="left"
@@ -235,14 +246,18 @@ const styles = StyleSheet.create((theme) => ({
     left: 0,
     backgroundColor: theme.colors.surface0,
   },
+  headerFrame: {
+    position: "relative",
+    flexShrink: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: theme.spacing[3],
     paddingVertical: theme.spacing[2],
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
   },
   tabs: { flex: 1, flexDirection: "row", gap: theme.spacing[1], minWidth: 0 },
   body: { flex: 1 },
