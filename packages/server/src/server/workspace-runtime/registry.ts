@@ -36,6 +36,22 @@ export class WorkspaceRuntimeRegistry {
     return backend;
   }
 
+  /**
+   * A backend that finds the runtime's current registration on every call. A launcher outlives
+   * its plugin: after a reload the old backend's channel is closed, so a launcher that kept it
+   * would fail every relaunch. A runtime that is gone at call time fails the call; it never
+   * falls back to the host.
+   */
+  live(id: string): WorkspaceRuntimeBackend {
+    return new Proxy({} as WorkspaceRuntimeBackend, {
+      get: (_target, property) => {
+        const backend = this.require(id);
+        const value = Reflect.get(backend, property, backend) as unknown;
+        return typeof value === "function" ? value.bind(backend) : value;
+      },
+    });
+  }
+
   list(): Array<{ id: string; label: string; icon: string | undefined }> {
     return [...this.backends.values()].map((backend) => ({
       id: backend.id,

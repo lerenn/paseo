@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWorkspaceSource } from "./create.js";
+import { buildWorkspaceRuntime, buildWorkspaceSource } from "./create.js";
 
 describe("workspace create source", () => {
   it("maps local isolation to a directory workspace", () => {
@@ -120,6 +120,27 @@ describe("workspace create source", () => {
   it("rejects unknown isolation", () => {
     expect(() => buildWorkspaceSource({ isolation: "container" })).toThrow(
       "Unsupported workspace isolation",
+    );
+  });
+});
+
+describe("workspace runtime option", () => {
+  it("omits the runtime unless one is named, so an agent's own runtime is inherited", () => {
+    expect(buildWorkspaceRuntime({ isolation: "local" })).toBeUndefined();
+  });
+
+  it("names a runtime and its opaque options, including local", () => {
+    expect(buildWorkspaceRuntime({ runtime: "local" })).toEqual({ id: "local" });
+    expect(buildWorkspaceRuntime({ runtime: "pod", runtimeOptions: '{"image":"agent"}' })).toEqual({
+      id: "pod",
+      options: { image: "agent" },
+    });
+  });
+
+  it("rejects options without a runtime and non-object options", () => {
+    expect(() => buildWorkspaceRuntime({ runtimeOptions: "{}" })).toThrow("requires --runtime");
+    expect(() => buildWorkspaceRuntime({ runtime: "pod", runtimeOptions: "[]" })).toThrow(
+      "must be a JSON object",
     );
   });
 });

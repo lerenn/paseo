@@ -43,6 +43,24 @@ import { evaluateBundle } from "./bundle-evaluator.js";
 const CLIENT_ENTRY_FILENAMES = ["index.client.ts", "index.client.tsx"] as const;
 const SERVER_ENTRY_FILENAMES = ["index.server.ts", "index.server.tsx"] as const;
 const REQUEST_TIMEOUT_MS = 30_000;
+/** A runtime verb may start a sandbox, which takes minutes; its exec has no deadline either. */
+const RUNTIME_LIFECYCLE_TIMEOUT_MS = 15 * 60_000;
+const RUNTIME_FILE_TIMEOUT_MS = 2 * 60_000;
+const RUNTIME_LIFECYCLE_VERBS = new Set([
+  "create",
+  "pause",
+  "resume",
+  "destroy",
+  "reconcile",
+  "prepare",
+  "before_input",
+]);
+
+function runtimeCallTimeoutMs(verb: string): number {
+  if (RUNTIME_LIFECYCLE_VERBS.has(verb)) return RUNTIME_LIFECYCLE_TIMEOUT_MS;
+  if (verb.startsWith("fs.")) return RUNTIME_FILE_TIMEOUT_MS;
+  return REQUEST_TIMEOUT_MS;
+}
 const MAX_LOG_ENTRIES = 500;
 const MAX_LOG_BYTES = 256 * 1024;
 const MAX_LOG_LINE_BYTES = 16 * 1024;
@@ -608,6 +626,7 @@ export class PluginRuntime {
   private request(
     loaded: LoadedPlugin,
     message: Extract<PluginProcessRequest, { requestId: string }>,
+    timeoutMs: number = REQUEST_TIMEOUT_MS,
   ): Promise<unknown> {
     const child = loaded.child;
     const pluginId = loaded.id;
@@ -620,7 +639,7 @@ export class PluginRuntime {
           void send(child, { type: "hook.cancel", requestId }).catch(() => {});
         }
         reject(new Error(`Plugin RPC timed out: ${pluginId}.${message.type}`));
-      }, REQUEST_TIMEOUT_MS);
+      }, timeoutMs);
       loaded.pending.set(requestId, { resolve, reject, timeout });
       void send(child, message).catch((error) => {
         clearTimeout(timeout);
@@ -879,7 +898,7 @@ export class PluginRuntime {
         metadata.icon,
         metadata.files === true,
         {
-          call: (message) => this.request(loaded, message),
+          call: (message) => this.request(loaded, message, runtimeCallTimeoutMs(message.verb)),
           post: (message) => {
             void send(child, message).catch(() => undefined);
           },

@@ -333,3 +333,18 @@ describe("workspace commands", () => {
     expect(error).toBeInstanceOf(WorkspaceRuntimeUnavailableError);
   });
 });
+
+describe("live workspace runtime backend", () => {
+  it("follows a plugin reload and fails, not falls back, once the runtime is gone", () => {
+    const registry = new WorkspaceRuntimeRegistry();
+    const first = { id: "pod", label: "First", providesFiles: false } as never;
+    const unregister = registry.register(first);
+    const live = registry.live("pod");
+    expect(live.label).toBe("First");
+    unregister();
+    registry.register({ id: "pod", label: "Reloaded", providesFiles: false } as never);
+    expect(live.label).toBe("Reloaded");
+    const gone = new WorkspaceRuntimeRegistry();
+    expect(() => gone.live("pod").label).toThrow(WorkspaceRuntimeUnavailableError);
+  });
+});

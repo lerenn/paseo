@@ -36,7 +36,12 @@ export function createWorkspaceCommand(): Command {
       .option("--pr-number <n>", "Pull request or change request number (--mode checkout-pr)")
       .option("--forge <forge>", "Forge for --mode checkout-pr (default: source checkout)")
       .option("--background", "Create a background workspace")
-      .option("--no-background", "Create a visible workspace instead of inheriting background"),
+      .option("--no-background", "Create a visible workspace instead of inheriting background")
+      .option(
+        "--runtime <id>",
+        "Workspace runtime for the agents (default: the calling agent's runtime; 'local' runs on the daemon host)",
+      )
+      .option("--runtime-options <json>", "Opaque JSON options handed to the runtime"),
   ).action(withOutput(runCreateCommand));
 
   addJsonAndDaemonHostOptions(
