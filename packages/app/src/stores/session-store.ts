@@ -112,6 +112,8 @@ export interface WorkspaceDescriptor {
   projectCustomIconRevision?: string | null;
   projectRootPath: string;
   workspaceDirectory: string;
+  /** The workspace runtime the workspace's agents run in; absent on the daemon host. */
+  runtimeId?: string;
   worktreeSlug?: WorkspaceDescriptorPayload["worktreeSlug"];
   setupStatus?: WorkspaceDescriptorPayload["setupStatus"];
   projectKind: WorkspaceDescriptorPayload["projectKind"];
@@ -154,6 +156,7 @@ export function normalizeWorkspaceDescriptor(
     // consumer can read workspace.workspaceDirectory directly. Empty means "no
     // usable directory" (older daemons may omit it; the wire field is optional).
     workspaceDirectory: normalizeWorkspacePath(payload.workspaceDirectory) ?? "",
+    runtimeId: payload.runtimeId,
     worktreeSlug: payload.worktreeSlug,
     // COMPAT(workspaceSetupObservation): added in v0.12.0, old hosts omit metadata; remove after 2027-04-19.
     setupStatus: payload.setupStatus ?? null,

@@ -482,6 +482,11 @@ Rules the code can't show:
 - **Lifecycle verbs have long deadlines.** `create`, `prepare`, `beforeInput` and the other
   lifecycle verbs wait up to 15 minutes (a first sandbox start is slow), file verbs 2 minutes,
   `describe`, `mapCwd` and `checkCommand` 30 seconds. `exec` has no deadline.
+- **The app shows the runtime.** `workspace.runtimes.list.request` returns `{ id, label, icon }`
+  for every registered runtime; the workspace descriptor carries `runtimeId`. The sidebar meta row
+  draws the runtime's icon (a generic box until its plugin loads) after the host, with the label in
+  a tooltip, and the leading row icon (shown when a workspace's status is failed) is the runtime's
+  icon in place of the monitor, folder or git-folder glyph. A host workspace draws nothing extra.
 - **Probes stay on the host.** Model and version discovery runs on the daemon, so the provider
   binary must exist there too until a later phase moves discovery behind the runtime.
 - **Commands go through `exec` too.** Git runs through `spawnWorkspaceCommand`

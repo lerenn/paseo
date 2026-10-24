@@ -135,6 +135,7 @@ import type {
   PluginUpdateResult,
   AgentSkillSelection,
   AgentSkillsStatus,
+  WorkspaceRuntimeSummary,
   AgentSkillsSaveResult,
 } from "@getpaseo/protocol/messages";
 import type {
@@ -5798,6 +5799,16 @@ export class DaemonClient {
       message: { type: "agent.skills.get_status.request", requestId },
       responseType: "agent.skills.get_status.response",
     });
+  }
+
+  /** The workspace runtimes plugins registered, with the icon each declared. */
+  async fetchWorkspaceRuntimes(): Promise<WorkspaceRuntimeSummary[]> {
+    const requestId = this.createRequestId();
+    const response = await this.sendCorrelatedSessionRequest({
+      message: { type: "workspace.runtimes.list.request", requestId },
+      responseType: "workspace.runtimes.list.response",
+    });
+    return response.runtimes;
   }
 
   async reconcileAgentSkills(): Promise<AgentSkillsStatus> {

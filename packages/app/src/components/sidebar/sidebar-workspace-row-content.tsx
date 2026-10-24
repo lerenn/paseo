@@ -1,3 +1,4 @@
+import { RuntimeKindIcon } from "@/workspace-runtimes/runtime-badge";
 import { memo, useMemo, useCallback, useState, type ReactNode } from "react";
 import { Text, View, type ViewStyle } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -150,6 +151,8 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
           <WorkspaceStatusIndicator
             bucket={workspace.statusBucket}
             workspaceKind={workspace.workspaceKind}
+            serverId={workspace.serverId}
+            runtimeId={workspace.runtimeId}
             loading={isLoading}
             reserveIdleSpace={reserveIdleStatusIndicatorSpace}
           />
@@ -165,6 +168,8 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
             currentBranch={workspace.currentBranch}
             projectName={leadingProjectName}
             hostBadge={hostBadge ?? null}
+            serverId={workspace.serverId}
+            runtimeId={workspace.runtimeId}
             prHint={workspace.prHint}
             serviceSummary={serviceSummary}
             labels={labels}
@@ -183,11 +188,15 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
 function WorkspaceStatusIndicator({
   bucket,
   workspaceKind,
+  serverId,
+  runtimeId,
   loading = false,
   reserveIdleSpace = true,
 }: {
   bucket: SidebarWorkspaceEntry["statusBucket"];
   workspaceKind: SidebarWorkspaceEntry["workspaceKind"];
+  serverId: string;
+  runtimeId?: string;
   loading?: boolean;
   reserveIdleSpace?: boolean;
 }) {
@@ -247,7 +256,11 @@ function WorkspaceStatusIndicator({
   const dotColorStyle = getStatusDotColorStyle(bucket);
   return (
     <View style={styles.workspaceStatusDot} testID={`workspace-status-indicator-${bucket}`}>
-      <DensityIcon icon={KindIcon} size="sm" color="foregroundMuted" />
+      {runtimeId ? (
+        <RuntimeKindIcon serverId={serverId} runtimeId={runtimeId} />
+      ) : (
+        <DensityIcon icon={KindIcon} size="sm" color="foregroundMuted" />
+      )}
       {dotColorStyle ? <StatusDotOverlay dotColorStyle={dotColorStyle} /> : null}
     </View>
   );

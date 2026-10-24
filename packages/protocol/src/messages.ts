@@ -1615,6 +1615,10 @@ function agentSkillsRequest<const Type extends string>(type: Type) {
   return z.object({ type: z.literal(type), requestId: z.string() }).strict();
 }
 
+export const WorkspaceRuntimesListRequestSchema = z
+  .object({ type: z.literal("workspace.runtimes.list.request"), requestId: z.string() })
+  .strict();
+
 export const AgentSkillsGetStatusRequestSchema = agentSkillsRequest(
   "agent.skills.get_status.request",
 );
@@ -3309,6 +3313,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   PluginRemoveRequestSchema,
   PluginRpcInvokeRequestSchema,
   AgentTimelineAppendRequestSchema,
+  WorkspaceRuntimesListRequestSchema,
   AgentSkillsGetStatusRequestSchema,
   AgentSkillsReconcileRequestSchema,
   AgentSkillsUninstallRequestSchema,
@@ -6916,6 +6921,22 @@ function agentSkillsStatusResponse<const Type extends string>(type: Type) {
   });
 }
 
+export const WorkspaceRuntimeSummarySchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  // SVG markup the plugin declared; apps draw it where a workspace shows its location.
+  icon: z.string().optional(),
+});
+export type WorkspaceRuntimeSummary = z.infer<typeof WorkspaceRuntimeSummarySchema>;
+
+export const WorkspaceRuntimesListResponseSchema = z.object({
+  type: z.literal("workspace.runtimes.list.response"),
+  payload: z.object({
+    requestId: z.string(),
+    runtimes: z.array(WorkspaceRuntimeSummarySchema),
+  }),
+});
+
 export const AgentSkillsGetStatusResponseSchema = agentSkillsStatusResponse(
   "agent.skills.get_status.response",
 );
@@ -6974,6 +6995,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   PluginRemoveResponseSchema,
   PluginRpcInvokeResponseSchema,
   AgentTimelineAppendResponseSchema,
+  WorkspaceRuntimesListResponseSchema,
   AgentSkillsGetStatusResponseSchema,
   AgentSkillsReconcileResponseSchema,
   AgentSkillsUninstallResponseSchema,
