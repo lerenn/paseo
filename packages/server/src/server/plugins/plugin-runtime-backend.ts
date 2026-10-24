@@ -81,6 +81,11 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
     await this.call("prepare", request);
   }
 
+  async mapCwd(request: WorkspaceRuntimeWorkspaceRequest & { cwd: string }): Promise<string> {
+    const mapped = await this.call("map_cwd", request);
+    return typeof mapped === "string" && mapped ? mapped : request.cwd;
+  }
+
   async beforeInput(request: WorkspaceRuntimeInputRequest): Promise<void> {
     await this.call("before_input", request);
   }

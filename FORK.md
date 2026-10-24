@@ -80,7 +80,9 @@ resume?, destroy?, reconcile?, prepare?, beforeInput?, onActivity?, exec })` in 
   (directory workspaces; gated by `server_info.features.workspaceRuntimes`). Every provider process
   starts through `spawnProviderProcess` with the `processLauncher` of its `AgentLaunchContext`;
   providers declare `supportsRemoteLaunch` (Claude, Codex and the ACP providers do) and others are
-  refused in a runtime workspace. Phase 1 only: files, Git, terminals and scripts stay on the host.
+  refused in a runtime workspace. `mapCwd` maps the workspace root by textual path rewriting on every
+  stream line (phase 2, item 1). Files, Git, terminals and scripts stay on the host until the later
+  phase 2 items.
   Verbs and names follow getpaseo/paseo#3360 (workspace runtime contract), which registers
   executables in daemon config; this layer registers plugin objects and can move onto #3360 if it
   merges. Reference: `public-docs/plugins/reference.md`, "Workspace runtimes"; `docs/plugins.md`,

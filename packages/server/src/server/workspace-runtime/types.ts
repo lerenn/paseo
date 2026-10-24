@@ -47,6 +47,8 @@ export interface WorkspaceRuntimeBackend {
   reconcile(): Promise<void>;
   prepare(request: WorkspaceRuntimePrepareRequest): Promise<void>;
   beforeInput(request: WorkspaceRuntimeInputRequest): Promise<void>;
+  /** The workspace directory inside the runtime; the daemon path when it is the same. */
+  mapCwd(request: WorkspaceRuntimeWorkspaceRequest & { cwd: string }): Promise<string>;
   activity(event: WorkspaceRuntimeActivityEvent): void;
   exec(request: WorkspaceRuntimeExecRequest, sink: RuntimeExecSink): RuntimeExecControl;
   onNotice(listener: (notice: RuntimeNotice) => void): () => void;

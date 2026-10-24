@@ -334,7 +334,7 @@ export interface AgentManagerWorkspaceRuntimes {
   registry: WorkspaceRuntimeRegistry;
   getWorkspaceRuntime(
     workspaceId: string,
-  ): Promise<{ id: string; options?: WorkspaceRuntimeOptions } | null>;
+  ): Promise<{ id: string; options?: WorkspaceRuntimeOptions; root?: string } | null>;
 }
 
 function runtimeActivityForEvent(event: AgentStreamEvent): WorkspaceRuntimeActivity | null {
@@ -5478,6 +5478,7 @@ export class AgentManager {
       runtimeOptions: selected.options,
       agentId,
       provider: input.client.provider,
+      workspaceRoot: selected.root,
       mcpServers: input.getMcpServers,
       onNotice: (notice) => {
         if (!this.getAgent(agentId)) return;
