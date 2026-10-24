@@ -3,7 +3,9 @@ import type {
   WorkspaceRuntimeActivityEvent,
   WorkspaceRuntimeDescription,
   WorkspaceRuntimeExecRequest,
+  WorkspaceRuntimeCommandRequest,
   WorkspaceRuntimeFsRequest,
+  WorkspaceRuntimeReconcileRequest,
   WorkspaceRuntimeInputRequest,
   WorkspaceRuntimePrepareRequest,
   WorkspaceRuntimeStatus,
@@ -39,6 +41,7 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
     readonly label: string,
     readonly icon: string | undefined,
     readonly providesFiles: boolean,
+    private readonly directoryOf: (workspaceId: string) => string | undefined,
     private readonly transport: PluginRuntimeTransport,
   ) {}
 
@@ -48,8 +51,18 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
       requestId: randomUUID(),
       runtimeId: this.id,
       verb,
-      input,
+      input: this.withWorkspaceCwd(input),
     });
+  }
+
+  /** Every workspace-scoped call says where its workspace is on the daemon. */
+  private withWorkspaceCwd(input: unknown): unknown {
+    const request = input as { workspaceId?: string; workspaceCwd?: string; cwd?: string };
+    if (typeof request?.workspaceId !== "string" || request.workspaceCwd !== undefined) {
+      return input;
+    }
+    const workspaceCwd = this.directoryOf(request.workspaceId) ?? request.cwd;
+    return workspaceCwd === undefined ? input : { ...request, workspaceCwd };
   }
 
   async describe(): Promise<WorkspaceRuntimeDescription> {
@@ -76,8 +89,12 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
     await this.call("destroy", request);
   }
 
-  async reconcile(): Promise<void> {
-    await this.call("reconcile", {});
+  async reconcile(request: WorkspaceRuntimeReconcileRequest): Promise<void> {
+    await this.call("reconcile", request);
+  }
+
+  async checkCommand(request: WorkspaceRuntimeCommandRequest): Promise<boolean> {
+    return (await this.call("check_command", request)) !== false;
   }
 
   async prepare(request: WorkspaceRuntimePrepareRequest): Promise<void> {
@@ -117,6 +134,9 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
       runtimeId: this.id,
       request: {
         workspaceId: request.workspaceId,
+        ...((this.directoryOf(request.workspaceId) ?? request.workspaceCwd)
+          ? { workspaceCwd: this.directoryOf(request.workspaceId) ?? request.workspaceCwd }
+          : {}),
         ...(request.options ? { options: request.options } : {}),
         ...(request.agentId ? { agentId: request.agentId } : {}),
         ...(request.provider ? { provider: request.provider } : {}),

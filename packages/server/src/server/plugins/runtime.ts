@@ -897,6 +897,7 @@ export class PluginRuntime {
         metadata.label,
         metadata.icon,
         metadata.files === true,
+        (workspaceId) => registry.directoryOf(workspaceId),
         {
           call: (message) => this.request(loaded, message, runtimeCallTimeoutMs(message.verb)),
           post: (message) => {

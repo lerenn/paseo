@@ -12131,6 +12131,16 @@ class FakeWorkspaceRuntime implements WorkspaceRuntimeBackend {
   async resume() {}
   async destroy() {}
   async reconcile() {}
+  readonly providesFiles = false;
+  async mapCwd(request: { cwd: string }) {
+    return request.cwd;
+  }
+  async fs() {
+    return null;
+  }
+  async checkCommand() {
+    return true;
+  }
   async prepare() {
     this.events.push("prepare");
   }
@@ -12173,6 +12183,7 @@ function createRuntimeManager(client: TestAgentClient, runtimeId: string | null)
       registry,
       getWorkspaceRuntime: async (workspaceId) =>
         workspaceId === "wks_runtime" && runtimeId ? { id: runtimeId } : null,
+      listRuntimeWorkspaces: () => [],
     },
   });
   return { manager, backend };

@@ -108,7 +108,8 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
     pause: (runtime, input, context) => runtime.pause?.(input, context),
     resume: (runtime, input, context) => runtime.resume?.(input, context),
     destroy: (runtime, input, context) => runtime.destroy?.(input, context),
-    reconcile: (runtime, _input, context) => runtime.reconcile?.(context),
+    reconcile: (runtime, input, context) => runtime.reconcile?.(input, context),
+    check_command: async (runtime, input) => (await runtime.checkCommand?.(input)) ?? true,
     prepare: (runtime, input, context) => runtime.prepare?.(input, context),
     before_input: (runtime, input, context) => runtime.beforeInput?.(input, context),
     map_cwd: (runtime, input) => runtime.mapCwd?.(input) ?? null,
@@ -173,6 +174,7 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
       const [command, ...args] = request.argv;
       const execRequest: WorkspaceRuntimeExecRequest = {
         workspaceId: request.workspaceId,
+        workspaceCwd: request.workspaceCwd,
         options: request.options as WorkspaceRuntimeOptions | undefined,
         agentId: request.agentId,
         provider: request.provider,
