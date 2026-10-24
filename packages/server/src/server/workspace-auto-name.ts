@@ -90,6 +90,8 @@ export class WorkspaceAutoName {
       workspaceId: string;
       cwd: string;
       firstAgentContext: FirstAgentContext;
+      /** A placeholder title the creator gave the workspace; it is replaced like an empty title. */
+      replaceTitle?: string;
     },
     context: ScheduleContext = {},
   ): void {
@@ -156,6 +158,7 @@ export class WorkspaceAutoName {
     workspaceId: string;
     cwd: string;
     firstAgentContext: FirstAgentContext;
+    replaceTitle?: string;
     currentSelection: CurrentSelection;
   }): Promise<void> {
     const generated = await this.generateFromContext({
@@ -172,17 +175,27 @@ export class WorkspaceAutoName {
     await this.applyGeneratedWorkspaceTitle(input.workspaceId, {
       title,
       promptTitle: resolveFirstAgentPromptTitle(input.firstAgentContext),
+      replaceTitle: input.replaceTitle,
     });
     await this.emitWorkspaceUpdateForWorkspaceId(input.workspaceId);
   }
 
   private async applyGeneratedWorkspaceTitle(
     workspaceId: string,
-    input: { title: string; branch?: string | null; promptTitle?: string | null },
+    input: {
+      title: string;
+      branch?: string | null;
+      promptTitle?: string | null;
+      replaceTitle?: string;
+    },
   ): Promise<void> {
     await this.workspaceRegistry.update(workspaceId, (current) => {
       let title = current.title;
-      if (!title || (input.promptTitle && title === input.promptTitle)) {
+      if (
+        !title ||
+        (input.promptTitle && title === input.promptTitle) ||
+        (input.replaceTitle && title === input.replaceTitle)
+      ) {
         title = input.title;
       }
       return {

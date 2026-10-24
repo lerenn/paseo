@@ -609,7 +609,10 @@ generic: Paseo never names a plugin's group itself.
   `worktreeSlug` Paseo generates for the draft, so plugins name environments like worktrees
   instead of asking for a name. `agent` is `input.agent.config` reduced to
   provider, model, thinking option, mode and feature values, so a plugin that starts its own
-  agent matches the composer.
+  agent matches the composer. `autoName` (default on) sends `workspaceTitleToReplace` with the first
+  agent request; the daemon (`WorkspaceAutoName.scheduleForDirectory`) then renames the workspace
+  from the prompt, but only while its title still equals the plugin's. Fork-only protocol field,
+  ignored by older daemons.
 - `SidebarRow.trailing` sits in a second `Pressable` beside the row's button, since web cannot nest
   buttons. Its `onPress` is the row's, so a press on non-interactive trailing content presses the
   row; a button inside it wins its own press because only the innermost pressable responds.
