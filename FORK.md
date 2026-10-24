@@ -62,6 +62,9 @@ Cmd/Ctrl is held`).
 
 - `ci(docker): publish fork main builds to GHCR` (#1) and `ci: pin CI jobs to ubuntu-24.04` (#3).
   Keep both across rebases. Drop #3 only when upstream pins the runner itself.
+- The `sync-fork` skill (`.agents/skills/sync-fork`, linked from `.claude/skills`): syncs fork
+  `main` with upstream through the checklist below, then builds and installs the Linux AppImage
+  locally. Keep across rebases.
 
 ### Not carried
 
