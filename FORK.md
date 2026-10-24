@@ -60,8 +60,7 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   move rows into them. Stored as `sidebarNavGroups` plus `group` / `group:<id>` entries in
   `sidebarNavItems`. Reference: `public-docs/plugins/reference.md`, section "Sidebar items";
   `docs/plugins.md`, "Contribute sidebar items". No Paseo-side plugin sets `group`.
-- **Fork PRs:** #9 (branch `sidebar-groups`, commits `1c350b770` and `cc76e021c` before the merge
-  commit).
+- **Fork PRs:** #9 (merged as `d88d1cb7e`).
 - **Upstream branch:** `lerenn:sidebar-groups-upstream` (two commits on upstream main).
 - **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/sidebar-groups-pr.md`
   and `sidebar-groups-discussion.md`, screenshots in `screenshots/` beside them (agent session
