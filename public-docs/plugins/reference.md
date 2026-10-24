@@ -488,12 +488,6 @@ the runtime unchanged. Check `server_info.features.workspaceRuntimes` first; the
 than the process finishing: Paseo reconciles the runtime and the next input relaunches into it.
 `context.notice(message, level?)` shows progress or a problem in the agent's timeline.
 
-<<<<<<< HEAD
-`request.purpose` is `"session"` for an agent, `"probe"` for metadata reads and `"command"` for a
-short tool Paseo runs in the workspace (Git). A probe must not create or resume a sandbox. A command
-skips `prepare`; `request.interactive` is false for background refreshes, which must not resume a
-suspended sandbox (reject them instead), and true when a user is waiting. `request.env` is the complete environment for the process and never
-=======
 `paseo workspace create --runtime <id> [--runtime-options <json>]` selects a runtime from the CLI;
 without it a call from an agent inherits the agent's runtime. Lifecycle verbs (`create`, `prepare`,
 `beforeInput`, `resume`, `destroy`, `reconcile`) may take up to 15 minutes, file verbs 2 minutes and
@@ -506,12 +500,12 @@ runs it on the daemon host. Several agents in one workspace share one runtime en
 `exec`, `prepare` and `onActivity` carries the same `workspaceId`, so run them in one sandbox and
 suspend it only when all of them are idle.
 
-`request.purpose` is `"session"` for an agent and `"probe"` for metadata reads. A probe must not
-create or resume a sandbox. `request.env` is the complete environment for the process and never
-
-> > > > > > > c1985360c (feat(plugin): new workspaces inherit the caller's workspace runtime)
-> > > > > > > includes the daemon's own. `request.argv` is exactly what the provider asked to run, so the sandbox
-> > > > > > > image must contain the provider binary.
+`request.purpose` is `"session"` for an agent, `"probe"` for metadata reads and `"command"` for a
+short tool Paseo runs in the workspace (Git). A probe must not create or resume a sandbox. A command
+skips `prepare`; `request.interactive` is false for background refreshes, which must not resume a
+suspended sandbox (reject them instead), and true when a user is waiting. `request.env` is the
+complete environment for the process and never includes the daemon's own. `request.argv` is exactly
+what the provider asked to run, so the sandbox image must contain the provider binary.
 
 `fs` takes an absolute path inside the runtime and must confine it to the workspace directory,
 rejecting a symlink that leaves it. Errors start with the POSIX code (`ENOENT: ...`, `EEXIST: ...`),
