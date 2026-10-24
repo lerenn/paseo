@@ -83,29 +83,33 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
 ### Workspace runtimes
 
 - **API:** `server.registerWorkspaceRuntime({ id, label, icon?, describe, create?, inspect?, pause?,
-resume?, destroy?, reconcile?, prepare?, beforeInput?, onActivity?, exec })` in the plugin server
-  SDK. A workspace selects a runtime with `runtime: { id, options? }` on `workspace.create.request`
-  (directory workspaces; gated by `server_info.features.workspaceRuntimes`). Every provider process
-  starts through `spawnProviderProcess` with the `processLauncher` of its `AgentLaunchContext`;
-  providers declare `supportsRemoteLaunch` (Claude, Codex and the ACP providers do) and others are
-  refused in a runtime workspace. `mapCwd` maps the workspace root by textual path rewriting on every
-  stream line (phase 2, item 1). Git runs in the runtime through `exec` with `purpose: "command"`
-  (phase 2, item 2a). A workspace an agent creates inherits the caller's runtime unless the call
-  names one (`{ id: "local" }` = host); the MCP `create_workspace` tool takes `runtime`. Files run
-  in the runtime through the plugin's `fs` verbs (phase 2, item 2b; polling instead of watching).
-  Archive and removal call `destroy` on every path, `reconcile` receives the live workspace list,
-  and `checkCommand` names a missing provider or MCP binary (phase 2, items 4 and 5). Terminals,
-  scripts and uploads stay on the host.
-  The sidebar shows the runtime's icon and label beside the host (phase 2, item 6).
-  Verbs and names follow getpaseo/paseo#3360 (workspace runtime contract), which registers
-  executables in daemon config; this layer registers plugin objects and can move onto #3360 if it
-  merges. Reference: `public-docs/plugins/reference.md`, "Workspace runtimes"; `docs/plugins.md`,
+resume?, destroy?, reconcile?, prepare?, beforeInput?, onActivity?, mapCwd?, checkCommand?, fs?,
+exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: { id, options? }`
+  on `workspace.create.request` (gated by `server_info.features.workspaceRuntimes`); a workspace an
+  agent creates inherits the caller's runtime unless the call names one (`{ id: "local" }` = host).
+  Every provider process starts through `spawnProviderProcess` with the `processLauncher` of its
+  `AgentLaunchContext`; providers declare `supportsRemoteLaunch` (Claude, Codex and the ACP
+  providers do) and others are refused in a runtime workspace, never run on the host. `mapCwd` maps
+  the workspace root by textual rewriting of every stream line; Git runs through `exec` with
+  `purpose: "command"`; files run through `fs` verbs (polling, no watch); `destroy` runs on every
+  removal path, `reconcile` gets the live workspace list, `checkCommand` names a missing binary;
+  `workspaceCwd` is on every request. The sidebar shows the runtime's icon and label. Verbs and
+  names follow getpaseo/paseo#3360 (workspace runtime contract), which registers executables in
+  daemon config; this layer registers plugin objects and can move onto #3360 if it merges. Not in
+  the fork: terminals, scripts, uploads and per-runtime provider catalogs in the runtime.
+  Reference: `public-docs/plugins/reference.md`, "Workspace runtimes"; `docs/plugins.md`,
   "Contribute a workspace runtime".
-- **Fork PRs:** #17 (merged as `9320d9194`).
-- **Upstream branch:** `lerenn:workspace-runtimes-upstream` (one commit on upstream main; rebuild
-  it from the fork PR after each change).
-- **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/workspace-runtimes-pr.md`
-  and `workspace-runtimes-discussion.md` (agent session 2wwhd7fm; ask Louis).
+- **Fork PRs:** #17 (`9320d9194`, launch), #20 (`d87671f18`, cwd mapping), #21 (`2bd9e903e`, Git),
+  #22 (`b35d3853d`, inheritance), #28 (`811da2353`, files), #27 (`411763c3f`, reliability and CLI),
+  #30 (`474f56076`, lifecycle), #25 (`7b730b08e`, sidebar icon). The app dock title-bar fix is #24
+  (`b0a12c5ca`, see App dock).
+- **Upstream branches (one aspect each, stacked in this order, cut from upstream main):**
+  `upstream/workspace-runtimes-1-launch`, `-2-cwd`, `-3-git`, `-4-inheritance`, `-5-files`,
+  `-6-reliability`, `-7-lifecycle`, `-8-icon` (on `lerenn/paseo`). Rebuild each by cherry-picking
+  its fork PR commit onto the previous branch.
+- **Upstream Discussion / PRs:** one Discussion, eight PRs; drafts at
+  `/home/paseo/work/upstream-drafts/workspace-runtimes/` (`discussion.md`, `pr-1-launch.md` ..
+  `pr-8-icon.md`), not posted (ask Louis).
 - **Status:** in fork.
 
 ### Queue action modifier (#7686)
