@@ -81,6 +81,14 @@ describe("evaluatePluginClientBundle", () => {
     expect(() =>
       evaluatePluginClientBundle(
         "pods",
+        bundle(
+          `plugin.addWorkspaceLocation({ id: "pod", title: "Pod", icon: "Blocks", usesRef: "no", createWorkspace: async () => ({ workspaceId: "w1" }) });`,
+        ),
+      ),
+    ).toThrow("invalid usesRef");
+    expect(() =>
+      evaluatePluginClientBundle(
+        "pods",
         bundle(`plugin.addWorkspaceLocation({ id: "pod", title: "Pod", icon: "Blocks" });`),
       ),
     ).toThrow("no createWorkspace callback");

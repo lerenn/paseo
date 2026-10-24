@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createWorkspaceThroughPlugin } from "./create";
+import { checkoutRequestToPluginRef, createWorkspaceThroughPlugin } from "./create";
 import type { WorkspaceLocationEntry } from "./model";
 
 const project = { id: "p1", name: "app", directory: "/work/app" };
@@ -35,6 +35,8 @@ function run(
     settings: { size: "s" },
     idempotencyKey: "draft-1",
     prompt: "hello",
+    slug: "brave-otter-12",
+    checkout: { action: "branch-off", refName: "refs/heads/main" },
     agent: { config: { provider: "claude", cwd: "/x" } } as never,
     ...extra,
   });
@@ -51,6 +53,8 @@ describe("createWorkspaceThroughPlugin", () => {
       settings: { size: "s" },
       idempotencyKey: "draft-1",
       prompt: "hello",
+      slug: "brave-otter-12",
+      ref: { action: "branch-off", refName: "refs/heads/main" },
     });
     expect(fake.createAgent).toHaveBeenCalledWith(
       expect.objectContaining({ workspaceId: "w1", idempotencyKey: "draft-1" }),
@@ -94,5 +98,35 @@ describe("createWorkspaceThroughPlugin", () => {
         client([{ id: "w1" }]),
       ),
     ).rejects.toThrow("not available on this host");
+  });
+});
+
+describe("checkoutRequestToPluginRef", () => {
+  it("passes a base branch", () => {
+    expect(checkoutRequestToPluginRef({ action: "branch-off", refName: "refs/heads/dev" })).toEqual(
+      {
+        action: "branch-off",
+        refName: "refs/heads/dev",
+      },
+    );
+  });
+
+  it("passes a change request with its head branch", () => {
+    expect(
+      checkoutRequestToPluginRef({
+        action: "checkout",
+        refName: "feature",
+        githubPrNumber: 7,
+        checkoutSource: { kind: "change_request", forge: "github", number: 7 },
+      }),
+    ).toEqual({
+      action: "checkout",
+      refName: "feature",
+      changeRequest: { forge: "github", number: 7 },
+    });
+  });
+
+  it("is null without a choice", () => {
+    expect(checkoutRequestToPluginRef(undefined)).toBeNull();
   });
 });

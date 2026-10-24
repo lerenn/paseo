@@ -433,6 +433,9 @@ export function runPluginClientBundle(
       ) {
         throw new Error(`Workspace location ${normalizedId} has an invalid isAvailable`);
       }
+      if (contribution.usesRef !== undefined && typeof contribution.usesRef !== "boolean") {
+        throw new Error(`Workspace location ${normalizedId} has an invalid usesRef`);
+      }
       if (contribution.Settings !== undefined && !isComponentType(contribution.Settings)) {
         throw new Error(`Workspace location ${normalizedId} Settings is not a component`);
       }
