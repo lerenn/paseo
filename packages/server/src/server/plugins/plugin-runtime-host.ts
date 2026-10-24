@@ -2,6 +2,7 @@ import type {
   WorkspaceRuntimeActivity,
   WorkspaceRuntimeContext,
   WorkspaceRuntimeExecRequest,
+  WorkspaceRuntimeFileSystem,
   WorkspaceRuntimeOptions,
   WorkspaceRuntimeProcess,
   WorkspaceRuntimeRegistration,
@@ -56,10 +57,15 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
     runtimes.set(id, { ...runtime, id });
   }
 
-  function metadata(): Array<{ id: string; label: string; iconPath?: string }> {
+  function metadata(): Array<{ id: string; label: string; iconPath?: string; files: boolean }> {
     return [...runtimes.values()]
       .sort((a, b) => a.id.localeCompare(b.id))
-      .map((runtime) => ({ id: runtime.id, label: runtime.label, iconPath: runtime.icon }));
+      .map((runtime) => ({
+        id: runtime.id,
+        label: runtime.label,
+        iconPath: runtime.icon,
+        files: runtime.fs !== undefined,
+      }));
   }
 
   function contextFor(runtimeId: string, workspaceId: string): WorkspaceRuntimeContext {
@@ -74,6 +80,11 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
     const runtime = runtimes.get(runtimeId);
     if (!runtime) throw new Error(`Unknown workspace runtime: ${runtimeId}`);
     return runtime;
+  }
+
+  function requireFs(runtime: WorkspaceRuntimeRegistration): WorkspaceRuntimeFileSystem {
+    if (!runtime.fs) throw new Error(`Workspace runtime ${runtime.id} does not provide files`);
+    return runtime.fs;
   }
 
   interface CallInput {
@@ -101,6 +112,14 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
     prepare: (runtime, input, context) => runtime.prepare?.(input, context),
     before_input: (runtime, input, context) => runtime.beforeInput?.(input, context),
     map_cwd: (runtime, input) => runtime.mapCwd?.(input) ?? null,
+    "fs.stat": (runtime, input) => requireFs(runtime).stat(input),
+    "fs.readdir": (runtime, input) => requireFs(runtime).readdir(input),
+    "fs.read": (runtime, input) => requireFs(runtime).read(input),
+    "fs.write": (runtime, input) => requireFs(runtime).write(input),
+    "fs.mkdir": (runtime, input) => requireFs(runtime).mkdir(input),
+    "fs.rename": (runtime, input) => requireFs(runtime).rename(input),
+    "fs.remove": (runtime, input) => requireFs(runtime).remove(input),
+    "fs.copy": (runtime, input) => requireFs(runtime).copy(input),
   };
 
   async function call(

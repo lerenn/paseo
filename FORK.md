@@ -89,8 +89,9 @@ resume?, destroy?, reconcile?, prepare?, beforeInput?, onActivity?, exec })` in 
   refused in a runtime workspace. `mapCwd` maps the workspace root by textual path rewriting on every
   stream line (phase 2, item 1). Git runs in the runtime through `exec` with `purpose: "command"`
   (phase 2, item 2a). A workspace an agent creates inherits the caller's runtime unless the call
-  names one (`{ id: "local" }` = host); the MCP `create_workspace` tool takes `runtime`. Files,
-  terminals and scripts stay on the host until the later phase 2 items.
+  names one (`{ id: "local" }` = host); the MCP `create_workspace` tool takes `runtime`. Files run
+  in the runtime through the plugin's `fs` verbs (phase 2, item 2b; polling instead of watching).
+  Terminals, scripts and uploads stay on the host until the later phase 2 items.
   Verbs and names follow getpaseo/paseo#3360 (workspace runtime contract), which registers
   executables in daemon config; this layer registers plugin objects and can move onto #3360 if it
   merges. Reference: `public-docs/plugins/reference.md`, "Workspace runtimes"; `docs/plugins.md`,

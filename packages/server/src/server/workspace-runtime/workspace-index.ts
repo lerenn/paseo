@@ -7,6 +7,7 @@ import type {
 } from "../workspace-registry.js";
 import { createRuntimeProcessLauncher, type ProviderProcessLauncher } from "./process-launcher.js";
 import { createRemoteChildProcess } from "./remote-child-process.js";
+import type { ExplorerRuntimeTarget } from "../file-explorer/runtime-files.js";
 import type { WorkspaceRuntimeRegistry } from "./registry.js";
 import { WorkspaceRuntimeUnavailableError } from "./types.js";
 
@@ -82,6 +83,23 @@ export class RuntimeWorkspaceIndex {
       }
     }
     return best;
+  }
+
+  /** The runtime and workspace directory behind `target`, for the file explorer; null on the host. */
+  explorerTargetForPath(target: string): ExplorerRuntimeTarget | null {
+    const workspace = this.find(target);
+    if (!workspace) return null;
+    const backend = this.dependencies.runtimes.find(workspace.runtime.id);
+    if (!backend) {
+      // No host fallback: the explorer fails like the command would.
+      throw new WorkspaceRuntimeUnavailableError(workspace.runtime.id);
+    }
+    return {
+      backend,
+      workspaceId: workspace.workspaceId,
+      options: workspace.runtime.options,
+      hostRoot: workspace.root,
+    };
   }
 
   /** Starts commands for `target` in its workspace's runtime; null for a host directory. */

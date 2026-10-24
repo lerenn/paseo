@@ -1,6 +1,7 @@
 import { watch, type FSWatcher } from "node:fs";
 import path from "node:path";
 import type { FileVersion } from "@getpaseo/protocol/messages";
+import { findExplorerRuntimeTarget } from "./runtime-files.js";
 import { getExplorerFileVersion, resolveExplorerFilePath } from "./service.js";
 
 interface FileWatch {
@@ -109,6 +110,11 @@ export class FileObserver {
   }
 
   private startWatching(target: string, directory: string, observed: ObservedFile): void {
+    // A runtime has no watch, and the host directory beside it is not where the file changes.
+    if (findExplorerRuntimeTarget(directory)) {
+      this.useFallback(target, observed);
+      return;
+    }
     try {
       observed.watcher = this.dependencies.watchDirectory(
         directory,
