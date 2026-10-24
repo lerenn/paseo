@@ -1,3 +1,4 @@
+import { WorkspaceRuntimeRegistry } from "../workspace-runtime/registry.js";
 import type { PluginLifecycle } from "./lifecycle/index.js";
 import path from "node:path";
 import { stat, rm } from "node:fs/promises";
@@ -66,6 +67,7 @@ interface PluginServiceDependencies {
   runtime?: PluginRuntimePort;
   managedSources?: ManagedPluginSources;
   builtinPlugins?: BuiltinPluginLoader;
+  workspaceRuntimes?: WorkspaceRuntimeRegistry;
 }
 
 function resolvePluginStatus(input: {
@@ -93,6 +95,7 @@ export class PluginService {
   private lifecycle = Promise.resolve();
   private globalStartsBlocked = true;
   private started = false;
+  readonly workspaceRuntimes: WorkspaceRuntimeRegistry;
   private readonly settingsListeners = new Set<(pluginId: string, settingsId: string) => void>();
 
   constructor(
@@ -102,6 +105,7 @@ export class PluginService {
     private readonly dependencies: PluginServiceDependencies = {},
   ) {
     this.logger = logger.child({ module: "plugin-service" });
+    this.workspaceRuntimes = dependencies.workspaceRuntimes ?? new WorkspaceRuntimeRegistry();
     this.usageSources = new UsageSourceRegistry(
       Date.now,
       300_000,
@@ -112,6 +116,7 @@ export class PluginService {
       dependencies.runtime ??
       new PluginRuntime(logger, daemonVersion, {
         settingsDirectory: dependencies.settingsDirectory,
+        workspaceRuntimes: this.workspaceRuntimes,
         onSettingsChanged: (pluginId, settingsId) => {
           for (const listener of this.settingsListeners) listener(pluginId, settingsId);
         },

@@ -24,3 +24,21 @@ export type {
 } from "./lifecycle.js";
 
 export { spawnProcess, execCommand, terminateProcess } from "./process.js";
+export type {
+  WorkspaceRuntimeActivity,
+  WorkspaceRuntimeActivityEvent,
+  WorkspaceRuntimeCapabilities,
+  WorkspaceRuntimeContext,
+  WorkspaceRuntimeDescription,
+  WorkspaceRuntimeExecRequest,
+  WorkspaceRuntimeExit,
+  WorkspaceRuntimeExitReason,
+  WorkspaceRuntimeInputRequest,
+  WorkspaceRuntimeOptions,
+  WorkspaceRuntimePrepareRequest,
+  WorkspaceRuntimeProcess,
+  WorkspaceRuntimeProcessPurpose,
+  WorkspaceRuntimeRegistration,
+  WorkspaceRuntimeStatus,
+  WorkspaceRuntimeWorkspaceRequest,
+} from "./workspace-runtime.js";
