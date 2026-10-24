@@ -433,6 +433,9 @@ export function runPluginClientBundle(
       ) {
         throw new Error(`Workspace location ${normalizedId} has an invalid isAvailable`);
       }
+      if (contribution.autoName !== undefined && typeof contribution.autoName !== "boolean") {
+        throw new Error(`Workspace location ${normalizedId} has an invalid autoName`);
+      }
       if (contribution.usesRef !== undefined && typeof contribution.usesRef !== "boolean") {
         throw new Error(`Workspace location ${normalizedId} has an invalid usesRef`);
       }

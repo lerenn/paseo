@@ -4375,6 +4375,7 @@ export class Session {
       images,
       attachments,
       env,
+      workspaceTitleToReplace,
     } = msg;
     this.sessionLogger.info(
       { cwd: config.cwd, provider: config.provider, worktreeName },
@@ -4461,6 +4462,17 @@ export class Session {
             workspaceId: resolvedIntent.intent.workspaceId,
             cwd: resolvedIntent.config.cwd,
             firstAgentContext,
+          },
+          { currentSelection: this.getFocusedAgentSelectionForCwd(resolvedIntent.config.cwd) },
+        );
+      }
+      if (workspaceTitleToReplace && trimmedPrompt && !resolvedIntent.createdDirectoryWorkspace) {
+        this.workspaceAutoName.scheduleForDirectory(
+          {
+            workspaceId: resolvedIntent.intent.workspaceId,
+            cwd: resolvedIntent.config.cwd,
+            firstAgentContext,
+            replaceTitle: workspaceTitleToReplace,
           },
           { currentSelection: this.getFocusedAgentSelectionForCwd(resolvedIntent.config.cwd) },
         );

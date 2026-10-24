@@ -469,6 +469,7 @@ export interface CreateAgentRequestOptions extends AgentConfigOverrides {
   provider?: AgentProvider;
   cwd?: string;
   env?: CreateAgentRequestMessage["env"];
+  workspaceTitleToReplace?: CreateAgentRequestMessage["workspaceTitleToReplace"];
   workspaceId?: string;
   callerAgentId?: string;
   initialPrompt?: string;
@@ -7372,6 +7373,7 @@ function resolveAgentConfig(options: CreateAgentRequestOptions): AgentSessionCon
     clientMessageId: _clientMessageId,
     callerAgentId: _callerAgentId,
     outputSchema: _outputSchema,
+    workspaceTitleToReplace: _workspaceTitleToReplace,
     attachments: _attachments,
     worktree: _worktree,
     autoArchive: _autoArchive,

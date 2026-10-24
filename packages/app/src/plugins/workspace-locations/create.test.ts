@@ -22,7 +22,7 @@ function client(entries: { id: string }[]) {
   return {
     fetchWorkspaces: vi.fn(async () => ({ entries })),
     fetchAgent: vi.fn(async (id: string) => ({ agent: { id } })),
-    createAgent: vi.fn(async () => ({ id: "new-agent" })),
+    createAgent: vi.fn(async (_options: Record<string, unknown>) => ({ id: "new-agent" })),
   };
 }
 
@@ -80,6 +80,21 @@ describe("createWorkspaceThroughPlugin", () => {
       expect.objectContaining({ workspaceId: "w1", idempotencyKey: "draft-1" }),
     );
     expect(result.agent).toEqual({ id: "new-agent" });
+  });
+
+  it("asks the daemon to name the workspace from the first prompt unless the location opts out", async () => {
+    const make = (autoName?: boolean) => {
+      const base = entry(async () => ({ workspaceId: "w1" }));
+      return { ...base, location: { ...base.location, autoName } };
+    };
+    const named = client([{ id: "w1", title: "proj-slug" } as never]);
+    await run(make(), named);
+    expect(named.createAgent).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceTitleToReplace: "proj-slug" }),
+    );
+    const optedOut = client([{ id: "w1", title: "proj-slug" } as never]);
+    await run(make(false), optedOut);
+    expect(optedOut.createAgent.mock.calls[0]?.[0]).not.toHaveProperty("workspaceTitleToReplace");
   });
 
   it("uses the plugin's agent when it returns agentId", async () => {
