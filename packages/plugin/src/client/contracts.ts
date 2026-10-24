@@ -250,6 +250,20 @@ export interface PluginWorkspaceLocationCreateContext {
    * is not shown (`usesRef: false`) or the project has no checkout to choose from.
    */
   ref: PluginWorkspaceLocationRef | null;
+  /**
+   * The agent the user configured in the composer, so the plugin can start its agent the same
+   * way. Null when the workspace is created without an agent (an empty workspace).
+   */
+  agent: PluginWorkspaceLocationAgent | null;
+}
+
+/** The composer's agent choices for the first agent. */
+export interface PluginWorkspaceLocationAgent {
+  provider: string;
+  model?: string;
+  thinkingOptionId?: string;
+  modeId?: string;
+  featureValues?: Record<string, unknown>;
 }
 
 /** The branch picker's choice. */

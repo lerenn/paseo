@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { checkoutRequestToPluginRef, createWorkspaceThroughPlugin } from "./create";
+import {
+  checkoutRequestToPluginRef,
+  composerAgentToPluginAgent,
+  createWorkspaceThroughPlugin,
+} from "./create";
 import type { WorkspaceLocationEntry } from "./model";
 
 const project = { id: "p1", name: "app", directory: "/work/app" };
@@ -37,7 +41,16 @@ function run(
     prompt: "hello",
     slug: "brave-otter-12",
     checkout: { action: "branch-off", refName: "refs/heads/main" },
-    agent: { config: { provider: "claude", cwd: "/x" } } as never,
+    agent: {
+      config: {
+        provider: "claude",
+        cwd: "/x",
+        model: "opus",
+        thinkingOptionId: "medium",
+        modeId: "bypass",
+        featureValues: { fast: true },
+      },
+    } as never,
     ...extra,
   });
 }
@@ -55,6 +68,13 @@ describe("createWorkspaceThroughPlugin", () => {
       prompt: "hello",
       slug: "brave-otter-12",
       ref: { action: "branch-off", refName: "refs/heads/main" },
+      agent: {
+        provider: "claude",
+        model: "opus",
+        thinkingOptionId: "medium",
+        modeId: "bypass",
+        featureValues: { fast: true },
+      },
     });
     expect(fake.createAgent).toHaveBeenCalledWith(
       expect.objectContaining({ workspaceId: "w1", idempotencyKey: "draft-1" }),
@@ -128,5 +148,19 @@ describe("checkoutRequestToPluginRef", () => {
 
   it("is null without a choice", () => {
     expect(checkoutRequestToPluginRef(undefined)).toBeNull();
+  });
+});
+
+describe("composerAgentToPluginAgent", () => {
+  it("passes provider, model, thinking option, mode and feature values", () => {
+    expect(
+      composerAgentToPluginAgent({
+        config: { provider: "codex", cwd: "/x", model: "gpt", modeId: "auto" },
+      } as never),
+    ).toEqual({ provider: "codex", model: "gpt", modeId: "auto" });
+  });
+
+  it("is null without an agent", () => {
+    expect(composerAgentToPluginAgent(undefined)).toBeNull();
   });
 });
