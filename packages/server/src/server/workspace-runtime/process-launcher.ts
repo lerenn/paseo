@@ -6,6 +6,7 @@ import type {
 } from "@getpaseo/plugin/server";
 import { createLineRewriter, toHostPaths, toRuntimePaths, type PathMap } from "./path-map.js";
 import { createRemoteChildProcess } from "./remote-child-process.js";
+import type { WorkspaceRuntimeReconcileRequest } from "@getpaseo/plugin/server";
 import type {
   RuntimeExecControl,
   RuntimeExecSink,
@@ -45,6 +46,11 @@ export interface RuntimeProcessLauncherOptions {
   /** The agent's final MCP servers, read when the process starts. */
   mcpServers?: () => Record<string, JsonValue> | undefined;
   onNotice?: (notice: RuntimeNotice) => void;
+  /**
+   * Every live workspace of this runtime, for `reconcile` after a lost sandbox. Without it the
+   * launcher does not reconcile: a runtime told about too few workspaces would delete live ones.
+   */
+  liveWorkspaces?: () => WorkspaceRuntimeReconcileRequest["workspaces"];
 }
 
 function rewriteIfText(chunks: Uint8Array[], map: PathMap): Uint8Array[] {
@@ -54,6 +60,46 @@ function rewriteIfText(chunks: Uint8Array[], map: PathMap): Uint8Array[] {
     return [new TextEncoder().encode(toHostPaths(text, map))];
   } catch {
     return [joined];
+  }
+}
+
+async function requireCommand(
+  backend: WorkspaceRuntimeBackend,
+  request: { workspaceId: string; options?: WorkspaceRuntimeOptions },
+  command: string,
+): Promise<void> {
+  const present = await backend.checkCommand({
+    workspaceId: request.workspaceId,
+    options: request.options,
+    command,
+  });
+  if (!present) {
+    throw new Error(
+      `"${command}" was not found in the "${backend.id}" runtime. Install it in the runtime's image.`,
+    );
+  }
+}
+
+/** A stdio MCP server whose binary is missing would fail inside the agent; say so up front. */
+async function warnAboutMissingMcpCommands(
+  backend: WorkspaceRuntimeBackend,
+  request: { workspaceId: string; options?: WorkspaceRuntimeOptions },
+  options: RuntimeProcessLauncherOptions,
+): Promise<void> {
+  const servers = options.mcpServers?.() ?? {};
+  for (const [name, server] of Object.entries(servers)) {
+    const command = (server as { type?: string; command?: unknown }).command;
+    if (typeof command !== "string") continue;
+    const present = await backend
+      .checkCommand({ workspaceId: request.workspaceId, options: request.options, command })
+      .catch(() => true);
+    if (!present) {
+      options.onNotice?.({
+        workspaceId: request.workspaceId,
+        level: "warning",
+        message: `MCP server "${name}" runs "${command}", which was not found in the "${backend.id}" runtime.`,
+      });
+    }
   }
 }
 
@@ -150,6 +196,8 @@ export function createRuntimeProcessLauncher(
             env: Object.fromEntries(Object.entries(input.env).map(([k, v]) => [k, mapped(v)])),
           };
           if (purpose === "session") {
+            await requireCommand(backend, request, request.argv[0]);
+            await warnAboutMissingMcpCommands(backend, request, options);
             await backend.prepare({
               ...request,
               mcpServers: mapJson(options.mcpServers?.(), mapped),
@@ -163,7 +211,10 @@ export function createRuntimeProcessLauncher(
               unsubscribe();
               // A lost sandbox is not a finished process: let the runtime re-adopt what is left,
               // so the next input relaunches into a consistent runtime.
-              if (exit.reason === "runtime-lost") void backend.reconcile().catch(() => undefined);
+              const live = options.liveWorkspaces?.();
+              if (exit.reason === "runtime-lost" && live) {
+                void backend.reconcile({ workspaces: live }).catch(() => undefined);
+              }
               target.onExit(exit);
             },
             onFailed(error) {

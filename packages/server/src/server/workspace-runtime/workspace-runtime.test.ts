@@ -30,14 +30,18 @@ interface Harness {
   launch(overrides?: { purpose?: "session" | "probe" }): ReturnType<typeof spawnProviderProcess>;
   launcher: ReturnType<typeof createRuntimeProcessLauncher>;
   stdinSeen: string[];
+  reconciles: string[][];
 }
 
 /** A real plugin worker and a real backend, joined by an in-memory channel. */
-function createHarness(options: { failExec?: string; mapTo?: string } = {}): Harness {
+function createHarness(
+  options: { failExec?: string; mapTo?: string; missing?: string[]; live?: boolean } = {},
+): Harness {
   const calls: string[] = [];
   const prepared: WorkspaceRuntimePrepareRequest[] = [];
   const execs: WorkspaceRuntimeExecRequest[] = [];
   const stdinSeen: string[] = [];
+  const reconciles: string[][] = [];
   const notices: RuntimeNotice[] = [];
   const exits: Array<(exit: WorkspaceRuntimeExit) => void> = [];
   const pending = new Map<string, { resolve(value: unknown): void; reject(error: Error): void }>();
@@ -48,9 +52,11 @@ function createHarness(options: { failExec?: string; mapTo?: string } = {}): Har
     label: "Fake",
     describe: () => ({ protocolVersion: 1, capabilities: { pipes: true, pty: false } }),
     ...(options.mapTo ? { mapCwd: () => options.mapTo! } : {}),
-    reconcile: () => {
+    reconcile: (request) => {
       calls.push("reconcile");
+      reconciles.push(request.workspaces.map((workspace) => workspace.workspaceId));
     },
+    checkCommand: ({ command }) => !(options.missing ?? []).includes(command),
     prepare: (request, context) => {
       calls.push("prepare");
       prepared.push(request);
@@ -120,12 +126,17 @@ function createHarness(options: { failExec?: string; mapTo?: string } = {}): Har
     agentId: "agent-1",
     provider: "claude",
     workspaceRoot: options.mapTo ? "/daemon/ws" : undefined,
+    ...(options.live
+      ? { liveWorkspaces: () => [{ workspaceId: "wks_0123456789abcdef", cwd: "/daemon/ws" }] }
+      : {}),
+    mcpServers: () => ({ tools: { type: "stdio", command: "mcp-tools" } }),
     onNotice: (notice) => notices.push(notice),
   });
   return {
     backend,
     launcher,
     stdinSeen,
+    reconciles,
     calls,
     prepared,
     execs,
@@ -182,7 +193,7 @@ describe("workspace runtime process launch", () => {
   });
 
   it("reports a lost runtime and reconciles it", async () => {
-    const harness = createHarness();
+    const harness = createHarness({ live: true });
     const child = harness.launch() as ReturnType<typeof harness.launch> & {
       runtimeExit: WorkspaceRuntimeExit | null;
     };
@@ -346,5 +357,78 @@ describe("live workspace runtime backend", () => {
     expect(live.label).toBe("Reloaded");
     const gone = new WorkspaceRuntimeRegistry();
     expect(() => gone.live("pod").label).toThrow(WorkspaceRuntimeUnavailableError);
+
+describe("workspace runtime lifecycle", () => {
+  it("reconciles a lost runtime with the live workspaces, and not without them", async () => {
+    const live = createHarness({ live: true });
+    const child = live.launch();
+    await new Promise<void>((resolve) => child.once("spawn", () => resolve()));
+    live.finishLast({ code: null, signal: null, reason: "runtime-lost" });
+    await expect.poll(() => live.reconciles).toEqual([["wks_0123456789abcdef"]]);
+
+    const blind = createHarness();
+    const other = blind.launch();
+    await new Promise<void>((resolve) => other.once("spawn", () => resolve()));
+    blind.finishLast({ code: null, signal: null, reason: "runtime-lost" });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(blind.reconciles).toEqual([]);
+  });
+
+  it("fails a session whose provider binary is missing from the runtime", async () => {
+    const harness = createHarness({ missing: ["claude"] });
+    const child = harness.launch();
+    const error = await new Promise<Error>((resolve) => child.once("error", resolve));
+    expect(error.message).toBe(
+      `"claude" was not found in the "fake" runtime. Install it in the runtime's image.`,
+    );
+    expect(harness.calls).not.toContain("exec");
+  });
+
+  it("warns about a missing stdio MCP binary and still launches", async () => {
+    const harness = createHarness({ missing: ["mcp-tools"] });
+    const child = harness.launch();
+    await new Promise<void>((resolve) => child.once("spawn", () => resolve()));
+    expect(harness.notices).toContainEqual({
+      workspaceId: "wks_0123456789abcdef",
+      level: "warning",
+      message: `MCP server "tools" runs "mcp-tools", which was not found in the "fake" runtime.`,
+    });
+    child.kill();
+  });
+
+  it("destroys the sandbox when a workspace is archived or removed by any path", async () => {
+    const destroyed: string[] = [];
+    const registry = new WorkspaceRuntimeRegistry();
+    const reconciled: string[][] = [];
+    registry.register({
+      id: "pod",
+      label: "Pod",
+      providesFiles: false,
+      destroy: async (request: { workspaceId: string }) => void destroyed.push(request.workspaceId),
+      reconcile: async (request: { workspaces: Array<{ workspaceId: string }> }) =>
+        void reconciled.push(request.workspaces.map((workspace) => workspace.workspaceId)),
+    } as never);
+    let notify: (mutation: unknown) => void = () => {};
+    const index = new RuntimeWorkspaceIndex({
+      workspaceRegistry: {
+        list: async () => [
+          { workspaceId: "wks_a", cwd: "/d/a", runtime: { id: "pod" }, archivedAt: null },
+          { workspaceId: "wks_b", cwd: "/d/b", runtime: { id: "pod" }, archivedAt: null },
+        ],
+        subscribeToMutations: (listener: (mutation: unknown) => void) => {
+          notify = listener;
+          return () => {};
+        },
+      } as never,
+      runtimes: registry,
+      logger: { debug() {}, warn() {} } as never,
+    });
+    await index.initialize();
+    expect(reconciled).toEqual([["wks_a", "wks_b"]]);
+    notify({ kind: "archive", workspaceId: "wks_a", workspace: null });
+    notify({ kind: "remove", workspaceId: "wks_b", workspace: null });
+    notify({ kind: "remove", workspaceId: "wks_b", workspace: null });
+    await expect.poll(() => destroyed).toEqual(["wks_a", "wks_b"]);
+    expect(index.workspacesOf("pod")).toEqual([]);
   });
 });

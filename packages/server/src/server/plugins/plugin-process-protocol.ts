@@ -44,6 +44,7 @@ export type PluginRuntimeCallVerb =
   | "prepare"
   | "before_input"
   | "map_cwd"
+  | "check_command"
   | "fs.stat"
   | "fs.readdir"
   | "fs.read"
@@ -335,6 +336,7 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
           "prepare",
           "before_input",
           "map_cwd",
+          "check_command",
           "fs.stat",
           "fs.readdir",
           "fs.read",

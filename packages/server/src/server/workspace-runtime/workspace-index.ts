@@ -1,4 +1,8 @@
 import path from "node:path";
+import type {
+  WorkspaceRuntimeOptions,
+  WorkspaceRuntimeReconcileRequest,
+} from "@getpaseo/plugin/server";
 import type { Logger } from "pino";
 import type {
   PersistedWorkspaceRecord,
@@ -28,6 +32,8 @@ function contains(root: string, target: string): boolean {
 export class RuntimeWorkspaceIndex {
   private readonly workspaces = new Map<string, IndexedWorkspace>();
   private readonly launchers = new Map<string, ProviderProcessLauncher>();
+  /** A runtime backend is reconciled once per registration. */
+  private readonly reconciled = new WeakSet<object>();
 
   constructor(
     private readonly dependencies: {
@@ -40,11 +46,15 @@ export class RuntimeWorkspaceIndex {
   async initialize(): Promise<() => void> {
     for (const record of await this.dependencies.workspaceRegistry.list()) this.apply(record);
     // A plugin that reloads registers a new backend; launchers hold the old one.
-    const unsubscribeRuntimes = this.dependencies.runtimes.subscribe(() => this.launchers.clear());
+    const unsubscribeRuntimes = this.dependencies.runtimes.subscribe(() => {
+      this.launchers.clear();
+      this.reconcileRegistered();
+    });
+    this.reconcileRegistered();
     const unsubscribeMutations =
       this.dependencies.workspaceRegistry.subscribeToMutations?.((mutation: WorkspaceMutation) => {
         if (mutation.kind === "upsert" && mutation.workspace) this.apply(mutation.workspace);
-        else this.drop(mutation.workspaceId);
+        else this.retire(mutation.workspaceId);
       }) ?? (() => {});
     return () => {
       unsubscribeRuntimes();
@@ -54,7 +64,7 @@ export class RuntimeWorkspaceIndex {
 
   private apply(record: PersistedWorkspaceRecord): void {
     if (!record.runtime || record.archivedAt) {
-      this.drop(record.workspaceId);
+      this.retire(record.workspaceId);
       return;
     }
     this.workspaces.set(record.workspaceId, {
@@ -65,9 +75,60 @@ export class RuntimeWorkspaceIndex {
     this.launchers.delete(record.workspaceId);
   }
 
-  private drop(workspaceId: string): void {
+  /**
+   * The workspace is archived or removed, by any path: delete its sandbox. A runtime that is not
+   * registered right now cannot be told, and learns of the orphan at its next reconcile.
+   */
+  private retire(workspaceId: string): void {
+    const workspace = this.workspaces.get(workspaceId);
     this.workspaces.delete(workspaceId);
     this.launchers.delete(workspaceId);
+    if (!workspace) return;
+    const backend = this.dependencies.runtimes.find(workspace.runtime.id);
+    if (!backend) {
+      this.dependencies.logger.warn(
+        { workspaceId, runtimeId: workspace.runtime.id },
+        "Workspace runtime is not registered; its sandbox is left for the next reconcile",
+      );
+      return;
+    }
+    backend
+      .destroy({
+        workspaceId,
+        options: workspace.runtime.options as WorkspaceRuntimeOptions | undefined,
+        cwd: workspace.root,
+      })
+      .catch((error: unknown) => {
+        this.dependencies.logger.warn(
+          { err: error, workspaceId, runtimeId: workspace.runtime.id },
+          "Workspace runtime destroy failed",
+        );
+      });
+  }
+
+  /** Every live workspace in a runtime, the list `reconcile` works from. */
+  workspacesOf(runtimeId: string): WorkspaceRuntimeReconcileRequest["workspaces"] {
+    return [...this.workspaces.values()]
+      .filter((workspace) => workspace.runtime.id === runtimeId)
+      .map((workspace) => ({
+        workspaceId: workspace.workspaceId,
+        options: workspace.runtime.options as WorkspaceRuntimeOptions | undefined,
+        cwd: workspace.root,
+      }));
+  }
+
+  private reconcileRegistered(): void {
+    for (const { id } of this.dependencies.runtimes.list()) {
+      const backend = this.dependencies.runtimes.find(id);
+      if (!backend || this.reconciled.has(backend)) continue;
+      this.reconciled.add(backend);
+      backend.reconcile({ workspaces: this.workspacesOf(id) }).catch((error: unknown) => {
+        this.dependencies.logger.warn(
+          { err: error, runtimeId: id },
+          "Workspace runtime reconcile failed",
+        );
+      });
+    }
   }
 
   /** The runtime workspace whose directory contains `target`, the deepest one if nested. */
@@ -116,6 +177,7 @@ export class RuntimeWorkspaceIndex {
           runtimeOptions: workspace.runtime.options,
           provider: "workspace",
           workspaceRoot: workspace.root,
+          liveWorkspaces: () => this.workspacesOf(workspace.runtime.id),
         })
       : {
           runtimeId: workspace.runtime.id,

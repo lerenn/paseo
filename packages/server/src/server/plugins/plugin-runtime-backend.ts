@@ -3,7 +3,9 @@ import type {
   WorkspaceRuntimeActivityEvent,
   WorkspaceRuntimeDescription,
   WorkspaceRuntimeExecRequest,
+  WorkspaceRuntimeCommandRequest,
   WorkspaceRuntimeFsRequest,
+  WorkspaceRuntimeReconcileRequest,
   WorkspaceRuntimeInputRequest,
   WorkspaceRuntimePrepareRequest,
   WorkspaceRuntimeStatus,
@@ -76,8 +78,12 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
     await this.call("destroy", request);
   }
 
-  async reconcile(): Promise<void> {
-    await this.call("reconcile", {});
+  async reconcile(request: WorkspaceRuntimeReconcileRequest): Promise<void> {
+    await this.call("reconcile", request);
+  }
+
+  async checkCommand(request: WorkspaceRuntimeCommandRequest): Promise<boolean> {
+    return (await this.call("check_command", request)) !== false;
   }
 
   async prepare(request: WorkspaceRuntimePrepareRequest): Promise<void> {

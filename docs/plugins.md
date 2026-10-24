@@ -501,6 +501,14 @@ Rules the code can't show:
   samples the first 8 KiB, and a change is found by polling because a runtime has no watch. A
   runtime without `fs` fails the request; the host copy of a runtime workspace is never read.
   Symlink confinement is the runtime's job (`fs` must reject a path that leaves the workspace).
+- **Archive and removal end the sandbox.** `RuntimeWorkspaceIndex` watches workspace registry
+  mutations, so `destroy` runs however a workspace goes away (archive, archive by path, removal by
+  reconciliation). `reconcile` gets the list of live workspaces when a runtime registers (daemon
+  start, plugin reload) and after a `runtime-lost` exit; an unlisted sandbox is an orphan. Without
+  the list a runtime cannot tell an orphan from a live sandbox, so core never calls it empty.
+- **Missing binaries are named.** `checkCommand` runs before a session for the provider's command
+  (the launch fails with "`claude` was not found in the `pod` runtime") and for each stdio MCP
+  server in `prepare` (a warning notice, and the agent still starts).
 - **Still on the host.** Terminals, workspace scripts and file uploads.
 
 ## Contribute a provider
