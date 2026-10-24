@@ -487,10 +487,22 @@ the runtime unchanged. Check `server_info.features.workspaceRuntimes` first; the
 than the process finishing: Paseo reconciles the runtime and the next input relaunches into it.
 `context.notice(message, level?)` shows progress or a problem in the agent's timeline.
 
+<<<<<<< HEAD
 `request.purpose` is `"session"` for an agent, `"probe"` for metadata reads and `"command"` for a
 short tool Paseo runs in the workspace (Git). A probe must not create or resume a sandbox. A command
 skips `prepare`; `request.interactive` is false for background refreshes, which must not resume a
 suspended sandbox (reject them instead), and true when a user is waiting. `request.env` is the complete environment for the process and never
+=======
+Agents stay in their environment. A subagent runs in its caller's workspace, so it uses that
+workspace's runtime. A workspace an agent creates (the `create_workspace` tool, which takes an
+optional `runtime`) inherits the caller's runtime unless the call names one; `{ "id": "local" }`
+runs it on the daemon host. Several agents in one workspace share one runtime environment: every
+`exec`, `prepare` and `onActivity` carries the same `workspaceId`, so run them in one sandbox and
+suspend it only when all of them are idle.
+
+`request.purpose` is `"session"` for an agent and `"probe"` for metadata reads. A probe must not
+create or resume a sandbox. `request.env` is the complete environment for the process and never
+>>>>>>> c1985360c (feat(plugin): new workspaces inherit the caller's workspace runtime)
 includes the daemon's own. `request.argv` is exactly what the provider asked to run, so the sandbox
 image must contain the provider binary.
 

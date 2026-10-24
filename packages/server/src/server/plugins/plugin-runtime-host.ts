@@ -50,6 +50,8 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
     if (typeof runtime.describe !== "function" || typeof runtime.exec !== "function") {
       throw new Error(`Workspace runtime ${id} must implement describe() and exec()`);
     }
+    if (id === "local")
+      throw new Error('Workspace runtime ID "local" is reserved for the daemon host');
     if (runtimes.has(id)) throw new Error(`Duplicate workspace runtime: ${id}`);
     runtimes.set(id, { ...runtime, id });
   }

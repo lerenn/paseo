@@ -409,7 +409,13 @@ export default function contribute(server: PluginServerContext) {
 
 `exec` 返回 `{ stdin, stdout, stderr, exit, signal }`。`exit` 以 `{ code, signal, reason, message? }` 完成。当沙箱消失而不是进程结束时，使用 `reason: "runtime-lost"`：Paseo 会协调（reconcile）该运行时，下一次输入会重新启动进程。`context.notice(message, level?)` 会在 Agent 的时间线中显示进度或问题。
 
+<<<<<<< HEAD
 `request.purpose` 对 Agent 是 `"session"`，对读取元数据是 `"probe"`，对 Paseo 在工作区中运行的短工具（Git）是 `"command"`。probe 不得创建或恢复沙箱。command 不会先调用 `prepare`；后台刷新时 `request.interactive` 为 false，此时不得恢复已挂起的沙箱（应拒绝），用户正在等待结果时为 true。`request.env` 是进程的完整环境，不包含守护进程自身的环境。`request.argv` 恰好是 Provider 要求运行的命令，因此沙箱镜像必须包含 Provider 的可执行文件。
+=======
+Agent 留在自己的环境中。子 Agent 运行在其调用者的工作区里，因此使用该工作区的运行时。Agent 创建的工作区（`create_workspace` 工具，接受可选的 `runtime`）默认继承调用者的运行时，除非调用中指定了运行时；`{ "id": "local" }` 表示在守护进程主机上运行。同一工作区中的多个 Agent 共用一个运行时环境：每个 `exec`、`prepare` 和 `onActivity` 都带有相同的 `workspaceId`，请在同一个沙箱中运行它们，并且只在全部空闲时才挂起。
+
+`request.purpose` 对 Agent 是 `"session"`，对读取元数据是 `"probe"`。probe 不得创建或恢复沙箱。`request.env` 是进程的完整环境，不包含守护进程自身的环境。`request.argv` 恰好是 Provider 要求运行的命令，因此沙箱镜像必须包含 Provider 的可执行文件。
+>>>>>>> c1985360c (feat(plugin): new workspaces inherit the caller's workspace runtime)
 
 通过 `spawnProviderProcess` 启动进程的 Provider 会设置 `supportsRemoteLaunch`。Claude、Codex 和 ACP Provider 都是如此。其他 Provider，以及由插件提供的 Provider，在运行时工作区中会被拒绝。Git 在运行时中运行。文件、终端和脚本仍然使用守护进程所在的主机。
 

@@ -1,4 +1,8 @@
-import { WorkspaceRuntimeUnavailableError, type WorkspaceRuntimeBackend } from "./types.js";
+import {
+  LOCAL_WORKSPACE_RUNTIME_ID,
+  WorkspaceRuntimeUnavailableError,
+  type WorkspaceRuntimeBackend,
+} from "./types.js";
 
 /** Workspace runtimes registered by plugins, keyed by runtime id. */
 export class WorkspaceRuntimeRegistry {
@@ -6,6 +10,9 @@ export class WorkspaceRuntimeRegistry {
   private readonly listeners = new Set<() => void>();
 
   register(backend: WorkspaceRuntimeBackend): () => void {
+    if (backend.id === LOCAL_WORKSPACE_RUNTIME_ID) {
+      throw new Error(`"${LOCAL_WORKSPACE_RUNTIME_ID}" is reserved for the daemon host`);
+    }
     if (this.backends.has(backend.id)) {
       throw new Error(`Workspace runtime already registered: ${backend.id}`);
     }
