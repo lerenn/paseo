@@ -26,6 +26,7 @@ function installation(): InstalledPlugin {
     workspacePanels: [],
     commandCenterItems: [],
     clientSlashCommands: [],
+    createOptions: [],
     attachmentSources: [],
     themes: [],
     timelineTransformers: [],

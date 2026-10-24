@@ -33,6 +33,7 @@ function installed(): InstalledPlugin {
     ],
     commandCenterItems: [],
     clientSlashCommands: [],
+    createOptions: [],
     attachmentSources: [],
     themes: [],
     timelineTransformers: [],
