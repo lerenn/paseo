@@ -55,6 +55,37 @@ describe("evaluatePluginClientBundle", () => {
     expect(active).toBe(0);
   });
 
+  it("registers workspace locations and rejects invalid ones", () => {
+    const plugin = evaluatePluginClientBundle(
+      "pods",
+      bundle(`
+      plugin.addWorkspaceLocation({
+        id: "pod",
+        title: "Pod",
+        icon: "Blocks",
+        defaultValue: { size: "small" },
+        createWorkspace: async () => ({ workspaceId: "w1" }),
+      });
+    `),
+    );
+    expect(plugin.workspaceLocations).toMatchObject([{ id: "pod", title: "Pod" }]);
+    expect(() =>
+      evaluatePluginClientBundle(
+        "pods",
+        bundle(`
+      plugin.addWorkspaceLocation({ id: "pod", title: "Pod", icon: "Blocks", createWorkspace: async () => ({ workspaceId: "w1" }) });
+      plugin.addWorkspaceLocation({ id: "pod", title: "Pod", icon: "Blocks", createWorkspace: async () => ({ workspaceId: "w1" }) });
+    `),
+      ),
+    ).toThrow("Duplicate workspace location: pod");
+    expect(() =>
+      evaluatePluginClientBundle(
+        "pods",
+        bundle(`plugin.addWorkspaceLocation({ id: "pod", title: "Pod", icon: "Blocks" });`),
+      ),
+    ).toThrow("no createWorkspace callback");
+  });
+
   it("accepts memoized settings screens", () => {
     const plugin = evaluatePluginClientBundle(
       "settings",

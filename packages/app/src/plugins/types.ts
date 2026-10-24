@@ -20,6 +20,7 @@ import type {
   PluginTimelineTransformerContribution,
   PluginPanelLocation,
   PluginWorkspacePanelContribution as SDKPluginWorkspacePanelContribution,
+  PluginWorkspaceLocationContribution as SDKPluginWorkspaceLocationContribution,
 } from "@getpaseo/plugin/client";
 
 type PluginFilePanelContribution = SDKPluginFilePanelContribution<PluginText>;
@@ -32,6 +33,7 @@ type PluginSidebarContribution = SDKPluginSidebarContribution<PluginText>;
 type PluginSidebarItemContribution = SDKPluginSidebarItemContribution<PluginText>;
 type PluginScreenContribution = SDKPluginScreenContribution<PluginText>;
 type PluginSettingsScreenContribution = SDKPluginSettingsScreenContribution<PluginText>;
+type PluginWorkspaceLocationContribution = SDKPluginWorkspaceLocationContribution<PluginText>;
 type WorkspacePanelInput = SDKPluginWorkspacePanelContribution<PluginText>;
 type PluginWorkspacePanelContribution =
   | (Extract<WorkspacePanelInput, { context?: "workspace" }> & { context: "workspace" })
@@ -57,6 +59,7 @@ export interface EvaluatedPlugin {
   commandCenterItems: PluginCommandCenterItemContribution[];
   clientSlashCommands: PluginClientSlashCommandContribution[];
   attachmentSources: PluginAttachmentSourceContribution[];
+  workspaceLocations: PluginWorkspaceLocationContribution[];
   themes: PluginThemeContribution[];
   timelineTransformers: PluginTimelineTransformerContribution[];
   timelineRenderers: PluginTimelineRendererContribution[];
@@ -91,4 +94,5 @@ export type {
   PluginTimelineRendererContribution,
   PluginTimelineTransformerContribution,
   PluginWorkspacePanelContribution,
+  PluginWorkspaceLocationContribution,
 };

@@ -194,6 +194,9 @@ export interface PluginClientContext extends PluginCommandCapabilities, PluginCl
     contribution: PluginComposerPillContribution<PluginText>,
   ): PluginButtonRegistration<PluginText>;
   addAttachmentSource(contribution: PluginAttachmentSourceContribution<PluginText>): PluginCleanup;
+  addWorkspaceLocation(
+    contribution: PluginWorkspaceLocationContribution<PluginText>,
+  ): PluginCleanup;
   addTheme(contribution: PluginThemeContribution<PluginText>): PluginCleanup;
   addFilePanel(contribution: PluginFilePanelContribution<PluginText>): PluginCleanup;
   addTimelineTransformer<ItemType extends AgentTimelineItem["type"]>(
@@ -203,6 +206,68 @@ export interface PluginClientContext extends PluginCommandCapabilities, PluginCl
     contribution: PluginTimelineRendererContribution<Schema>,
   ): PluginCleanup;
   openPanel(id: string, options: PluginClientOpenPanelOptions): void;
+}
+
+/** The project a New workspace form has selected, on the host the plugin is installed on. */
+export interface PluginWorkspaceLocationProject {
+  id: string;
+  name: string;
+  /** The project's checkout directory on that host. */
+  directory: string;
+}
+
+export interface PluginWorkspaceLocationAvailabilityContext {
+  hostId: string;
+  project: PluginWorkspaceLocationProject;
+}
+
+export interface PluginWorkspaceLocationSettingsProps extends PluginHostProps {
+  project: PluginWorkspaceLocationProject;
+  /** The current settings: `defaultValue` until `onChange` is called. */
+  value: unknown;
+  onChange(value: unknown): void;
+  /** True while the workspace is being created. */
+  disabled: boolean;
+}
+
+export interface PluginWorkspaceLocationCreateContext {
+  hostId: string;
+  project: PluginWorkspaceLocationProject;
+  /** The settings as last passed to `onChange`, else `defaultValue`. */
+  settings: unknown;
+  /** Stable for one New workspace draft; a retry of the same draft passes the same key. */
+  idempotencyKey: string;
+  /** The text the user typed, for naming. Paseo still sends it to the first agent. */
+  prompt: string;
+}
+
+export interface PluginWorkspaceLocationResult {
+  /** A workspace that exists on the host. */
+  workspaceId: string;
+  /**
+   * An agent the plugin already started in that workspace. Without it, Paseo starts the first
+   * agent there the way it does for a built-in location.
+   */
+  agentId?: string;
+}
+
+/**
+ * An option in the New workspace form's location dropdown, beside Local and New worktree. Picking
+ * it hands workspace creation to the plugin.
+ */
+export interface PluginWorkspaceLocationContribution<Text extends PluginText = string> {
+  id: string;
+  title: Text;
+  icon: PluginIcon;
+  /** Offer the option only for some projects. Default: always. A throw hides it. */
+  isAvailable?(context: PluginWorkspaceLocationAvailabilityContext): boolean;
+  /** Rendered as a field in the form while this option is selected. */
+  Settings?: ComponentType<PluginWorkspaceLocationSettingsProps>;
+  defaultValue?: unknown;
+  /** Runs on this client in place of the built-in creation. Throw to show the user an error. */
+  createWorkspace(
+    context: PluginWorkspaceLocationCreateContext,
+  ): Promise<PluginWorkspaceLocationResult>;
 }
 
 export type PluginClientContribution = (client: PluginClientContext) => PluginCleanup;

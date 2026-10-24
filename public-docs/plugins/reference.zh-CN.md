@@ -2362,6 +2362,23 @@ Composer 菜单、搜索选择器、选中后的胶囊、草稿状态和提交�
 显示的是插件之前的状态；而在 daemon 停止并启动插件期间，读取状态会得到 `failed`，因为在启动完成之前插件
 不在运行时目录中。
 
+## 新建工作区位置 {#new-workspace-locations}
+
+`client.addWorkspaceLocation({ id, title, icon, createWorkspace, isAvailable?, Settings?, defaultValue? })`
+会在“新建工作区”表单的位置下拉菜单中，于“本地”和“新建 worktree”之后增加一个选项。
+
+| 字段              | 含义                                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`、`title`     | 小写 ID，在插件内唯一；`title` 是下拉菜单中显示的标签。                                                                                                       |
+| `icon`            | 任意[图标](#icons)形式。                                                                                                                                      |
+| `isAvailable`     | `({ hostId, project }) => boolean`。对其拒绝的项目隐藏该选项；抛出异常同样会隐藏。                                                                            |
+| `Settings`        | 选中该选项时作为表单字段渲染的组件。Props：`theme`、`host`、`layout`、`project`、`value`、`onChange`、`disabled`。                                            |
+| `defaultValue`    | 在调用 `onChange` 之前的设置值。                                                                                                                              |
+| `createWorkspace` | `({ hostId, project, settings, idempotencyKey, prompt }) => Promise<{ workspaceId, agentId? }>`。在客户端运行，替代内置的创建流程。抛出异常会向用户显示错误。 |
+
+`project` 为 `{ id, name, directory }`。未返回 `agentId` 时，Paseo 会在返回的工作区中启动第一个智能体。
+用户上一次的选择会被记住；`Settings` 的值不会。
+
 ## 插件来源 {#plugin-sources}
 
 把以下来源标识之一粘贴到 **设置 → 插件** 中，或者传给 `paseo plugin install`。
