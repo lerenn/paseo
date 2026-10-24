@@ -17,7 +17,8 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   adds an option beside Local and New worktree in the New workspace form. `createWorkspace` runs on
   the client and receives `{ hostId, project, settings, idempotencyKey, prompt, slug, ref, agent }`
   (`slug` is the worktree slug, `ref` the branch picker's choice, `agent` the composer's agent
-  settings) and returns `{ workspaceId, agentId? }`. Reference: `public-docs/plugins/reference.md`,
+  settings), plus `autoName` (default true): the daemon renames the workspace from the first prompt
+  via the optional `workspaceTitleToReplace` field on agent creation and returns `{ workspaceId, agentId? }`. Reference: `public-docs/plugins/reference.md`,
   section "New workspace locations".
 - **Fork PRs:** #4 (`b10be7b16`), #6 (`d8ffef51e`, branch picker and slug), #8 (`9f240d678`,
   composer agent settings).

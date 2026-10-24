@@ -328,6 +328,13 @@ export interface PluginWorkspaceLocationContribution<Text extends PluginText = s
   defaultValue?: unknown;
   /** Show the branch picker, as New worktree does. Default true; set false when no ref applies. */
   usesRef?: boolean;
+  /**
+   * Name the workspace from the first prompt, as Paseo does for new worktrees. Default true. Only
+   * the workspace's display name changes, and only while it is still the title the plugin gave
+   * it; the plugin's environment is untouched. Not applied when `createWorkspace` returns an
+   * `agentId`, because the plugin started that agent itself.
+   */
+  autoName?: boolean;
   /** Runs on this client in place of the built-in creation. Throw to show the user an error. */
   createWorkspace(
     context: PluginWorkspaceLocationCreateContext,
