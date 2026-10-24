@@ -29,7 +29,11 @@ export const lifecycleEventNames = [
 export const beforeHookNames = ["agent.create", "agent.session_open", "workspace.create"] as const;
 
 const beforeSchemas = {
-  "agent.create": CreateAgentRequestMessageSchema.pick({ config: true, env: true }).strict(),
+  "agent.create": CreateAgentRequestMessageSchema.pick({
+    config: true,
+    env: true,
+    pluginOptions: true,
+  }).strict(),
   "agent.session_open": z
     .object({
       agentId: z.string(),

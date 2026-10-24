@@ -1735,6 +1735,9 @@ export const CreateAgentRequestMessageSchema = z.object({
   idempotencyKey: z.string().min(1).max(512).optional(),
   config: AgentSessionConfigSchema,
   env: z.record(z.string(), z.string()).optional(),
+  // Values chosen in plugin-contributed create options, `{ [pluginId]: { [optionId]: value } }`.
+  // Paseo never interprets them; `before("agent.create")` hooks read them.
+  pluginOptions: z.record(z.string(), z.record(z.string(), z.string())).optional(),
   workspaceId: z.string().optional(),
   // Optional caller context lets managed CLI invocations use the same daemon-owned
   // workspace and parentage policy as agent-scoped MCP creation.
@@ -3632,6 +3635,7 @@ export const ServerInfoStatusPayloadSchema = z
         // COMPAT(internalWorkspaces): added in v0.9.0; remove gate after 2027-03-17.
         internalWorkspaces: z.boolean().optional(),
         backgroundWorkspaces: z.boolean().optional(),
+        pluginCreateOptions: z.boolean().optional(),
         providersSnapshot: z.boolean().optional(),
         connectedHosts: z.boolean().optional(),
         hostMultiplexing: z.boolean().optional(),

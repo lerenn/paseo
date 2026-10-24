@@ -49,3 +49,33 @@ describe("create request internal field", () => {
     });
   });
 });
+
+describe("create request plugin options", () => {
+  test("keeps per-plugin option values on create and workspace-initial agents", () => {
+    const pluginOptions = { "agent-roles": { role: "reviewer" } };
+    const created = SessionInboundMessageSchema.parse({
+      type: "agent.create.request",
+      requestId: "create-agent-options",
+      config: { provider: "codex", cwd: "/repo/app" },
+      pluginOptions,
+    });
+    expect(created).toMatchObject({ pluginOptions });
+
+    const workspace = SessionInboundMessageSchema.parse({
+      type: "workspace.create.request",
+      requestId: "create-workspace-options",
+      source: { kind: "directory", path: "/repo/app" },
+      agent: { config: { provider: "codex", cwd: "/repo/app" }, pluginOptions },
+    });
+    expect(workspace).toMatchObject({ agent: { pluginOptions } });
+  });
+
+  test("still parses a create request that omits them", () => {
+    const parsed = SessionInboundMessageSchema.parse({
+      type: "create_agent_request",
+      requestId: "no-options",
+      config: { provider: "codex", cwd: "/repo/app" },
+    });
+    expect(parsed).not.toHaveProperty("pluginOptions");
+  });
+});
