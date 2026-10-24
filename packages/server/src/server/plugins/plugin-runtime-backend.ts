@@ -114,6 +114,7 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
         ...(request.agentId ? { agentId: request.agentId } : {}),
         ...(request.provider ? { provider: request.provider } : {}),
         purpose: request.purpose,
+        ...(request.interactive !== undefined ? { interactive: request.interactive } : {}),
         argv: [...request.argv],
         ...(request.cwd ? { cwd: request.cwd } : {}),
         env: request.env,

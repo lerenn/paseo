@@ -409,9 +409,9 @@ export default function contribute(server: PluginServerContext) {
 
 `exec` 返回 `{ stdin, stdout, stderr, exit, signal }`。`exit` 以 `{ code, signal, reason, message? }` 完成。当沙箱消失而不是进程结束时，使用 `reason: "runtime-lost"`：Paseo 会协调（reconcile）该运行时，下一次输入会重新启动进程。`context.notice(message, level?)` 会在 Agent 的时间线中显示进度或问题。
 
-`request.purpose` 对 Agent 是 `"session"`，对读取元数据是 `"probe"`。probe 不得创建或恢复沙箱。`request.env` 是进程的完整环境，不包含守护进程自身的环境。`request.argv` 恰好是 Provider 要求运行的命令，因此沙箱镜像必须包含 Provider 的可执行文件。
+`request.purpose` 对 Agent 是 `"session"`，对读取元数据是 `"probe"`，对 Paseo 在工作区中运行的短工具（Git）是 `"command"`。probe 不得创建或恢复沙箱。command 不会先调用 `prepare`；后台刷新时 `request.interactive` 为 false，此时不得恢复已挂起的沙箱（应拒绝），用户正在等待结果时为 true。`request.env` 是进程的完整环境，不包含守护进程自身的环境。`request.argv` 恰好是 Provider 要求运行的命令，因此沙箱镜像必须包含 Provider 的可执行文件。
 
-通过 `spawnProviderProcess` 启动进程的 Provider 会设置 `supportsRemoteLaunch`。Claude、Codex 和 ACP Provider 都是如此。其他 Provider，以及由插件提供的 Provider，在运行时工作区中会被拒绝。文件、Git、终端和脚本仍然使用守护进程所在的主机。
+通过 `spawnProviderProcess` 启动进程的 Provider 会设置 `supportsRemoteLaunch`。Claude、Codex 和 ACP Provider 都是如此。其他 Provider，以及由插件提供的 Provider，在运行时工作区中会被拒绝。Git 在运行时中运行。文件、终端和脚本仍然使用守护进程所在的主机。
 
 ### 用量来源 {#usage-sources}
 
