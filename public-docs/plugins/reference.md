@@ -502,9 +502,10 @@ suspend it only when all of them are idle.
 
 `request.purpose` is `"session"` for an agent and `"probe"` for metadata reads. A probe must not
 create or resume a sandbox. `request.env` is the complete environment for the process and never
->>>>>>> c1985360c (feat(plugin): new workspaces inherit the caller's workspace runtime)
-includes the daemon's own. `request.argv` is exactly what the provider asked to run, so the sandbox
-image must contain the provider binary.
+
+> > > > > > > c1985360c (feat(plugin): new workspaces inherit the caller's workspace runtime)
+> > > > > > > includes the daemon's own. `request.argv` is exactly what the provider asked to run, so the sandbox
+> > > > > > > image must contain the provider binary.
 
 Providers that start their processes through `spawnProviderProcess` set `supportsRemoteLaunch`.
 Claude, Codex and the ACP providers do. Other providers, and providers contributed by plugins, are
