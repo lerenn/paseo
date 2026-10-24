@@ -17,6 +17,8 @@ export interface WorkspaceCreateOptions extends CommandOptions {
   prNumber?: string;
   forge?: string;
   background?: boolean;
+  runtime?: string;
+  runtimeOptions?: string;
 }
 
 interface WorktreeSourceBase {
@@ -132,6 +134,23 @@ export function buildWorkspaceSource(options: WorkspaceCreateOptions) {
   throw new Error(`Unsupported workspace isolation: ${String(options.isolation)}`);
 }
 
+export function buildWorkspaceRuntime(options: WorkspaceCreateOptions) {
+  if (options.runtime === undefined) {
+    if (options.runtimeOptions !== undefined)
+      throw new Error("--runtime-options requires --runtime");
+    return undefined;
+  }
+  let runtimeOptions: Record<string, unknown> | undefined;
+  if (options.runtimeOptions !== undefined) {
+    const parsed: unknown = JSON.parse(options.runtimeOptions);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("--runtime-options must be a JSON object");
+    }
+    runtimeOptions = parsed as Record<string, unknown>;
+  }
+  return { id: options.runtime, ...(runtimeOptions ? { options: runtimeOptions } : {}) };
+}
+
 export async function runCreateCommand(
   options: WorkspaceCreateOptions,
   _command: Command,
@@ -151,6 +170,7 @@ export async function runCreateCommand(
       source: buildWorkspaceSource(options),
       ...(options.title ? { title: options.title } : {}),
       ...(options.background !== undefined ? { background: options.background } : {}),
+      ...(buildWorkspaceRuntime(options) ? { runtime: buildWorkspaceRuntime(options) } : {}),
       ...(callerAgentId ? { callerAgentId } : {}),
     });
     if (!payload.workspace) {

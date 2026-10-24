@@ -5467,13 +5467,13 @@ export class AgentManager {
     if (!input.workspaceId || !this.workspaceRuntimes) return null;
     const selected = await this.workspaceRuntimes.getWorkspaceRuntime(input.workspaceId);
     if (!selected) return null;
-    const backend = this.workspaceRuntimes.registry.require(selected.id);
+    this.workspaceRuntimes.registry.require(selected.id);
     if (!input.client.capabilities.supportsRemoteLaunch) {
       throw new RemoteLaunchUnsupportedError(input.client.provider, selected.id);
     }
     const { agentId, workspaceId } = input;
     return createRuntimeProcessLauncher({
-      backend,
+      backend: this.workspaceRuntimes.registry.live(selected.id),
       workspaceId,
       runtimeOptions: selected.options,
       agentId,

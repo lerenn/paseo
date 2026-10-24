@@ -494,6 +494,11 @@ short tool Paseo runs in the workspace (Git). A probe must not create or resume 
 skips `prepare`; `request.interactive` is false for background refreshes, which must not resume a
 suspended sandbox (reject them instead), and true when a user is waiting. `request.env` is the complete environment for the process and never
 =======
+`paseo workspace create --runtime <id> [--runtime-options <json>]` selects a runtime from the CLI;
+without it a call from an agent inherits the agent's runtime. Lifecycle verbs (`create`, `prepare`,
+`beforeInput`, `resume`, `destroy`, `reconcile`) may take up to 15 minutes, file verbs 2 minutes and
+the rest 30 seconds; `exec` has no deadline.
+
 Agents stay in their environment. A subagent runs in its caller's workspace, so it uses that
 workspace's runtime. A workspace an agent creates (the `create_workspace` tool, which takes an
 optional `runtime`) inherits the caller's runtime unless the call names one; `{ "id": "local" }`

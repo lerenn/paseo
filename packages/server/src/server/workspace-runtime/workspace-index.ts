@@ -32,7 +32,7 @@ export class RuntimeWorkspaceIndex {
   constructor(
     private readonly dependencies: {
       workspaceRegistry: WorkspaceRegistry;
-      runtimes: WorkspaceRuntimeRegistry;
+      runtimes: Pick<WorkspaceRuntimeRegistry, "find" | "live" | "list" | "subscribe">;
       logger: Logger;
     },
   ) {}
@@ -111,7 +111,7 @@ export class RuntimeWorkspaceIndex {
     const backend = this.dependencies.runtimes.find(workspace.runtime.id);
     const launcher: ProviderProcessLauncher = backend
       ? createRuntimeProcessLauncher({
-          backend,
+          backend: this.dependencies.runtimes.live(workspace.runtime.id),
           workspaceId: workspace.workspaceId,
           runtimeOptions: workspace.runtime.options,
           provider: "workspace",
