@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   intersectWindowChromeCorners,
+  resolveContentWindowChromeCorners,
   resolveHasOwnedWindowChromeObstruction,
   resolveWindowChromeObstruction,
   resolveWindowChromeSafeArea,
@@ -85,5 +86,30 @@ describe("window chrome", () => {
         corner: "top-right",
       }),
     ).toBe(false);
+  });
+});
+
+describe("content corners beside an app dock", () => {
+  it("gives the right-hand corner to the dock and keeps the left one", () => {
+    expect(resolveContentWindowChromeCorners("both", true)).toBe("top-left");
+    expect(resolveContentWindowChromeCorners("top-right", true)).toBe("none");
+    expect(resolveContentWindowChromeCorners("top-left", true)).toBe("top-left");
+  });
+
+  it("leaves the corners alone without a dock", () => {
+    expect(resolveContentWindowChromeCorners("both", false)).toBe("both");
+  });
+
+  it("pads a dock header by the right-hand controls on Windows and Linux only", () => {
+    const owned = (mode: "custom-windows" | "custom-linux" | "native-mac" | null) =>
+      resolveWindowChromeSafeArea({
+        obstruction: resolveWindowChromeObstruction({ mode, isFullscreen: false }),
+        corners: "top-right",
+        placement: "inline",
+      });
+    expect(owned("custom-windows")).toEqual({ paddingLeft: 0, paddingRight: 138 });
+    expect(owned("custom-linux")).toMatchObject({ paddingLeft: 0 });
+    expect(owned("native-mac")).toEqual({ paddingLeft: 0, paddingRight: 0 });
+    expect(owned(null)).toEqual({ paddingLeft: 0, paddingRight: 0 });
   });
 });

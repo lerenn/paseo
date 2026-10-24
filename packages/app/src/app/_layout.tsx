@@ -114,9 +114,11 @@ import { flushDraftPersistStorage } from "@/stores/draft-store";
 import { getNextThemePreference, ICON_STROKE_WIDTH } from "@/styles/theme";
 import { useSessionStore } from "@/stores/session-store";
 import { WorkspaceLayoutModePublisher } from "@/workspace-tabs/layout-mode-publisher";
+import { useAppDockStore } from "@/stores/app-dock-store";
 import { installWebScrollbarStyles } from "@/styles/install-web-scrollbar-styles";
 import type { HostProfile } from "@/types/host-connection";
 import {
+  resolveContentWindowChromeCorners,
   useHasWindowChromeObstruction,
   WindowChromeProvider,
   WindowChromeRegion,
@@ -422,6 +424,8 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
     }),
   });
   const hasTopLeftWindowControls = useHasWindowChromeObstruction("top-left");
+  // A wide dock sits at the right edge and owns the window's right-hand controls, not the content.
+  const appDockBesideContent = useAppDockStore((state) => state.open && state.panel !== null);
   const appChromeLayout = resolveDesktopAppChromeLayout({
     desktopSidebarRendered: desktopSidebarVisible,
     hasTopLeftWindowControls,
@@ -452,7 +456,14 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
       ) : null}
       <WorkspaceExplorerOpenGesture enabled={chromeEnabled && isCompactLayout}>
         <WindowChromeRegion
-          corners={isCompactLayout && chromeEnabled ? "both" : appChromeLayout.contentCorners}
+          corners={
+            isCompactLayout && chromeEnabled
+              ? "both"
+              : resolveContentWindowChromeCorners(
+                  appChromeLayout.contentCorners,
+                  appDockBesideContent,
+                )
+          }
         >
           <View style={flexStyle}>{children}</View>
         </WindowChromeRegion>
