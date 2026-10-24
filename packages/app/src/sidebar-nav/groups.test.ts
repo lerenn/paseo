@@ -15,20 +15,23 @@ import {
 } from "./groups";
 import { pluginSidebarNavKey, type SidebarNavPreference } from "./model";
 
-function plugin(pluginId: string, contributionId: string): PluginSidebarGroup {
+function plugin(pluginId: string, contributionId: string, group?: string): PluginSidebarGroup {
   return {
     kind: "item",
     key: `${pluginId}/sidebar/${contributionId}`,
     pluginId,
     contributionId,
     title: contributionId,
+    group,
     targets: [],
   };
 }
 
-const roles = plugin("roles", "roles");
+const roles = plugin("roles", "roles", "Agents");
+const inbox = plugin("inbox", "inbox", "agents");
 const tickets = plugin("tickets", "dispatcher");
 const rolesKey = pluginSidebarNavKey(roles);
+const inboxKey = pluginSidebarNavKey(inbox);
 const ticketsKey = pluginSidebarNavKey(tickets);
 
 function shape(entries: readonly SidebarNavEntry[]): unknown[] {
@@ -88,23 +91,47 @@ describe("resolveSidebarNavEntries", () => {
 
     expect(shape(entries)).toEqual([...DEFAULT_ORDER, ticketsKey, { g1: [] }]);
   });
+
+  it("places an unplaced plugin row in the group its hint names, creating the group once", () => {
+    const entries = resolve([], [], [roles, inbox, tickets]);
+
+    expect(shape(entries)).toEqual([
+      ...DEFAULT_ORDER,
+      { "hint:agents": [rolesKey, inboxKey] },
+      ticketsKey,
+    ]);
+    expect(entries[4]).toMatchObject({ title: "Agents", collapsed: false });
+  });
+
+  it("matches the hint to an existing group by title, ignoring case", () => {
+    const entries = resolve(
+      [{ key: "group:g1", visible: true }],
+      [{ id: "g1", title: "AGENTS", collapsed: true }],
+      [roles],
+    );
+
+    expect(shape(entries)).toEqual([{ g1: [rolesKey] }, ...DEFAULT_ORDER]);
+  });
+
+  it("ignores the hint once the user has placed the row", () => {
+    const entries = resolve([{ key: rolesKey, visible: true }], [], [roles]);
+
+    expect(shape(entries)).toEqual([rolesKey, ...DEFAULT_ORDER]);
+  });
 });
 
 describe("serializeSidebarNavEntries", () => {
   it("round-trips groups, markers and per-row group ids", () => {
-    const entries = resolve(
-      [
-        { key: "group:g1", visible: true },
-        { key: rolesKey, visible: true, group: "g1" },
-      ],
-      [{ id: "g1", title: "Agents", collapsed: false }],
-      [roles, tickets],
-    );
+    const entries = resolve([], [], [roles, tickets]);
     const state = serializeSidebarNavEntries(entries, []);
 
-    expect(state.groups).toEqual([{ id: "g1", title: "Agents", collapsed: false }]);
-    expect(state.preferences).toContainEqual({ key: "group:g1", visible: true });
-    expect(state.preferences).toContainEqual({ key: rolesKey, visible: true, group: "g1" });
+    expect(state.groups).toEqual([{ id: "hint:agents", title: "Agents", collapsed: false }]);
+    expect(state.preferences).toContainEqual({ key: "group:hint:agents", visible: true });
+    expect(state.preferences).toContainEqual({
+      key: rolesKey,
+      visible: true,
+      group: "hint:agents",
+    });
     expect(shape(resolve(state.preferences, state.groups, [roles, tickets]))).toEqual(
       shape(entries),
     );
