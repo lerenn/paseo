@@ -3,6 +3,7 @@ import type {
   WorkspaceRuntimeActivityEvent,
   WorkspaceRuntimeDescription,
   WorkspaceRuntimeExecRequest,
+  WorkspaceRuntimeFsRequest,
   WorkspaceRuntimeInputRequest,
   WorkspaceRuntimePrepareRequest,
   WorkspaceRuntimeStatus,
@@ -14,6 +15,7 @@ import type {
   PluginRuntimeCallVerb,
 } from "./plugin-process-protocol.js";
 import type {
+  RuntimeFsVerb,
   RuntimeExecControl,
   RuntimeExecSink,
   RuntimeNotice,
@@ -36,6 +38,7 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
     readonly id: string,
     readonly label: string,
     readonly icon: string | undefined,
+    readonly providesFiles: boolean,
     private readonly transport: PluginRuntimeTransport,
   ) {}
 
@@ -79,6 +82,10 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
 
   async prepare(request: WorkspaceRuntimePrepareRequest): Promise<void> {
     await this.call("prepare", request);
+  }
+
+  async fs(verb: RuntimeFsVerb, request: WorkspaceRuntimeFsRequest): Promise<unknown> {
+    return this.call(verb, request);
   }
 
   async mapCwd(request: WorkspaceRuntimeWorkspaceRequest & { cwd: string }): Promise<string> {

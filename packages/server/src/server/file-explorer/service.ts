@@ -3,7 +3,22 @@ import type { FileHandle } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { expandUserPath, resolvePathFromBase } from "../path-utils.js";
+import {
+  BINARY_MIME_TYPES,
+  FILE_EXPLORER_STREAM_CHUNK_BYTES,
+  FILE_TYPE_SAMPLE_BYTES,
+  IMAGE_MIME_TYPES,
+  isLikelyBinary,
+  isValidUtf8,
+  isValidUtf8Prefix,
+  MAX_EDITABLE_FILE_BYTES,
+  textMimeTypeForExtension,
+} from "./file-kinds.js";
+import * as runtimeExplorer from "./runtime-service.js";
+import { RuntimeFiles } from "./runtime-files.js";
 import { runGitCommand } from "../../utils/run-git-command.js";
+
+export { FILE_EXPLORER_STREAM_CHUNK_BYTES, MAX_EDITABLE_FILE_BYTES } from "./file-kinds.js";
 
 export type ExplorerEntryKind = "file" | "directory";
 export type ExplorerFileKind = "text" | "image" | "binary";
@@ -92,23 +107,6 @@ export interface FileExplorerFileStream {
   chunks: AsyncIterable<Uint8Array>;
 }
 
-const TEXT_MIME_TYPES: Record<string, string> = {
-  ".json": "application/json",
-};
-
-const BINARY_MIME_TYPES: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".zip": "application/zip",
-  ".gz": "application/gzip",
-  ".mp3": "audio/mpeg",
-  ".mp4": "video/mp4",
-  ".woff2": "font/woff2",
-};
-
-const DEFAULT_TEXT_MIME_TYPE = "text/plain";
-const FILE_TYPE_SAMPLE_BYTES = 8192;
-export const FILE_EXPLORER_STREAM_CHUNK_BYTES = 256 * 1024;
-export const MAX_EDITABLE_FILE_BYTES = 1024 * 1024;
 const READ_FILE_OPEN_FLAGS =
   process.platform === "win32" ? constants.O_RDONLY : constants.O_RDONLY | constants.O_NOFOLLOW;
 const ACCESS_OUTSIDE_WORKSPACE_MESSAGE = "Access outside of workspace is not allowed";
@@ -126,15 +124,6 @@ function matchesExpectedRevision(
     ? fileRevision(stats) === expectedRevision
     : stats.mtime.toISOString() === expectedModifiedAt;
 }
-
-const IMAGE_MIME_TYPES: Record<string, string> = {
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
-  ".svg": "image/svg+xml",
-};
 
 interface ScopedPathParams {
   root: string;
@@ -157,6 +146,8 @@ export async function listDirectoryEntries({
   root,
   relativePath = ".",
 }: ListDirectoryParams): Promise<FileExplorerDirectory> {
+  const runtimeFiles = await RuntimeFiles.open(root);
+  if (runtimeFiles) return runtimeExplorer.listDirectory(runtimeFiles, relativePath);
   const directoryPath = await resolveScopedPath({ root, relativePath });
   const stats = await fs.stat(directoryPath.resolvedPath);
 
@@ -250,6 +241,8 @@ export async function readExplorerFileBytes({
   root,
   relativePath,
 }: ReadFileParams): Promise<FileExplorerFileBytes> {
+  const runtimeFiles = await RuntimeFiles.open(root);
+  if (runtimeFiles) return runtimeExplorer.readFileBytes(runtimeFiles, relativePath);
   const filePath = await resolveScopedPath({ root, relativePath });
   const handle = await openFileForRead(filePath.resolvedPath);
 
@@ -305,6 +298,8 @@ export async function streamExplorerFile(
   { root, relativePath }: ReadFileParams,
   consume: (file: FileExplorerFileStream) => Promise<void>,
 ): Promise<void> {
+  const runtimeFiles = await RuntimeFiles.open(root);
+  if (runtimeFiles) return runtimeExplorer.streamFile(runtimeFiles, relativePath, consume);
   const filePath = await resolveScopedPath({ root, relativePath });
   const handle = await openFileForRead(filePath.resolvedPath);
 
@@ -409,6 +404,9 @@ export async function getExplorerFileVersion({
   root,
   relativePath,
 }: ReadFileParams): Promise<ExplorerFileVersion> {
+  const runtimeFiles = await RuntimeFiles.open(root);
+  if (runtimeFiles)
+    return runtimeExplorer.fileVersion(runtimeFiles, expandUserPath(root), relativePath);
   const cwd = expandUserPath(root);
   try {
     const filePath = await resolveScopedPath({ root, relativePath });
@@ -449,6 +447,9 @@ export async function resolveExplorerFilePath({
   root,
   relativePath,
 }: ReadFileParams): Promise<string> {
+  const runtimeFiles = await RuntimeFiles.open(root);
+  if (runtimeFiles)
+    return path.join(runtimeFiles.hostRoot, runtimeFiles.resolve(relativePath).relative);
   return (await resolveScopedPath({ root, relativePath })).resolvedPath;
 }
 
@@ -460,6 +461,17 @@ export async function writeExplorerFile({
   expectedModifiedAt,
   expectedRevision,
 }: WriteFileParams): Promise<ExplorerFileWriteResult> {
+  const runtimeFiles = await RuntimeFiles.open(root);
+  if (runtimeFiles) {
+    return runtimeExplorer.writeFile(runtimeFiles, {
+      root,
+      relativePath,
+      content,
+      contentEncoding,
+      expectedModifiedAt,
+      expectedRevision,
+    });
+  }
   const encoded = Buffer.from(content, contentEncoding === "base64" ? "base64" : "utf8");
   if (encoded.byteLength > MAX_EDITABLE_FILE_BYTES) {
     return { status: "error", error: "File is too large to edit" };
@@ -563,6 +575,8 @@ export async function getDownloadableFileInfo({ root, relativePath }: ReadFilePa
   mimeType: string;
   size: number;
 }> {
+  const runtimeFiles = await RuntimeFiles.open(root);
+  if (runtimeFiles) return runtimeExplorer.downloadInfo(runtimeFiles, relativePath);
   const filePath = await resolveScopedPath({ root, relativePath });
   const handle = await openFileForRead(filePath.resolvedPath);
 
@@ -613,6 +627,8 @@ export async function createExplorerEntry({
   name,
   kind,
 }: ExplorerCreateEntryParams): Promise<ExplorerEntryMutationResult> {
+  const runtimeFiles = await RuntimeFiles.open(root);
+  if (runtimeFiles) return runtimeExplorer.createEntry(runtimeFiles, { parentPath, name, kind });
   const trimmedName = name.trim();
   if (!trimmedName || trimmedName === "." || trimmedName === "..") {
     return { status: "error", error: "Invalid name" };
@@ -653,6 +669,8 @@ export async function duplicateExplorerEntry({
   root,
   relativePath,
 }: ReadFileParams): Promise<ExplorerEntryMutationResult> {
+  const runtimeFiles = await RuntimeFiles.open(root);
+  if (runtimeFiles) return runtimeExplorer.duplicateEntry(runtimeFiles, relativePath);
   try {
     const source = await resolveScopedPath({ root, relativePath });
     const realRoot = await fs.realpath(expandUserPath(root));
@@ -702,6 +720,8 @@ export async function renameExplorerEntry({
   relativePath,
   name,
 }: ExplorerRenameEntryParams): Promise<ExplorerEntryMutationResult> {
+  const runtimeFiles = await RuntimeFiles.open(root);
+  if (runtimeFiles) return runtimeExplorer.renameEntry(runtimeFiles, { relativePath, name });
   const trimmedName = name.trim();
   if (!trimmedName || trimmedName === "." || trimmedName === "..") {
     return { status: "error", error: "Invalid name" };
@@ -769,6 +789,8 @@ export async function deleteExplorerEntry({
   root,
   relativePath,
 }: ReadFileParams): Promise<ExplorerEntryMutationResult> {
+  const runtimeFiles = await RuntimeFiles.open(root);
+  if (runtimeFiles) return runtimeExplorer.deleteEntry(runtimeFiles, relativePath);
   try {
     const scoped = await resolveScopedPath({ root, relativePath });
     const realRoot = await fs.realpath(expandUserPath(root));
@@ -887,36 +909,6 @@ function normalizeRelativePath({ root, targetPath }: { root: string; targetPath:
   return relative === "" ? "." : relative.split(path.sep).join("/");
 }
 
-function textMimeTypeForExtension(ext: string): string {
-  return TEXT_MIME_TYPES[ext] ?? DEFAULT_TEXT_MIME_TYPE;
-}
-
-function isLikelyBinary(buffer: Buffer): boolean {
-  if (buffer.length === 0) {
-    return false;
-  }
-
-  let suspicious = 0;
-  for (let idx = 0; idx < buffer.length; idx += 1) {
-    const byte = buffer[idx];
-    if (byte === 0) {
-      return true;
-    }
-
-    const isControl =
-      byte < 32 &&
-      byte !== 9 && // tab
-      byte !== 10 && // newline
-      byte !== 13; // carriage return
-
-    if (isControl || byte === 127) {
-      suspicious += 1;
-    }
-  }
-
-  return suspicious / buffer.length > 0.3;
-}
-
 /** Classifies a file from its extension and first bytes, without reading the rest of it. */
 async function sniffFileType(
   handle: FileHandle,
@@ -933,23 +925,4 @@ async function sniffFileType(
   const chunk = sample.subarray(0, bytesRead);
   if (isLikelyBinary(chunk) || !isValidUtf8Prefix(chunk)) return binary;
   return { kind: "text", mimeType: textMimeTypeForExtension(ext) };
-}
-
-/** A sample can end inside a multi-byte character, so only a complete invalid sequence fails. */
-function isValidUtf8Prefix(buffer: Buffer): boolean {
-  try {
-    new TextDecoder("utf-8", { fatal: true }).decode(buffer, { stream: true });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function isValidUtf8(buffer: Buffer): boolean {
-  try {
-    new TextDecoder("utf-8", { fatal: true }).decode(buffer);
-    return true;
-  } catch {
-    return false;
-  }
 }

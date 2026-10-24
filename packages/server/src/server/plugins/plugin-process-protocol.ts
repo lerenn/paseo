@@ -29,6 +29,8 @@ export interface PluginWorkspaceRuntimeMetadata {
   label: string;
   /** SVG markup, read from the plugin directory. */
   icon?: string;
+  /** The runtime provides the workspace's files. */
+  files?: boolean;
 }
 
 export type PluginRuntimeCallVerb =
@@ -41,7 +43,15 @@ export type PluginRuntimeCallVerb =
   | "reconcile"
   | "prepare"
   | "before_input"
-  | "map_cwd";
+  | "map_cwd"
+  | "fs.stat"
+  | "fs.readdir"
+  | "fs.read"
+  | "fs.write"
+  | "fs.mkdir"
+  | "fs.rename"
+  | "fs.remove"
+  | "fs.copy";
 
 export interface PluginRuntimeExecEnvelope {
   workspaceId: string;
@@ -325,6 +335,14 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
           "prepare",
           "before_input",
           "map_cwd",
+          "fs.stat",
+          "fs.readdir",
+          "fs.read",
+          "fs.write",
+          "fs.mkdir",
+          "fs.rename",
+          "fs.remove",
+          "fs.copy",
         ]),
         input: z.unknown(),
       })
@@ -398,6 +416,7 @@ export const PluginProcessMessageSchema: z.ZodType<PluginProcessMessage> = z.dis
                 id: z.string().min(1),
                 label: z.string().min(1),
                 icon: z.string().optional(),
+                files: z.boolean().optional(),
               })
               .strict(),
           )

@@ -319,6 +319,7 @@ export function createPluginWorker(options: {
         runtimeHost.metadata().map(async (runtime) => ({
           id: runtime.id,
           label: runtime.label,
+          files: runtime.files,
           icon: runtime.iconPath
             ? await readPluginProviderIcon(message.pluginDirectory, runtime.iconPath)
             : undefined,

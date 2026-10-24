@@ -1,3 +1,9 @@
+import { once } from "node:events";
+import {
+  findExplorerRuntimeTarget,
+  setExplorerRuntimeResolver,
+} from "./file-explorer/runtime-files.js";
+import { streamExplorerFile } from "./file-explorer/service.js";
 import { RuntimeWorkspaceIndex } from "./workspace-runtime/workspace-index.js";
 import { setCommandLauncherResolver } from "../utils/command-launcher.js";
 import type { WorkspaceRuntimeOptions } from "@getpaseo/plugin/server";
@@ -849,6 +855,30 @@ export async function createPaseoDaemon(
 
     let fileHandle: Awaited<ReturnType<typeof open>> | null = null;
     try {
+      const runtimeTarget = findExplorerRuntimeTarget(entry.absolutePath);
+      if (runtimeTarget) {
+        // The file lives in the workspace's runtime; the host copy, if any, is stale.
+        await streamExplorerFile(
+          {
+            root: runtimeTarget.hostRoot,
+            relativePath: path.relative(runtimeTarget.hostRoot, entry.absolutePath),
+          },
+          async (file) => {
+            res.setHeader("Content-Type", entry.mimeType);
+            res.setHeader(
+              "Content-Disposition",
+              formatAttachmentContentDisposition(entry.fileName),
+            );
+            res.setHeader("Content-Length", file.size.toString());
+            for await (const chunk of file.chunks) {
+              if (res.destroyed) return;
+              if (!res.write(chunk)) await once(res, "drain");
+            }
+            res.end();
+          },
+        );
+        return;
+      }
       fileHandle = await open(entry.absolutePath, DOWNLOAD_OPEN_FLAGS);
       const fileStats = await fileHandle.stat();
       if (res.destroyed) {
@@ -1030,6 +1060,7 @@ export async function createPaseoDaemon(
   });
   const stopRuntimeWorkspaceIndex = await runtimeWorkspaceIndex.initialize();
   setCommandLauncherResolver((cwd) => runtimeWorkspaceIndex.launcherForPath(cwd));
+  setExplorerRuntimeResolver((directory) => runtimeWorkspaceIndex.explorerTargetForPath(directory));
   await workspaceLabelService.initialize();
   logger.info({ elapsed: elapsed() }, "Workspace registries bootstrapped");
   const teardownArchivedWorkspaceRuntime = (workspaceId: string): void => {
@@ -1918,6 +1949,7 @@ export async function createPaseoDaemon(
       await deleteLocalCredential(config.paseoHome);
       unsubscribePluginProviders();
       stopRuntimeWorkspaceIndex();
+      setExplorerRuntimeResolver(null);
       setCommandLauncherResolver(null);
       await pluginRuntime.stopAllPlugins().catch(() => undefined);
       await serviceProxy.stopStandalone().catch(() => undefined);
@@ -1940,6 +1972,7 @@ export async function createPaseoDaemon(
     unsubscribePluginProviders();
     stopRuntimeWorkspaceIndex();
     setCommandLauncherResolver(null);
+    setExplorerRuntimeResolver(null);
     await hubRelationships.stop();
     workspaceReconciliation.dispose();
     scriptHealthMonitor.stop();

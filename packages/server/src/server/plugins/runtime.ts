@@ -873,12 +873,18 @@ export class PluginRuntime {
     const child = loaded.child;
     if (!registry || !child) return;
     for (const metadata of loaded.workspaceRuntimes) {
-      const backend = new PluginRuntimeBackend(metadata.id, metadata.label, metadata.icon, {
-        call: (message) => this.request(loaded, message),
-        post: (message) => {
-          void send(child, message).catch(() => undefined);
+      const backend = new PluginRuntimeBackend(
+        metadata.id,
+        metadata.label,
+        metadata.icon,
+        metadata.files === true,
+        {
+          call: (message) => this.request(loaded, message),
+          post: (message) => {
+            void send(child, message).catch(() => undefined);
+          },
         },
-      });
+      );
       try {
         loaded.runtimeUnregister.push(registry.register(backend));
         loaded.runtimeBackends.set(metadata.id, backend);

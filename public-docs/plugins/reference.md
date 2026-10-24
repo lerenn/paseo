@@ -470,17 +470,18 @@ A workspace selects a runtime by id: `workspace.create.request` takes
 the runtime unchanged. Check `server_info.features.workspaceRuntimes` first; the client throws
 "Update the host to use workspace runtimes." for an older daemon.
 
-| Method                                    | Called                                                                                                                                                                       |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `describe()`                              | Reports the protocol version and whether `exec` supports pipes or a PTY.                                                                                                     |
-| `mapCwd(request)`                         | Returns the workspace directory inside the runtime. Paths under the daemon's directory are rewritten to it going in and back going out. Omit it when both are the same path. |
-| `create(request)`                         | When a workspace is created with this runtime, with `cwd` set to the daemon's directory. Idempotent.                                                                         |
-| `inspect`, `pause`, `resume`, `reconcile` | Reserved for the runtime's own lifecycle and the verbs of getpaseo/paseo#3360.                                                                                               |
-| `destroy(request)`                        | When the workspace is archived. Never on disconnect or daemon restart.                                                                                                       |
-| `prepare(request)`                        | Before every session launch, with the final argv, env, cwd and the agent's MCP servers.                                                                                      |
-| `beforeInput(request)`                    | Awaited before a prompt or permission answer is delivered, so a suspended sandbox resumes first.                                                                             |
-| `onActivity(event)`                       | `turn_started`, `turn_ended`, `permission_requested`, `permission_resolved`, `input`.                                                                                        |
-| `exec(request, { notice, signal })`       | Start a process. Launches of one workspace run one at a time. `signal` aborts a pending launch.                                                                              |
+| Method                                    | Called                                                                                                                                                                                                     |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `describe()`                              | Reports the protocol version and whether `exec` supports pipes or a PTY.                                                                                                                                   |
+| `mapCwd(request)`                         | Returns the workspace directory inside the runtime. Paths under the daemon's directory are rewritten to it going in and back going out. Omit it when both are the same path.                               |
+| `create(request)`                         | When a workspace is created with this runtime, with `cwd` set to the daemon's directory. Idempotent.                                                                                                       |
+| `fs`                                      | The workspace's files: `stat`, `readdir`, `read`, `write`, `mkdir`, `rename`, `remove`, `copy`. The Files panel reads and edits through it. Without `fs` the Files panel is unavailable for the workspace. |
+| `inspect`, `pause`, `resume`, `reconcile` | Reserved for the runtime's own lifecycle and the verbs of getpaseo/paseo#3360.                                                                                                                             |
+| `destroy(request)`                        | When the workspace is archived. Never on disconnect or daemon restart.                                                                                                                                     |
+| `prepare(request)`                        | Before every session launch, with the final argv, env, cwd and the agent's MCP servers.                                                                                                                    |
+| `beforeInput(request)`                    | Awaited before a prompt or permission answer is delivered, so a suspended sandbox resumes first.                                                                                                           |
+| `onActivity(event)`                       | `turn_started`, `turn_ended`, `permission_requested`, `permission_resolved`, `input`.                                                                                                                      |
+| `exec(request, { notice, signal })`       | Start a process. Launches of one workspace run one at a time. `signal` aborts a pending launch.                                                                                                            |
 
 `exec` returns `{ stdin, stdout, stderr, exit, signal }`. `exit` resolves with
 `{ code, signal, reason, message? }`. Use `reason: "runtime-lost"` when the sandbox went away rather
@@ -507,10 +508,15 @@ create or resume a sandbox. `request.env` is the complete environment for the pr
 > > > > > > > includes the daemon's own. `request.argv` is exactly what the provider asked to run, so the sandbox
 > > > > > > > image must contain the provider binary.
 
+`fs` takes an absolute path inside the runtime and must confine it to the workspace directory,
+rejecting a symlink that leaves it. Errors start with the POSIX code (`ENOENT: ...`, `EEXIST: ...`),
+and a `write` with `expectedMtimeMs` fails with `ECONFLICT` when the file changed. Paseo finds file
+changes by polling, since a runtime has no watch.
+
 Providers that start their processes through `spawnProviderProcess` set `supportsRemoteLaunch`.
 Claude, Codex and the ACP providers do. Other providers, and providers contributed by plugins, are
-refused in a runtime workspace. Git runs in the runtime. Files, terminals and scripts still use
-the daemon host.
+refused in a runtime workspace. Git and files run in the runtime. Terminals, scripts and uploads
+still use the daemon host.
 
 ### Usage sources
 
