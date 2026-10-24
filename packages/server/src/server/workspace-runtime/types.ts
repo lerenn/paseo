@@ -5,6 +5,8 @@ import type {
   WorkspaceRuntimePrepareRequest,
   WorkspaceRuntimeWorkspaceRequest,
   WorkspaceRuntimeFsRequest,
+  WorkspaceRuntimeCommandRequest,
+  WorkspaceRuntimeReconcileRequest,
   WorkspaceRuntimeActivityEvent,
   WorkspaceRuntimeDescription,
   WorkspaceRuntimeStatus,
@@ -57,7 +59,8 @@ export interface WorkspaceRuntimeBackend {
   pause(request: WorkspaceRuntimeWorkspaceRequest): Promise<void>;
   resume(request: WorkspaceRuntimeWorkspaceRequest): Promise<void>;
   destroy(request: WorkspaceRuntimeWorkspaceRequest): Promise<void>;
-  reconcile(): Promise<void>;
+  reconcile(request: WorkspaceRuntimeReconcileRequest): Promise<void>;
+  checkCommand(request: WorkspaceRuntimeCommandRequest): Promise<boolean>;
   prepare(request: WorkspaceRuntimePrepareRequest): Promise<void>;
   beforeInput(request: WorkspaceRuntimeInputRequest): Promise<void>;
   /** One file system call; the result is whatever the verb returns (see WorkspaceRuntimeFileSystem). */

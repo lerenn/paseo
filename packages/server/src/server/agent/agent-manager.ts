@@ -91,7 +91,11 @@ import {
   type ProviderSubagentStoreEvent,
 } from "./provider-subagents/store.js";
 import type { JsonValue } from "@getpaseo/protocol/agent-types";
-import type { WorkspaceRuntimeActivity, WorkspaceRuntimeOptions } from "@getpaseo/plugin/server";
+import type {
+  WorkspaceRuntimeActivity,
+  WorkspaceRuntimeOptions,
+  WorkspaceRuntimeReconcileRequest,
+} from "@getpaseo/plugin/server";
 import {
   createRuntimeProcessLauncher,
   type ProviderProcessLauncher,
@@ -334,6 +338,8 @@ export interface AgentManagerWorkspaceRuntimes {
   getWorkspaceRuntime(
     workspaceId: string,
   ): Promise<{ id: string; options?: WorkspaceRuntimeOptions; root?: string } | null>;
+  /** Every live workspace in the runtime, for reconcile. */
+  listRuntimeWorkspaces(runtimeId: string): WorkspaceRuntimeReconcileRequest["workspaces"];
 }
 
 function runtimeActivityForEvent(event: AgentStreamEvent): WorkspaceRuntimeActivity | null {
@@ -5477,6 +5483,7 @@ export class AgentManager {
       agentId,
       provider: input.client.provider,
       workspaceRoot: selected.root,
+      liveWorkspaces: () => this.workspaceRuntimes?.listRuntimeWorkspaces(selected.id) ?? [],
       mcpServers: input.getMcpServers,
       onNotice: (notice) => {
         if (!this.getAgent(agentId)) return;

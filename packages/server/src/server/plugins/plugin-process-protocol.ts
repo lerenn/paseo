@@ -44,6 +44,7 @@ export type PluginRuntimeCallVerb =
   | "prepare"
   | "before_input"
   | "map_cwd"
+  | "check_command"
   | "fs.stat"
   | "fs.readdir"
   | "fs.read"
@@ -55,6 +56,7 @@ export type PluginRuntimeCallVerb =
 
 export interface PluginRuntimeExecEnvelope {
   workspaceId: string;
+  workspaceCwd?: string;
   options?: Record<string, unknown>;
   agentId?: string;
   provider?: string;
@@ -335,6 +337,7 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
           "prepare",
           "before_input",
           "map_cwd",
+          "check_command",
           "fs.stat",
           "fs.readdir",
           "fs.read",
@@ -365,6 +368,7 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
         request: z
           .object({
             workspaceId: z.string().min(1),
+            workspaceCwd: z.string().optional(),
             options: z.record(z.string(), z.unknown()).optional(),
             agentId: z.string().optional(),
             provider: z.string().optional(),

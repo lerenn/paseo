@@ -6,7 +6,6 @@ import {
 import { streamExplorerFile } from "./file-explorer/service.js";
 import { RuntimeWorkspaceIndex } from "./workspace-runtime/workspace-index.js";
 import { setCommandLauncherResolver } from "../utils/command-launcher.js";
-import type { WorkspaceRuntimeOptions } from "@getpaseo/plugin/server";
 import {
   createFinishSubscriptions,
   createFinishObservation,
@@ -1014,6 +1013,7 @@ export async function createPaseoDaemon(
         const workspace = await workspaceRegistry.get(workspaceId);
         return workspace?.runtime ? { ...workspace.runtime, root: workspace.cwd } : null;
       },
+      listRuntimeWorkspaces: (runtimeId) => runtimeWorkspaceIndex.workspacesOf(runtimeId),
     },
     clients: initialAgentManagerState.clients,
     providerDefinitions: initialAgentManagerState.providerDefinitions,
@@ -1104,19 +1104,6 @@ export async function createPaseoDaemon(
     });
     if (!existingWorkspace || existingWorkspace.archivedAt) return;
     teardownArchivedWorkspaceRuntime(workspaceId);
-    if (existingWorkspace.runtime) {
-      // Archive deletes the runtime's sandbox. A failure is logged: the record is already gone.
-      const { id, options } = existingWorkspace.runtime;
-      await pluginRuntime.workspaceRuntimes
-        .find(id)
-        ?.destroy({ workspaceId, options: options as WorkspaceRuntimeOptions | undefined })
-        .catch((error: unknown) => {
-          logger.warn(
-            { err: error, workspaceId, runtimeId: id },
-            "Workspace runtime destroy failed",
-          );
-        });
-    }
   };
   // external path→workspace adapter, not ownership: archive-by-path requests that
   // arrive with a worktree path and no workspaceId (old clients / CLI).
