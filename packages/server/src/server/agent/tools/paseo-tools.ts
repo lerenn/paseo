@@ -1,3 +1,4 @@
+import type { WorkspaceRuntimeSelection } from "../../workspace-runtime/types.js";
 import type { FinishSubscriptions, FinishRegistration } from "../finish-subscriptions/index.js";
 import type { AgentMessageDelivery } from "../agent-messages/index.js";
 import {
@@ -142,7 +143,11 @@ export interface PaseoToolHostDependencies {
     cwd: string,
     title?: string | null,
     projectId?: string,
-    context?: { background?: boolean; callerWorkspaceId?: string },
+    context?: {
+      background?: boolean;
+      callerWorkspaceId?: string;
+      runtime?: WorkspaceRuntimeSelection;
+    },
   ) => Promise<PersistedWorkspaceRecord>;
   workspaceScripts?: Pick<WorkspaceScriptsService, "list" | "launch" | "stop">;
   markWorkspaceArchiving?: ArchiveDependencies["markWorkspaceArchiving"];
@@ -1426,6 +1431,15 @@ function createToolCatalog(
           .min(1)
           .optional()
           .describe("Forge for checkout-pr mode. Defaults to the source checkout."),
+        runtime: z
+          .object({
+            id: z.string().min(1),
+            options: z.record(z.string(), z.unknown()).optional(),
+          })
+          .optional()
+          .describe(
+            'Workspace runtime that owns where the workspace\'s agent processes run. Defaults to your own workspace\'s runtime, so a new workspace stays in your environment. Use { "id": "local" } to run on the daemon host.',
+          ),
       },
       outputSchema: WorkspaceAutomationSummarySchema.shape,
     },
@@ -1442,6 +1456,7 @@ function createToolCatalog(
       branch,
       prNumber,
       forge,
+      runtime,
     }) => {
       let workspace: PersistedWorkspaceRecord;
       if (isolation === "local") {
@@ -1467,6 +1482,7 @@ function createToolCatalog(
         workspace = await options.createDirectoryWorkspace(cwd, title, projectId, {
           background,
           callerWorkspaceId: resolveCallerAgent()?.workspaceId,
+          runtime,
         });
       } else {
         let cwd =
@@ -1500,6 +1516,7 @@ function createToolCatalog(
             ...(title ? { title } : {}),
             background,
             callerWorkspaceId: resolveCallerAgent()?.workspaceId,
+            runtime,
           },
         );
         if (!result.ok) {

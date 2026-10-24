@@ -19,6 +19,12 @@ import type { WorkspaceGitService } from "../../workspace-git-service.js";
 import type { CreatePaseoWorktreeWorkflowResult } from "../../worktree-session.js";
 import { deriveProjectKey } from "../../project-key.js";
 import { areEquivalentPaths, createRealpathAwarePathMatcher } from "../../../utils/path.js";
+import {
+  LOCAL_WORKSPACE_RUNTIME_ID,
+  WorkspaceRuntimeUnavailableError,
+  type WorkspaceRuntimeSelection,
+} from "../../workspace-runtime/types.js";
+import type { WorkspaceRuntimeRegistry } from "../../workspace-runtime/registry.js";
 import type { UntrustedWorkspaceSource } from "../../workspace-automation-gate.js";
 
 export interface ResolveOrCreateWorkspaceIdInput {
@@ -54,6 +60,8 @@ export interface CreateWorktreeWorkspaceInput {
   untrustedSource?: UntrustedWorkspaceSource;
   background?: boolean;
   callerWorkspaceId?: string;
+  /** Explicit runtime; `{ id: "local" }` forces the host. Absent inherits the caller's. */
+  runtime?: WorkspaceRuntimeSelection;
 }
 
 export interface WorkspaceProvisioningService {
@@ -72,7 +80,7 @@ export interface WorkspaceProvisioningService {
       workspaceId?: string;
       background?: boolean;
       callerWorkspaceId?: string;
-      runtime?: PersistedWorkspaceRecord["runtime"];
+      runtime?: WorkspaceRuntimeSelection;
     },
   ): Promise<PersistedWorkspaceRecord>;
   createWorkspaceForWorktree(
@@ -106,6 +114,7 @@ export function createWorkspaceProvisioningService(deps: {
   projectRegistry: ProjectRegistry;
   workspaceGitService: Pick<WorkspaceGitService, "getCheckout" | "getSnapshot">;
   isDirectory: (path: string) => Promise<boolean>;
+  runtimes?: Pick<WorkspaceRuntimeRegistry, "find">;
   logger: Logger;
   lifecycle?: PluginLifecycle;
 }): WorkspaceProvisioningService {
@@ -236,6 +245,33 @@ export function createWorkspaceProvisioningService(deps: {
     return callerWorkspace.background;
   }
 
+  /**
+   * An agent that creates a workspace stays in its own environment: the new workspace runs in
+   * the caller's runtime unless the call names one. `local` names the daemon host.
+   */
+  async function resolveRuntime(input?: {
+    runtime?: WorkspaceRuntimeSelection;
+    callerWorkspaceId?: string;
+  }): Promise<WorkspaceRuntimeSelection | undefined> {
+    if (input?.runtime) {
+      return input.runtime.id === LOCAL_WORKSPACE_RUNTIME_ID ? undefined : input.runtime;
+    }
+    if (!input?.callerWorkspaceId) return undefined;
+    return (await workspaceRegistry.get(input.callerWorkspaceId))?.runtime;
+  }
+
+  /** Ask the runtime to set up the workspace before its record exists. No host fallback. */
+  async function materializeRuntime(
+    workspaceId: string,
+    cwd: string,
+    runtime: WorkspaceRuntimeSelection | undefined,
+  ): Promise<void> {
+    if (!runtime) return;
+    const backend = deps.runtimes?.find(runtime.id);
+    if (!backend) throw new WorkspaceRuntimeUnavailableError(runtime.id);
+    await backend.create({ workspaceId, options: runtime.options, cwd });
+  }
+
   async function createWorkspaceForDirectory(
     cwd: string,
     title?: string | null,
@@ -245,7 +281,7 @@ export function createWorkspaceProvisioningService(deps: {
       workspaceId?: string;
       background?: boolean;
       callerWorkspaceId?: string;
-      runtime?: PersistedWorkspaceRecord["runtime"];
+      runtime?: WorkspaceRuntimeSelection;
     },
   ): Promise<PersistedWorkspaceRecord> {
     const normalizedCwd = resolve(cwd);
@@ -255,14 +291,17 @@ export function createWorkspaceProvisioningService(deps: {
       : // COMPAT(workspaceCreateMissingProjectId): added in v0.1.107, remove after 2027-01-15.
         await findOrCreateProjectForDirectory(normalizedCwd);
     const timestamp = new Date().toISOString();
+    const workspaceId = context?.workspaceId ?? generateWorkspaceId();
+    const runtime = await resolveRuntime(context);
+    await materializeRuntime(workspaceId, normalizedCwd, runtime);
     const workspace = createPersistedWorkspaceRecord({
-      workspaceId: context?.workspaceId ?? generateWorkspaceId(),
+      workspaceId,
       projectId: project.projectId,
       ...initialWorkspacePlacement({ source: "checkout", cwd: normalizedCwd, checkout }),
       title: title?.trim() || null,
       createdAt: timestamp,
       updatedAt: timestamp,
-      ...(context?.runtime ? { runtime: context.runtime } : {}),
+      ...(runtime ? { runtime } : {}),
       background: await resolveBackground(context),
     });
     await workspaceRegistry.upsert(workspace, {
@@ -285,9 +324,13 @@ export function createWorkspaceProvisioningService(deps: {
       repoRoot,
     });
     const timestamp = new Date().toISOString();
+    const workspaceId = input.workspaceId ?? generateWorkspaceId();
+    const runtime = await resolveRuntime(input);
+    await materializeRuntime(workspaceId, cwd, runtime);
     const workspace = createPersistedWorkspaceRecord({
-      workspaceId: input.workspaceId ?? generateWorkspaceId(),
+      workspaceId,
       projectId: project.projectId,
+      ...(runtime ? { runtime } : {}),
       ...initialWorkspacePlacement({
         source: "created_worktree",
         cwd,

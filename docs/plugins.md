@@ -472,6 +472,14 @@ Rules the code can't show:
   seeing daemon paths. Provider protocols are line-delimited (JSONL, NDJSON), which is why a line
   rewrite works for every provider with no per-provider code. It only knows the workspace root:
   paths outside it, and paths inside base64 or other encoded payloads, pass through unchanged.
+- **Agents stay in their environment.** A subagent lands in its caller's workspace, so it follows
+  that workspace's runtime. A workspace an agent creates (the `create_workspace` tool, or a request
+  carrying a caller agent) runs in the caller's runtime unless the call sets `runtime`; `{ id:
+"local" }` names the daemon host. The rule lives in `resolveRuntime`
+  (`workspace-provisioning-service.ts`), not in each entry point.
+- **One workspace, one environment, many agents.** Every `exec`, `prepare` and `onActivity` of a
+  workspace carries the same `workspaceId`, whichever agent it is for. A runtime runs all of them
+  in one sandbox and suspends it only when every agent in the workspace is idle.
 - **Probes stay on the host.** Model and version discovery runs on the daemon, so the provider
   binary must exist there too until a later phase moves discovery behind the runtime.
 - **Commands go through `exec` too.** Git runs through `spawnWorkspaceCommand`
