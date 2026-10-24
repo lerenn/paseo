@@ -488,6 +488,11 @@ the runtime unchanged. Check `server_info.features.workspaceRuntimes` first; the
 than the process finishing: Paseo reconciles the runtime and the next input relaunches into it.
 `context.notice(message, level?)` shows progress or a problem in the agent's timeline.
 
+`paseo workspace create --runtime <id> [--runtime-options <json>]` selects a runtime from the CLI;
+without it a call from an agent inherits the agent's runtime. Lifecycle verbs (`create`, `prepare`,
+`beforeInput`, `resume`, `destroy`, `reconcile`) may take up to 15 minutes, file verbs 2 minutes and
+the rest 30 seconds; `exec` has no deadline.
+
 Agents stay in their environment. A subagent runs in its caller's workspace, so it uses that
 workspace's runtime. A workspace an agent creates (the `create_workspace` tool, which takes an
 optional `runtime`) inherits the caller's runtime unless the call names one; `{ "id": "local" }`

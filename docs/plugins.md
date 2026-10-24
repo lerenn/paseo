@@ -476,6 +476,12 @@ Rules the code can't show:
 - **One workspace, one environment, many agents.** Every `exec`, `prepare` and `onActivity` of a
   workspace carries the same `workspaceId`, whichever agent it is for. A runtime runs all of them
   in one sandbox and suspends it only when every agent in the workspace is idle.
+- **Launchers outlive plugins.** A launcher resolves its backend through `registry.live(id)` on
+  every call, so a plugin reload does not leave a session holding a closed channel. A runtime
+  that is gone fails the call.
+- **Lifecycle verbs have long deadlines.** `create`, `prepare`, `beforeInput` and the other
+  lifecycle verbs wait up to 15 minutes (a first sandbox start is slow), file verbs 2 minutes,
+  `describe`, `mapCwd` and `checkCommand` 30 seconds. `exec` has no deadline.
 - **Probes stay on the host.** Model and version discovery runs on the daemon, so the provider
   binary must exist there too until a later phase moves discovery behind the runtime.
 - **Commands go through `exec` too.** Git runs through `spawnWorkspaceCommand`
