@@ -93,7 +93,9 @@ Cmd/Ctrl is held`).
 6. Run the touched suites only, for example
    `npx vitest run packages/app/src/plugins packages/website/src --bail=1`. Do not run the full suite
    locally.
-7. Push through a PR and wait for green CI, then squash-merge.
+7. Push through a PR and wait for green CI, then merge with a merge commit, never squash. A squashed
+   sync has one parent, so git loses track of the upstream commits it contains and the next sync
+   replays their conflicts. Fork feature PRs still squash-merge.
 8. Rebuild the desktop: `npm run build:desktop -- --publish never --linux --x64`.
 9. Refresh each `*-upstream` branch from upstream main with the change cherry-picked, and update
    this file.
