@@ -38,7 +38,10 @@ export class RuntimeWorkspaceIndex {
   constructor(
     private readonly dependencies: {
       workspaceRegistry: WorkspaceRegistry;
-      runtimes: Pick<WorkspaceRuntimeRegistry, "find" | "live" | "list" | "subscribe">;
+      runtimes: Pick<
+        WorkspaceRuntimeRegistry,
+        "find" | "live" | "list" | "subscribe" | "setWorkspaceDirectoryResolver"
+      >;
       logger: Logger;
     },
   ) {}
@@ -48,6 +51,9 @@ export class RuntimeWorkspaceIndex {
     // A plugin that reloads registers a new backend; launchers hold the old one.
     const unsubscribeRuntimes = this.dependencies.runtimes.subscribe(() => {
       this.launchers.clear();
+      this.dependencies.runtimes.setWorkspaceDirectoryResolver(
+        (id) => this.workspaces.get(id)?.root,
+      );
       this.reconcileRegistered();
     });
     this.reconcileRegistered();
@@ -58,6 +64,7 @@ export class RuntimeWorkspaceIndex {
       }) ?? (() => {});
     return () => {
       unsubscribeRuntimes();
+      this.dependencies.runtimes.setWorkspaceDirectoryResolver(null);
       unsubscribeMutations();
     };
   }

@@ -8,6 +8,18 @@ import {
 export class WorkspaceRuntimeRegistry {
   private readonly backends = new Map<string, WorkspaceRuntimeBackend>();
   private readonly listeners = new Set<() => void>();
+  private workspaceDirectory: ((workspaceId: string) => string | undefined) | null = null;
+
+  /** Where a workspace lives on the daemon, so every runtime call can carry it. */
+  setWorkspaceDirectoryResolver(
+    resolver: ((workspaceId: string) => string | undefined) | null,
+  ): void {
+    this.workspaceDirectory = resolver;
+  }
+
+  directoryOf(workspaceId: string): string | undefined {
+    return this.workspaceDirectory?.(workspaceId);
+  }
 
   register(backend: WorkspaceRuntimeBackend): () => void {
     if (backend.id === LOCAL_WORKSPACE_RUNTIME_ID) {

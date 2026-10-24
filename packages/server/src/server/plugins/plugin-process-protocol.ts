@@ -56,6 +56,7 @@ export type PluginRuntimeCallVerb =
 
 export interface PluginRuntimeExecEnvelope {
   workspaceId: string;
+  workspaceCwd?: string;
   options?: Record<string, unknown>;
   agentId?: string;
   provider?: string;
@@ -367,6 +368,7 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
         request: z
           .object({
             workspaceId: z.string().min(1),
+            workspaceCwd: z.string().optional(),
             options: z.record(z.string(), z.unknown()).optional(),
             agentId: z.string().optional(),
             provider: z.string().optional(),

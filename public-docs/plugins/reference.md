@@ -490,6 +490,10 @@ the runtime unchanged. Check `server_info.features.workspaceRuntimes` first; the
 than the process finishing: Paseo reconciles the runtime and the next input relaunches into it.
 `context.notice(message, level?)` shows progress or a problem in the agent's timeline.
 
+Every workspace-scoped request carries `workspaceCwd`, the workspace's directory on the daemon
+(an exec's `cwd` is the process's). A workspace that inherited its runtime also inherited the
+caller's `options`, so read the directory from `workspaceCwd`, not from them.
+
 `paseo workspace create --runtime <id> [--runtime-options <json>]` selects a runtime from the CLI;
 without it a call from an agent inherits the agent's runtime. Lifecycle verbs (`create`, `prepare`,
 `beforeInput`, `resume`, `destroy`, `reconcile`) may take up to 15 minutes, file verbs 2 minutes and

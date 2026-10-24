@@ -31,6 +31,12 @@ export interface WorkspaceRuntimeWorkspaceRequest {
   options?: WorkspaceRuntimeOptions;
   /** The workspace directory on the daemon. Sent with `create` and `mapCwd`. */
   cwd?: string;
+  /**
+   * The workspace directory on the daemon, on every call (`cwd` of an exec is the process's). A
+   * workspace that inherited its runtime also inherited the caller's `options`, so recover the
+   * directory from here, not from them.
+   */
+  workspaceCwd?: string;
 }
 
 export interface WorkspaceRuntimeReconcileRequest {

@@ -412,6 +412,8 @@ export default function contribute(server: PluginServerContext) {
 
 `exec` 返回 `{ stdin, stdout, stderr, exit, signal }`。`exit` 以 `{ code, signal, reason, message? }` 完成。当沙箱消失而不是进程结束时，使用 `reason: "runtime-lost"`：Paseo 会协调（reconcile）该运行时，下一次输入会重新启动进程。`context.notice(message, level?)` 会在 Agent 的时间线中显示进度或问题。
 
+每个工作区范围的请求都带有 `workspaceCwd`，即工作区在守护进程上的目录（exec 的 `cwd` 是进程的目录）。继承了运行时的工作区也继承了调用者的 `options`，因此请从 `workspaceCwd` 读取目录，而不是从它们读取。
+
 `paseo workspace create --runtime <id> [--runtime-options <json>]` 可在命令行中选择运行时；不带该参数时，Agent 发起的调用继承该 Agent 的运行时。生命周期动词（`create`、`prepare`、`beforeInput`、`resume`、`destroy`、`reconcile`）最长可用 15 分钟，文件动词 2 分钟，其余 30 秒；`exec` 没有时限。
 
 Agent 留在自己的环境中。子 Agent 运行在其调用者的工作区里，因此使用该工作区的运行时。Agent 创建的工作区（`create_workspace` 工具，接受可选的 `runtime`）默认继承调用者的运行时，除非调用中指定了运行时；`{ "id": "local" }` 表示在守护进程主机上运行。同一工作区中的多个 Agent 共用一个运行时环境：每个 `exec`、`prepare` 和 `onActivity` 都带有相同的 `workspaceId`，请在同一个沙箱中运行它们，并且只在全部空闲时才挂起。

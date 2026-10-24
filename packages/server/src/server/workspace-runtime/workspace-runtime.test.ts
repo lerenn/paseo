@@ -112,7 +112,7 @@ function createHarness(
   const deliver = (message: PluginProcessRequest) => {
     host.handle(message, reply);
   };
-  backend = new PluginRuntimeBackend("fake", "Fake", undefined, false, {
+  backend = new PluginRuntimeBackend("fake", "Fake", undefined, false, () => "/daemon/ws", {
     call: (message) =>
       new Promise((resolve, reject) => {
         pending.set(message.requestId, { resolve, reject });
@@ -357,6 +357,8 @@ describe("live workspace runtime backend", () => {
     expect(live.label).toBe("Reloaded");
     const gone = new WorkspaceRuntimeRegistry();
     expect(() => gone.live("pod").label).toThrow(WorkspaceRuntimeUnavailableError);
+  });
+});
 
 describe("workspace runtime lifecycle", () => {
   it("reconciles a lost runtime with the live workspaces, and not without them", async () => {
@@ -430,5 +432,46 @@ describe("workspace runtime lifecycle", () => {
     notify({ kind: "remove", workspaceId: "wks_b", workspace: null });
     await expect.poll(() => destroyed).toEqual(["wks_a", "wks_b"]);
     expect(index.workspacesOf("pod")).toEqual([]);
+  });
+});
+
+describe("workspace directory on every call", () => {
+  it("tells the runtime where the workspace is, whatever options it inherited", async () => {
+    const seen: Array<{ workspaceCwd?: string }> = [];
+    const host = createPluginRuntimeHost({ send: () => undefined });
+    host.register({
+      id: "fake",
+      label: "Fake",
+      describe: () => ({ protocolVersion: 1, capabilities: { pipes: true, pty: false } }),
+      beforeInput: (request) => void seen.push(request),
+      exec: () => {
+        throw new Error("unused");
+      },
+    });
+    const pending = new Map<string, { resolve(value: unknown): void }>();
+    const backend = new PluginRuntimeBackend(
+      "fake",
+      "Fake",
+      undefined,
+      false,
+      (id) => (id === "wks_a" ? "/daemon/a" : undefined),
+      {
+        call: (message) =>
+          new Promise((resolve) => {
+            pending.set(message.requestId, { resolve });
+            host.handle(message, {
+              result: (requestId, output) => pending.get(requestId)?.resolve(output),
+              error: (requestId) => pending.get(requestId)?.resolve(null),
+            });
+          }),
+        post: () => undefined,
+      },
+    );
+    await backend.beforeInput({
+      workspaceId: "wks_a",
+      agentId: "agent-1",
+      options: { cwd: "/caller/copy" },
+    });
+    expect(seen).toEqual([expect.objectContaining({ workspaceCwd: "/daemon/a" })]);
   });
 });

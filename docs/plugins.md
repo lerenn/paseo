@@ -506,6 +506,9 @@ Rules the code can't show:
   reconciliation). `reconcile` gets the list of live workspaces when a runtime registers (daemon
   start, plugin reload) and after a `runtime-lost` exit; an unlisted sandbox is an orphan. Without
   the list a runtime cannot tell an orphan from a live sandbox, so core never calls it empty.
+- **Every call names the workspace directory.** `workspaceCwd` is on every workspace-scoped
+  request (the registry resolves it from the workspace index), because a workspace that inherited
+  its runtime also inherited the caller's `options`, which may name the caller's directory.
 - **Missing binaries are named.** `checkCommand` runs before a session for the provider's command
   (the launch fails with "`claude` was not found in the `pod` runtime") and for each stdio MCP
   server in `prepare` (a warning notice, and the agent still starts).

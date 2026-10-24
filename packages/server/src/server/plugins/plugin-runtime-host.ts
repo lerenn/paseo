@@ -174,6 +174,7 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
       const [command, ...args] = request.argv;
       const execRequest: WorkspaceRuntimeExecRequest = {
         workspaceId: request.workspaceId,
+        workspaceCwd: request.workspaceCwd,
         options: request.options as WorkspaceRuntimeOptions | undefined,
         agentId: request.agentId,
         provider: request.provider,
