@@ -38,11 +38,10 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   reaches `before("agent.create")` as `request.pluginOptions[pluginId][optionId]`.
 - **Fork PRs:** #7 (`c88616a78`). First consumer: the Role picker of `lerenn/paseo-agents-roles` (#19).
   Daemons advertise `server_info.features.pluginCreateOptions`; the app hides the picker without it.
-- **Upstream branch:** `lerenn:create-options-upstream` (one commit on upstream main; rebuild it
-  from the fork PR after each change). Shape mirrors upstream #6928's `select` control.
-- **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/`
-  (`pr-create-options.md`, `discussion-create-options.md`, `screenshots/`; screenshots are also on
-  the fork branch `create-options-screenshots`). Ask Louis.
+- **Upstream branch (one aspect, cut from upstream main):** `upstream/create-options-1-option`
+  (on `lerenn/paseo`). Shape mirrors upstream #6928's `select` control.
+- **Upstream Discussion / PR:** one Discussion, one PR; drafts at
+  `/home/paseo/work/upstream-drafts/create-options/`, not posted. Ask Louis.
 - **Status:** in fork.
 
 ### App dock and AgentChat
@@ -57,10 +56,12 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   buttons. Reference: `public-docs/plugins/reference.md`,
   sections "App panels" and "Agent chat".
 - **Fork PRs:** #10 (`8ff47622d`). First consumer: `lerenn/paseo-overseer`.
-- **Upstream branch:** `lerenn:upstream/app-dock` (one commit on upstream main; rebuild it from the
-  fork PR after each change).
-- **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/overseer-drafts/`
-  (`upstream-pr.md`, `upstream-discussion.md`, `screenshots/`). Ask Louis.
+- **Upstream branches (one aspect each, cut from upstream main):** `upstream/app-dock-1-dock`;
+  `upstream/app-dock-2-agent-chat` (on 1); `upstream/app-dock-3-window-controls` (on 1, the fix from
+  fork PR #24).
+- **Upstream Discussion / PRs:** one Discussion, three PRs; drafts at
+  `/home/paseo/work/upstream-drafts/app-dock/` (older drafts in `/home/paseo/overseer-drafts/`),
+  not posted. Ask Louis.
 - **Status:** in fork.
 
 ### Sidebar groups
@@ -72,10 +73,11 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   `sidebarNavItems`. Reference: `public-docs/plugins/reference.md`, section "Sidebar items";
   `docs/plugins.md`, "Contribute sidebar items". No Paseo-side plugin sets `group`.
 - **Fork PRs:** #9 (merged as `d88d1cb7e`).
-- **Upstream branch:** `lerenn:sidebar-groups-upstream` (two commits on upstream main).
-- **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/sidebar-groups-pr.md`
-  and `sidebar-groups-discussion.md`, screenshots in `screenshots/` beside them (agent session
-  196ab4d0; ask Louis).
+- **Upstream branches (one aspect each, stacked, cut from upstream main):**
+  `upstream/sidebar-groups-1-groups` (user groups), `upstream/sidebar-groups-2-plugin-hint` (the
+  plugin `group` hint, on 1).
+- **Upstream Discussion / PRs:** one Discussion, two PRs; drafts at
+  `/home/paseo/work/upstream-drafts/sidebar-groups/`, not posted. Ask Louis.
 - **Status:** in fork.
 
 ### Workspace runtimes
