@@ -34,6 +34,7 @@ function installed(): InstalledPlugin {
     ],
     commandCenterItems: [],
     clientSlashCommands: [],
+    createOptions: [],
     attachmentSources: [],
     workspaceLocations: [],
     themes: [],

@@ -34,6 +34,7 @@ import type {
   PluginThemeContribution,
   PluginCommandCenterItemContribution,
   PluginClientSlashCommandContribution,
+  PluginCreateOptionContribution,
   PluginSidebarContribution,
   PluginScreenContribution,
   PluginSidebarItemContribution,
@@ -135,6 +136,7 @@ export function runPluginClientBundle(
     appPanels: [],
     commandCenterItems: [],
     clientSlashCommands: [],
+    createOptions: [],
     attachmentSources: [],
     workspaceLocations: [],
     themes: [],
@@ -152,6 +154,7 @@ export function runPluginClientBundle(
   const workspacePanelIds = new Set<string>();
   const commandCenterItemIds = new Set<string>();
   const clientSlashCommandNames = new Set<string>();
+  const createOptionIds = new Set<string>();
   const attachmentSourceIds = new Set<string>();
   const workspaceLocationIds = new Set<string>();
   const themeIds = new Set<string>();
@@ -463,6 +466,41 @@ export function runPluginClientBundle(
         () => workspaceLocationIds.delete(normalizedId),
       );
     },
+    addCreateOption(contribution: PluginCreateOptionContribution) {
+      const normalizedId = requireId(contribution.id, "create option id");
+      if (createOptionIds.has(normalizedId)) {
+        throw new Error(`Duplicate create option: ${normalizedId}`);
+      }
+      const label = normalizePluginText(contribution.label);
+      if (!label) throw new Error(`Create option ${normalizedId} has no label`);
+      const icon = parseSerializablePluginIcon(`Create option ${normalizedId}`, contribution.icon);
+      if (!Array.isArray(contribution.options) || contribution.options.length === 0) {
+        throw new Error(`Create option ${normalizedId} has no options`);
+      }
+      const values = new Set<string>();
+      const options = contribution.options.map((option) => {
+        // Values are opaque to Paseo (a plugin's own ids), so they skip the contribution-id pattern.
+        const value = typeof option.value === "string" ? option.value.trim() : "";
+        if (!value) throw new Error(`Create option ${normalizedId} has an option without a value`);
+        if (values.has(value)) {
+          throw new Error(`Create option ${normalizedId} has duplicate value: ${value}`);
+        }
+        values.add(value);
+        const optionLabel = normalizePluginText(option.label);
+        if (!optionLabel)
+          throw new Error(`Create option ${normalizedId} value ${value} has no label`);
+        return { ...option, value, label: optionLabel };
+      });
+      if (contribution.defaultValue !== undefined && !values.has(contribution.defaultValue)) {
+        throw new Error(`Create option ${normalizedId} default is not one of its options`);
+      }
+      createOptionIds.add(normalizedId);
+      return register(
+        collector.createOptions,
+        { ...contribution, id: normalizedId, label, icon, options },
+        () => createOptionIds.delete(normalizedId),
+      );
+    },
     addAttachmentSource(contribution: PluginAttachmentSourceContribution) {
       const normalizedId = requireId(contribution.id, "attachment source id");
       if (attachmentSourceIds.has(normalizedId)) {
@@ -639,6 +677,7 @@ export function runPluginClientBundle(
     appPanels: collector.appPanels,
     commandCenterItems: collector.commandCenterItems,
     clientSlashCommands: collector.clientSlashCommands,
+    createOptions: collector.createOptions,
     attachmentSources: collector.attachmentSources,
     workspaceLocations: collector.workspaceLocations,
     themes: collector.themes,

@@ -880,7 +880,7 @@ type PluginTurnOutcome =
 
 | Name                 | Request fields                                                          | Editable                                |
 | -------------------- | ----------------------------------------------------------------------- | --------------------------------------- |
-| `agent.create`       | `config`, optional `env`                                                | Public agent config except `cwd`; `env` |
+| `agent.create`       | `config`, optional `env`, optional `pluginOptions`                      | Public agent config except `cwd`; `env` |
 | `agent.session_open` | `agentId`, `workspaceId`, `provider`, `cwd`, `reason`, `purpose`, `env` | Only `env`                              |
 | `workspace.create`   | `source`, optional `title`, `firstAgentContext`                         | Entire explicit creation request        |
 
@@ -2301,6 +2301,40 @@ const pill = client.addComposerPill({
 For pills that follow the agent directory, use an explicit [owned list subscription](/docs/sdk/events#follow-one-agents-status).
 The [local plugin example](https://github.com/getpaseo/paseo/blob/main/plugin-examples/local-plugin/client/main.tsx)
 replaces registrations on each snapshot and aborts the observation during entry cleanup, including pending bootstrap.
+
+## Create options
+
+`client.addCreateOption({ id, label, icon, options, defaultValue? })` adds a picker to the composers
+that create an agent (New workspace and the new-agent tab), next to the model, effort and mode
+pickers. It returns a cleanup function. Paseo holds the chosen value until creation and never
+interprets it; the `agent.create` [before hook](#before-hooks) receives it as
+`request.pluginOptions[pluginId][optionId]`.
+
+```tsx
+client.addCreateOption({
+  id: "role",
+  label: "Role",
+  icon: "UserRound",
+  options: [
+    { value: "none", label: "No role" },
+    { value: "reviewer", label: "Reviewer" },
+  ],
+  defaultValue: "none",
+});
+```
+
+```ts
+server.before("agent.create", ({ request }) => {
+  const role = request.pluginOptions?.["my-plugin"]?.role;
+  if (!role || role === "none") return;
+  return { ...request, env: { ...request.env, MY_ROLE: role } };
+});
+```
+
+`id` is unique within the plugin. Option `value`s are opaque strings; `defaultValue` must be one of
+them and defaults to the first. The picker resets to the default after each creation, and every
+visible option is sent on every creation, so a missing value means the host is too old to send
+options. Hosts that do not advertise `server_info.features.pluginCreateOptions` hide the picker.
 
 ## Button descriptor
 

@@ -38,6 +38,7 @@ function installed(
     appPanels: [],
     commandCenterItems: [],
     clientSlashCommands: [],
+    createOptions: [],
     attachmentSources: [],
     workspaceLocations: [],
     themes: [],

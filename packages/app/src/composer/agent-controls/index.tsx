@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type ReactElement,
+  type ReactNode,
   type RefObject,
 } from "react";
 import { useTranslation } from "react-i18next";
@@ -79,6 +80,7 @@ import {
   type ComposerControlPresentation,
 } from "@/composer/agent-controls/layout";
 import { ComposerControlLayoutProvider } from "@/composer/agent-controls/layout-context";
+import { PluginCreateOptionControls } from "@/plugins/create-options/control";
 import { ComposerToolbarGlyph } from "@/composer/agent-controls/glyph";
 import { AgentControlTrigger } from "@/composer/agent-controls/control";
 import { CompactModelSheet } from "@/composer/agent-controls/model-sheet";
@@ -103,6 +105,8 @@ type AgentControlSelector = "provider" | "mode" | "model" | "thinking" | `featur
 const EMPTY_AGENT_PROVIDER_DEFINITIONS: AgentProviderDefinition[] = [];
 
 interface ControlledAgentControlsProps {
+  /** Rendered after the built-in controls, inside the toolbar layout (plugin create options). */
+  trailingControls?: ReactNode;
   provider: string;
   providerOptions?: AgentControlOption[];
   selectedProviderId?: string;
@@ -502,6 +506,7 @@ function ControlledAgentControls({
   modeControl,
   modelSelectorServerId = null,
   isCompactLayout,
+  trailingControls,
 }: ControlledAgentControlsProps) {
   const { theme } = useUnistyles();
   const { t } = useTranslation();
@@ -825,6 +830,7 @@ function ControlledAgentControls({
             canSwitchProvider={Boolean(onSelectProviderAndModel)}
           />
         )}
+        {trailingControls}
       </View>
     </ComposerControlLayoutProvider>
   );
@@ -1908,6 +1914,17 @@ export function DraftAgentControls({
     [selectedProvider, providerDefinitions, modeOptions, selectedMode, onSelectMode, disabled],
   );
 
+  const createOptionControls = useMemo(
+    () => (
+      <PluginCreateOptionControls
+        serverId={modelSelectorServerId}
+        disabled={disabled}
+        onClose={onDropdownClose}
+      />
+    ),
+    [modelSelectorServerId, disabled, onDropdownClose],
+  );
+
   return (
     <>
       {profileEditor.element}
@@ -1937,6 +1954,7 @@ export function DraftAgentControls({
         modeControl={modeControl}
         modelSelectorServerId={modelSelectorServerId}
         isCompactLayout={isCompactLayout}
+        trailingControls={createOptionControls}
       />
     </>
   );

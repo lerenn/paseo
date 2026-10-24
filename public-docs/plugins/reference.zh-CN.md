@@ -1983,6 +1983,38 @@ const pill = client.addComposerPill({
 [本地插件示例](https://github.com/getpaseo/paseo/blob/main/plugin-examples/local-plugin/client/main.tsx)
 会在每次快照时替换注册，并在入口清理时中止观察，包括尚未完成的引导过程。
 
+## 创建选项 {#create-options}
+
+`client.addCreateOption({ id, label, icon, options, defaultValue? })` 会在创建 Agent 的 Composer
+（New workspace 和新 Agent 标签页）中添加一个选择器，位于模型、推理强度和模式选择器旁边。它返回一个清理函数。
+Paseo 会保存用户选择的值直到创建，且从不解析它；`agent.create` 的[前置钩子](#before-hooks)会以
+`request.pluginOptions[pluginId][optionId]` 收到该值。
+
+```tsx
+client.addCreateOption({
+  id: "role",
+  label: "Role",
+  icon: "UserRound",
+  options: [
+    { value: "none", label: "No role" },
+    { value: "reviewer", label: "Reviewer" },
+  ],
+  defaultValue: "none",
+});
+```
+
+```ts
+server.before("agent.create", ({ request }) => {
+  const role = request.pluginOptions?.["my-plugin"]?.role;
+  if (!role || role === "none") return;
+  return { ...request, env: { ...request.env, MY_ROLE: role } };
+});
+```
+
+`id` 在插件内唯一。选项的 `value` 是不透明字符串；`defaultValue` 必须是其中之一，默认取第一个。
+每次创建后选择器会重置为默认值，且每次创建都会发送所有可见选项。未声明
+`server_info.features.pluginCreateOptions` 的宿主会隐藏该选择器。
+
 ## 按钮描述符 {#button-descriptor}
 
 这些契约从 `@getpaseo/plugin/client` 导出。

@@ -57,6 +57,7 @@ export interface CreateAgentFromSessionInput {
   attachments?: AgentAttachment[];
   labels: Record<string, string>;
   env?: Record<string, string>;
+  pluginOptions?: Record<string, Record<string, string>>;
   provisionalTitle: string | null;
   firstAgentContext: FirstAgentContext;
 }
@@ -250,6 +251,7 @@ async function resolveSessionCreateAgent(
       labels: input.labels,
       initialPrompt: trimmedPrompt,
       env: input.env,
+      pluginOptions: input.pluginOptions,
       initialTitle: input.provisionalTitle,
       // Paseo never persists an internal agent, so nothing could resume its
       // provider session either. Same as the daemon's own ephemeral helpers.

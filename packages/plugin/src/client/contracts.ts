@@ -223,6 +223,7 @@ export interface PluginClientContext extends PluginCommandCapabilities, PluginCl
   addWorkspaceLocation(
     contribution: PluginWorkspaceLocationContribution<PluginText>,
   ): PluginCleanup;
+  addCreateOption(contribution: PluginCreateOptionContribution<PluginText>): PluginCleanup;
   addTheme(contribution: PluginThemeContribution<PluginText>): PluginCleanup;
   addFilePanel(contribution: PluginFilePanelContribution<PluginText>): PluginCleanup;
   addTimelineTransformer<ItemType extends AgentTimelineItem["type"]>(
@@ -484,6 +485,23 @@ export type PluginClientSlashCommandContribution<Text extends PluginText = strin
       context: "agent";
       onSubmit(context: PluginAgentCommandContext & { args: string }): void | Promise<void>;
     });
+
+/**
+ * A picker on the create composers (New workspace and new agent). The chosen
+ * value is held by the host until creation, then handed to `before("agent.create")`
+ * hooks as `request.pluginOptions[pluginId][id]`. Same select shape as the
+ * provider composer controls, for plugins that are not providers.
+ */
+export interface PluginCreateOptionContribution<Text extends PluginText = string> {
+  /** Unique within the plugin. */
+  id: string;
+  label: Text;
+  icon: PluginSerializableIcon;
+  description?: Text;
+  options: ReadonlyArray<{ value: string; label: Text; description?: Text }>;
+  /** Must match an option value. Defaults to the first option. */
+  defaultValue?: string;
+}
 
 export type SettingsState<Schema extends ZodType> = (
   | { status: "loading" }
