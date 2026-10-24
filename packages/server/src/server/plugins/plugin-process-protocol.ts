@@ -40,7 +40,8 @@ export type PluginRuntimeCallVerb =
   | "destroy"
   | "reconcile"
   | "prepare"
-  | "before_input";
+  | "before_input"
+  | "map_cwd";
 
 export interface PluginRuntimeExecEnvelope {
   workspaceId: string;
@@ -322,6 +323,7 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
           "reconcile",
           "prepare",
           "before_input",
+          "map_cwd",
         ]),
         input: z.unknown(),
       })

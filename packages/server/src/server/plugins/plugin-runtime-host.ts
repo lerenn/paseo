@@ -98,6 +98,7 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
     reconcile: (runtime, _input, context) => runtime.reconcile?.(context),
     prepare: (runtime, input, context) => runtime.prepare?.(input, context),
     before_input: (runtime, input, context) => runtime.beforeInput?.(input, context),
+    map_cwd: (runtime, input) => runtime.mapCwd?.(input) ?? null,
   };
 
   async function call(

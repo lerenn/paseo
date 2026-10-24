@@ -977,8 +977,10 @@ export async function createPaseoDaemon(
     pluginLifecycle: pluginRuntime,
     workspaceRuntimes: {
       registry: pluginRuntime.workspaceRuntimes,
-      getWorkspaceRuntime: async (workspaceId) =>
-        (await workspaceRegistry.get(workspaceId))?.runtime ?? null,
+      getWorkspaceRuntime: async (workspaceId) => {
+        const workspace = await workspaceRegistry.get(workspaceId);
+        return workspace?.runtime ? { ...workspace.runtime, root: workspace.cwd } : null;
+      },
     },
     clients: initialAgentManagerState.clients,
     providerDefinitions: initialAgentManagerState.providerDefinitions,

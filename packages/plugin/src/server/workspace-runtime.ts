@@ -29,6 +29,8 @@ export interface WorkspaceRuntimeDescription {
 export interface WorkspaceRuntimeWorkspaceRequest {
   workspaceId: string;
   options?: WorkspaceRuntimeOptions;
+  /** The workspace directory on the daemon. Sent with `create` and `mapCwd`. */
+  cwd?: string;
 }
 
 export interface WorkspaceRuntimeStatus {
@@ -109,6 +111,13 @@ export interface WorkspaceRuntimeRegistration {
   /** SVG file inside the plugin directory. Apps show it wherever a workspace shows its location. */
   icon?: string;
   describe(): WorkspaceRuntimeDescription | Promise<WorkspaceRuntimeDescription>;
+  /**
+   * Where the workspace directory is inside the runtime. Paseo rewrites the daemon path to this
+   * one in the process's argv, environment, working directory and protocol lines, and rewrites
+   * it back in what the process prints, so the UI keeps seeing daemon paths. Omit it when the
+   * runtime shows the workspace at the daemon's own path.
+   */
+  mapCwd?(request: WorkspaceRuntimeWorkspaceRequest & { cwd: string }): string | Promise<string>;
   /** Materialize the workspace. Idempotent. */
   create?(
     request: WorkspaceRuntimeWorkspaceRequest,
