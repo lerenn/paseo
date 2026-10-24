@@ -487,14 +487,17 @@ the runtime unchanged. Check `server_info.features.workspaceRuntimes` first; the
 than the process finishing: Paseo reconciles the runtime and the next input relaunches into it.
 `context.notice(message, level?)` shows progress or a problem in the agent's timeline.
 
-`request.purpose` is `"session"` for an agent and `"probe"` for metadata reads. A probe must not
-create or resume a sandbox. `request.env` is the complete environment for the process and never
+`request.purpose` is `"session"` for an agent, `"probe"` for metadata reads and `"command"` for a
+short tool Paseo runs in the workspace (Git). A probe must not create or resume a sandbox. A command
+skips `prepare`; `request.interactive` is false for background refreshes, which must not resume a
+suspended sandbox (reject them instead), and true when a user is waiting. `request.env` is the complete environment for the process and never
 includes the daemon's own. `request.argv` is exactly what the provider asked to run, so the sandbox
 image must contain the provider binary.
 
 Providers that start their processes through `spawnProviderProcess` set `supportsRemoteLaunch`.
 Claude, Codex and the ACP providers do. Other providers, and providers contributed by plugins, are
-refused in a runtime workspace. Files, Git, terminals and scripts still use the daemon host.
+refused in a runtime workspace. Git runs in the runtime. Files, terminals and scripts still use
+the daemon host.
 
 ### Usage sources
 

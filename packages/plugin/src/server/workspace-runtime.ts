@@ -38,7 +38,7 @@ export interface WorkspaceRuntimeStatus {
   message?: string;
 }
 
-export type WorkspaceRuntimeProcessPurpose = "session" | "probe";
+export type WorkspaceRuntimeProcessPurpose = "session" | "probe" | "command";
 
 export interface WorkspaceRuntimeExecRequest extends WorkspaceRuntimeWorkspaceRequest {
   agentId?: string;
@@ -46,9 +46,15 @@ export interface WorkspaceRuntimeExecRequest extends WorkspaceRuntimeWorkspaceRe
   provider?: string;
   /**
    * "session" drives an agent. "probe" only reads provider metadata (models, version) and must
-   * not create or resume a sandbox.
+   * not create or resume a sandbox. "command" is a short tool Paseo runs for the workspace (Git
+   * today) and does not call `prepare` first.
    */
   purpose: WorkspaceRuntimeProcessPurpose;
+  /**
+   * For "command": the user is waiting on the result. Paseo sets it false for background
+   * refreshes, which must not resume a suspended sandbox; reject them instead.
+   */
+  interactive?: boolean;
   /** Executable and arguments, exactly as the provider asked to run them. The image must contain it. */
   argv: [string, ...string[]];
   /** Working directory on the daemon. Map it to the runtime's own path. */

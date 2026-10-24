@@ -1,3 +1,5 @@
+import { RuntimeWorkspaceIndex } from "./workspace-runtime/workspace-index.js";
+import { setCommandLauncherResolver } from "../utils/command-launcher.js";
 import type { WorkspaceRuntimeOptions } from "@getpaseo/plugin/server";
 import {
   createFinishSubscriptions,
@@ -1019,6 +1021,14 @@ export async function createPaseoDaemon(
     workspaceGitService,
     logger,
   });
+  // Git and the file explorer work on paths, so they find a workspace's runtime by directory.
+  const runtimeWorkspaceIndex = new RuntimeWorkspaceIndex({
+    workspaceRegistry,
+    runtimes: pluginRuntime.workspaceRuntimes,
+    logger,
+  });
+  const stopRuntimeWorkspaceIndex = await runtimeWorkspaceIndex.initialize();
+  setCommandLauncherResolver((cwd) => runtimeWorkspaceIndex.launcherForPath(cwd));
   await workspaceLabelService.initialize();
   logger.info({ elapsed: elapsed() }, "Workspace registries bootstrapped");
   const teardownArchivedWorkspaceRuntime = (workspaceId: string): void => {
@@ -1906,6 +1916,8 @@ export async function createPaseoDaemon(
       localCredential = null;
       await deleteLocalCredential(config.paseoHome);
       unsubscribePluginProviders();
+      stopRuntimeWorkspaceIndex();
+      setCommandLauncherResolver(null);
       await pluginRuntime.stopAllPlugins().catch(() => undefined);
       await serviceProxy.stopStandalone().catch(() => undefined);
       await agentProviderRuntime.shutdown().catch(() => undefined);
@@ -1925,6 +1937,8 @@ export async function createPaseoDaemon(
     // that is still open. Plugins themselves are stopped once every session
     // they serve has been closed, further down.
     unsubscribePluginProviders();
+    stopRuntimeWorkspaceIndex();
+    setCommandLauncherResolver(null);
     await hubRelationships.stop();
     workspaceReconciliation.dispose();
     scriptHealthMonitor.stop();

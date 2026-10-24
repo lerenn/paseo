@@ -48,7 +48,8 @@ export interface PluginRuntimeExecEnvelope {
   options?: Record<string, unknown>;
   agentId?: string;
   provider?: string;
-  purpose: "session" | "probe";
+  purpose: "session" | "probe" | "command";
+  interactive?: boolean;
   argv: string[];
   cwd?: string;
   env: Record<string, string>;
@@ -349,7 +350,8 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
             options: z.record(z.string(), z.unknown()).optional(),
             agentId: z.string().optional(),
             provider: z.string().optional(),
-            purpose: z.enum(["session", "probe"]),
+            purpose: z.enum(["session", "probe", "command"]),
+            interactive: z.boolean().optional(),
             argv: z.array(z.string()).min(1),
             cwd: z.string().optional(),
             env: z.record(z.string(), z.string()),

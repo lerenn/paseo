@@ -474,7 +474,14 @@ Rules the code can't show:
   paths outside it, and paths inside base64 or other encoded payloads, pass through unchanged.
 - **Probes stay on the host.** Model and version discovery runs on the daemon, so the provider
   binary must exist there too until a later phase moves discovery behind the runtime.
-- **Phase 1 only.** Files, Git, terminals and workspace scripts still use the daemon host.
+- **Commands go through `exec` too.** Git runs through `spawnWorkspaceCommand`
+  (`packages/server/src/utils/command-launcher.ts`), which asks `RuntimeWorkspaceIndex` for the
+  runtime that owns the command's directory. Daemon tools hold a path, not a workspace id, and
+  cannot await a lookup, so the index is synchronous and kept current by registry mutations. A
+  command's stdout is held until exit and rewritten only if it is valid UTF-8, because Git blobs
+  are binary. Background refreshes are marked `interactive: false`; a runtime must not resume a
+  suspended sandbox for them.
+- **Still on the host.** The file explorer, terminals and workspace scripts.
 
 ## Contribute a provider
 

@@ -156,6 +156,7 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
         agentId: request.agentId,
         provider: request.provider,
         purpose: request.purpose,
+        interactive: request.interactive,
         argv: [command, ...args],
         cwd: request.cwd,
         env: request.env,
