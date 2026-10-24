@@ -20,6 +20,8 @@ export interface ProviderProcessSpawnInput {
   env: Record<string, string>;
   /** "probe" processes only read provider metadata and never start a sandbox. */
   purpose?: WorkspaceRuntimeProcessPurpose;
+  /** For commands: a user is waiting, so the runtime may resume a suspended sandbox. */
+  interactive?: boolean;
   signal?: AbortSignal;
 }
 
@@ -45,6 +47,16 @@ export interface RuntimeProcessLauncherOptions {
   onNotice?: (notice: RuntimeNotice) => void;
 }
 
+function rewriteIfText(chunks: Uint8Array[], map: PathMap): Uint8Array[] {
+  const joined = Buffer.concat(chunks);
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(joined);
+    return [new TextEncoder().encode(toHostPaths(text, map))];
+  } catch {
+    return [joined];
+  }
+}
+
 function mapJson<T>(value: T | undefined, rewrite: (text: string) => string): T | undefined {
   return value === undefined ? undefined : (JSON.parse(rewrite(JSON.stringify(value))) as T);
 }
@@ -53,18 +65,27 @@ function mapJson<T>(value: T | undefined, rewrite: (text: string) => string): T 
 function mapStreams(
   map: PathMap,
   sink: RuntimeExecSink,
+  bufferStdout: boolean,
 ): { sink: RuntimeExecSink; wrapControl(control: RuntimeExecControl): RuntimeExecControl } {
   const stdout = createLineRewriter((line) => toHostPaths(line, map));
+  // A command's output may be binary (a Git blob). Hold it until exit and rewrite only text.
+  const heldStdout: Uint8Array[] = [];
   const stderr = createLineRewriter((line) => toHostPaths(line, map));
   const stdin = createLineRewriter((line) => toRuntimePaths(line, map));
   const drain = (): void => {
+    if (bufferStdout) {
+      for (const chunk of rewriteIfText(heldStdout.splice(0), map)) sink.onStdout(chunk);
+    }
     for (const chunk of stdout.flush()) sink.onStdout(chunk);
     for (const chunk of stderr.flush()) sink.onStderr(chunk);
   };
   return {
     sink: {
       ...sink,
-      onStdout: (data) => stdout.push(data).forEach((chunk) => sink.onStdout(chunk)),
+      onStdout: (data) => {
+        if (bufferStdout) heldStdout.push(data);
+        else stdout.push(data).forEach((chunk) => sink.onStdout(chunk));
+      },
       onStderr: (data) => stderr.push(data).forEach((chunk) => sink.onStderr(chunk)),
       onExit(exit) {
         drain();
@@ -74,6 +95,11 @@ function mapStreams(
     wrapControl: (control) => ({
       ...control,
       writeStdin(data) {
+        // A command's input may be binary; only protocol text is rewritten.
+        if (bufferStdout) {
+          control.writeStdin(data);
+          return;
+        }
         if (data === null) {
           for (const chunk of stdin.flush()) control.writeStdin(chunk);
           control.writeStdin(null);
@@ -113,6 +139,7 @@ export function createRuntimeProcessLauncher(
           const map = await resolvePathMap();
           const mapped = (text: string): string => toRuntimePaths(text, map);
           const request = {
+            interactive: input.interactive,
             workspaceId,
             options: options.runtimeOptions,
             agentId: options.agentId,
@@ -128,7 +155,7 @@ export function createRuntimeProcessLauncher(
               mcpServers: mapJson(options.mcpServers?.(), mapped),
             });
           }
-          const streams = map ? mapStreams(map, sink) : null;
+          const streams = map ? mapStreams(map, sink, purpose === "command") : null;
           const target = streams?.sink ?? sink;
           const rawControl = backend.exec(request, {
             ...target,
