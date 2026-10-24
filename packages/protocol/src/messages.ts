@@ -1738,6 +1738,10 @@ export const CreateAgentRequestMessageSchema = z.object({
   // Values chosen in plugin-contributed create options, `{ [pluginId]: { [optionId]: value } }`.
   // Paseo never interprets them; `before("agent.create")` hooks read them.
   pluginOptions: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+  // For an agent created in an existing workspace: when the workspace still has this exact title
+  // after the first prompt, the daemon renames it from the prompt, as for a new workspace. A
+  // creator that gave the workspace a placeholder title passes it here. Older daemons ignore it.
+  workspaceTitleToReplace: z.string().optional(),
   workspaceId: z.string().optional(),
   // Optional caller context lets managed CLI invocations use the same daemon-owned
   // workspace and parentage policy as agent-scoped MCP creation.

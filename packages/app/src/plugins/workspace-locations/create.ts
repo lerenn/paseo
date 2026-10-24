@@ -103,10 +103,15 @@ export async function createWorkspaceThroughPlugin(input: {
     return { workspace, agent: fetched.agent };
   }
   if (!input.agent) return { workspace };
+  // The plugin's own title is a placeholder: the daemon renames the workspace from the first
+  // prompt unless the location opts out. Only the display name changes.
+  const titleToReplace =
+    entry.location.autoName !== false && input.prompt.trim() ? workspace.title : undefined;
   return {
     workspace,
     agent: await client.createAgent({
       ...input.agent,
+      ...(titleToReplace ? { workspaceTitleToReplace: titleToReplace } : {}),
       workspaceId,
       idempotencyKey: input.idempotencyKey,
     }),
