@@ -206,12 +206,10 @@ export function runPluginClientBundle(
     if (!isComponentType(contribution.Component)) {
       throw new Error(`Sidebar item ${normalizedId} is not a component`);
     }
-    const group =
-      typeof contribution.group === "string" ? contribution.group.trim() || undefined : undefined;
     ids.add(normalizedId);
     return register(
       collector.sidebarItems[section],
-      { id: normalizedId, title, ...(group ? { group } : {}), Component: contribution.Component },
+      { id: normalizedId, title, Component: contribution.Component },
       () => ids.delete(normalizedId),
     );
   }

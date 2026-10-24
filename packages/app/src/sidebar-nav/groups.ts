@@ -49,18 +49,13 @@ function groupIdFromKey(key: string): string | null {
   return key.startsWith(GROUP_KEY_PREFIX) ? key.slice(GROUP_KEY_PREFIX.length) : null;
 }
 
-function normalizeTitle(title: string): string {
-  return title.trim().toLowerCase();
-}
-
 type Slot =
   | { type: "item"; item: SidebarNavItem; groupId: string | undefined }
   | { type: "group"; id: string };
 
 /**
  * The header rows as the sidebar and Settings show them: top-level rows and groups in order,
- * each group holding its rows. A plugin row the user has not placed yet lands in the group its
- * `group` hint names (matched by title), creating that group when none matches.
+ * each group holding its rows. A plugin row the user has not placed yet lands at the top level.
  */
 export function resolveSidebarNavEntries(input: {
   pluginGroups: readonly PluginSidebarGroup[];
@@ -127,36 +122,14 @@ export function resolveSidebarNavEntries(input: {
 
   for (const [key, plugin] of pluginByKey) {
     if (placed.has(key)) continue;
-    const groupId = hintedGroupId(plugin.group, definitions, markers, slots);
     slots.push({
       type: "item",
-      groupId,
+      groupId: undefined,
       item: { kind: "plugin", key, group: plugin, visible: true },
     });
   }
 
   return assembleEntries(slots, definitions);
-}
-
-/** The group a plugin's hint names, defined and given a marker slot on first use. */
-function hintedGroupId(
-  hint: string | undefined,
-  definitions: Map<string, SidebarNavGroupPreference>,
-  markers: Set<string>,
-  slots: Slot[],
-): string | undefined {
-  const normalized = hint ? normalizeTitle(hint) : "";
-  if (!hint || !normalized) return undefined;
-  const existing = [...definitions.values()].find(
-    (group) => normalizeTitle(group.title) === normalized,
-  );
-  const groupId = existing?.id ?? `hint:${normalized}`;
-  if (!existing) definitions.set(groupId, { id: groupId, title: hint.trim(), collapsed: false });
-  if (!markers.has(groupId)) {
-    markers.add(groupId);
-    slots.push({ type: "group", id: groupId });
-  }
-  return groupId;
 }
 
 function assembleEntries(

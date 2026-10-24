@@ -87,11 +87,6 @@ export interface PluginSidebarItemContribution<Text extends PluginText = string>
   id: string;
   /** Settings row label, accessibility label, and default label for SidebarRow. */
   title: Text;
-  /**
-   * Default group for a header item: the name of a collapsible sidebar group. Used only until
-   * the user places the row; Settings > Sidebar can move it anywhere. Footer items ignore it.
-   */
-  group?: string;
   Component: ComponentType<PluginSidebarItemProps>;
 }
 
