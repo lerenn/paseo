@@ -50,7 +50,7 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   `AgentChat({ agentId, workspaceId? })` from `@getpaseo/plugin/client/ui` embeds the host agent
   conversation (real composer) for any agent. Reference: `public-docs/plugins/reference.md`,
   sections "App panels" and "Agent chat".
-- **Fork PRs:** #10 (branch `overseer-app-dock`). First consumer: `lerenn/paseo-overseer`.
+- **Fork PRs:** #10 (`8ff47622d`). First consumer: `lerenn/paseo-overseer`.
 - **Upstream branch:** `lerenn:upstream/app-dock` (one commit on upstream main; rebuild it from the
   fork PR after each change).
 - **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/overseer-drafts/`
