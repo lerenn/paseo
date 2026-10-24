@@ -438,6 +438,63 @@ It must resolve inside that directory to a regular file that follows the
 [SVG icon rules](#svg-rules). Paseo reads and validates the file when the plugin starts; the string
 is never inline SVG or a URL.
 
+### Workspace runtimes
+
+A workspace runtime decides where the agent processes of a workspace run. Register one from the
+server entry:
+
+```ts
+import type { PluginServerContext } from "@getpaseo/plugin/server";
+
+export default function contribute(server: PluginServerContext) {
+  server.registerWorkspaceRuntime({
+    id: "sandbox",
+    label: "Sandbox",
+    icon: "icons/sandbox.svg",
+    describe: () => ({ protocolVersion: 1, capabilities: { pipes: true, pty: false } }),
+    prepare: async (request, context) => {
+      context.notice("Starting sandbox");
+      // Create or resume the sandbox. Runs before every session launch, so make it idempotent.
+    },
+    exec: async (request, context) => {
+      // Start request.argv inside the sandbox and return its stdio.
+      return { stdin, stdout, stderr, exit, signal: (signal) => kill(signal) };
+    },
+  });
+  return () => {};
+}
+```
+
+A workspace selects a runtime by id: `workspace.create.request` takes
+`runtime: { id, options? }` for directory workspaces. `options` is opaque JSON that Paseo hands to
+the runtime unchanged. Check `server_info.features.workspaceRuntimes` first; the client throws
+"Update the host to use workspace runtimes." for an older daemon.
+
+| Method                                    | Called                                                                                           |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `describe()`                              | Reports the protocol version and whether `exec` supports pipes or a PTY.                         |
+| `create(request)`                         | When a workspace is created with this runtime. Idempotent.                                       |
+| `inspect`, `pause`, `resume`, `reconcile` | Reserved for the runtime's own lifecycle and the verbs of getpaseo/paseo#3360.                   |
+| `destroy(request)`                        | When the workspace is archived. Never on disconnect or daemon restart.                           |
+| `prepare(request)`                        | Before every session launch, with the final argv, env, cwd and the agent's MCP servers.          |
+| `beforeInput(request)`                    | Awaited before a prompt or permission answer is delivered, so a suspended sandbox resumes first. |
+| `onActivity(event)`                       | `turn_started`, `turn_ended`, `permission_requested`, `permission_resolved`, `input`.            |
+| `exec(request, { notice, signal })`       | Start a process. Launches of one workspace run one at a time. `signal` aborts a pending launch.  |
+
+`exec` returns `{ stdin, stdout, stderr, exit, signal }`. `exit` resolves with
+`{ code, signal, reason, message? }`. Use `reason: "runtime-lost"` when the sandbox went away rather
+than the process finishing: Paseo reconciles the runtime and the next input relaunches into it.
+`context.notice(message, level?)` shows progress or a problem in the agent's timeline.
+
+`request.purpose` is `"session"` for an agent and `"probe"` for metadata reads. A probe must not
+create or resume a sandbox. `request.env` is the complete environment for the process and never
+includes the daemon's own. `request.argv` is exactly what the provider asked to run, so the sandbox
+image must contain the provider binary.
+
+Providers that start their processes through `spawnProviderProcess` set `supportsRemoteLaunch`.
+Claude, Codex and the ACP providers do. Other providers, and providers contributed by plugins, are
+refused in a runtime workspace. Files, Git, terminals and scripts still use the daemon host.
+
 ### Usage sources
 
 **Requires Paseo 0.11.** Register a source from your server entry with

@@ -1,3 +1,4 @@
+import type { ProviderProcessLauncher } from "../../../workspace-runtime/process-launcher.js";
 import { validateProviderOptions } from "../../provider-options.js";
 import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -367,6 +368,7 @@ const CLAUDE_CAPABILITIES: AgentCapabilityFlags = {
   supportsSessionListing: true,
   supportsDynamicModes: true,
   supportsMcpServers: true,
+  supportsRemoteLaunch: true,
   supportsReasoningStream: true,
   supportsToolInvocations: true,
   supportsRewindConversation: true,
@@ -473,6 +475,7 @@ interface ClaudeAgentSessionOptions {
   handle?: AgentPersistenceHandle;
   agentId?: string;
   launchEnv?: Record<string, string>;
+  processLauncher?: ProviderProcessLauncher;
   persistSession?: boolean;
   logger: Logger;
   queryFactory?: ClaudeQueryFactory;
@@ -1609,6 +1612,7 @@ export class ClaudeAgentClient implements AgentClient {
       runtimeSettings: this.runtimeSettings,
       agentId: launchContext?.agentId,
       launchEnv: launchContext?.env,
+      processLauncher: launchContext?.processLauncher,
       persistSession: options?.persistSession,
       logger: this.logger,
       queryFactory: this.queryFactory,
@@ -1639,6 +1643,7 @@ export class ClaudeAgentClient implements AgentClient {
       handle,
       agentId: launchContext?.agentId,
       launchEnv: launchContext?.env,
+      processLauncher: launchContext?.processLauncher,
       logger: this.logger,
       queryFactory: this.queryFactory,
       resolveBinary: this.resolveBinary,
@@ -2247,6 +2252,7 @@ class ClaudeAgentSession implements AgentSession {
 
   private readonly config: ClaudeAgentConfig;
   private readonly launchEnv?: Record<string, string>;
+  private readonly processLauncher?: ProviderProcessLauncher;
   private readonly agentId?: string;
   private readonly defaults?: { agents?: Record<string, AgentDefinition> };
   private readonly runtimeSettings?: ProviderRuntimeSettings;
@@ -2359,6 +2365,7 @@ class ClaudeAgentSession implements AgentSession {
     this.config = config;
     assertClaudeThinkingOptionSupported(config.model, config.thinkingOptionId);
     this.launchEnv = options.launchEnv;
+    this.processLauncher = options.processLauncher;
     this.agentId = options.agentId;
     this.defaults = options.defaults;
     this.runtimeSettings = options.runtimeSettings;
@@ -3431,6 +3438,7 @@ class ClaudeAgentSession implements AgentSession {
       {
         runtimeSettings: this.runtimeSettings,
         launchEnv: this.launchEnv,
+        processLauncher: this.processLauncher,
         queryFactory: this.queryFactory,
         onChildProcess: (child) => {
           this.childProcess = child;
@@ -3565,7 +3573,8 @@ class ClaudeAgentSession implements AgentSession {
     const sdkEnv = this.harnessEnvironment;
     assertClaudeModeCanRun(permissionMode, sdkEnv);
 
-    const claudeBinary = await this.resolveBinary();
+    // The binary resolves inside the runtime, so a remote launch asks for it by name.
+    const claudeBinary = this.processLauncher ? "claude" : await this.resolveBinary();
     this.logger.debug(
       {
         claudeBinary,

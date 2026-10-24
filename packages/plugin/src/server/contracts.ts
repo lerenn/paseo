@@ -4,6 +4,7 @@ import type { PluginRpcContract } from "../rpc.js";
 import type { PluginCleanup } from "../contracts.js";
 import type { ProviderRegistration } from "./provider.js";
 import type { UsageSourceRegistration } from "./usage.js";
+import type { WorkspaceRuntimeRegistration } from "./workspace-runtime.js";
 import type { PluginLifecycleRegistration } from "./lifecycle.js";
 
 export interface PluginHandlerContext {
@@ -40,6 +41,7 @@ export interface PluginServerContext extends PluginLifecycleRegistration {
   ): void;
   registerProvider(provider: ProviderRegistration): void;
   registerUsageSource(source: UsageSourceRegistration): void;
+  registerWorkspaceRuntime(runtime: WorkspaceRuntimeRegistration): void;
 }
 
 export type PluginServerContribution = (server: PluginServerContext) => PluginCleanup;

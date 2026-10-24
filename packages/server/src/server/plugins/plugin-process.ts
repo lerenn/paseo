@@ -1,3 +1,4 @@
+import { createPluginRuntimeHost } from "./plugin-runtime-host.js";
 import { PluginHookHandlers } from "./lifecycle/index.js";
 import { evaluateBundle } from "./bundle-evaluator.js";
 import {
@@ -65,6 +66,7 @@ export function createPluginWorker(options: {
   const handlers = new Map<string, RegisteredRpc>();
   const providers = new Map<string, ProviderRegistration>();
   const usageSources = new Map<string, UsageSourceRegistration>();
+  const runtimeHost = createPluginRuntimeHost({ send: (message) => send(message) });
   const providerConnections = new Map<
     string,
     { connection: ProviderConnection; unsubscribe: () => void; closing?: Promise<void> }
@@ -285,6 +287,7 @@ export function createPluginWorker(options: {
         register(contract, (input, context) => handler(contract.input.parse(input), context)),
       registerProvider,
       registerUsageSource,
+      registerWorkspaceRuntime: runtimeHost.register,
       registerSettings,
       on: hooks.on,
       before: hooks.before,
@@ -312,6 +315,15 @@ export function createPluginWorker(options: {
         .sort((left, right) => left.id.localeCompare(right.id))
         .map(providerMetadata),
       usageSources: usageSourceMetadata,
+      workspaceRuntimes: await Promise.all(
+        runtimeHost.metadata().map(async (runtime) => ({
+          id: runtime.id,
+          label: runtime.label,
+          icon: runtime.iconPath
+            ? await readPluginProviderIcon(message.pluginDirectory, runtime.iconPath)
+            : undefined,
+        })),
+      ),
     });
   }
 
@@ -322,6 +334,7 @@ export function createPluginWorker(options: {
       ?.dispose()
       .catch((error) => console.error("Plugin API cleanup failed", error));
     hooks.close();
+    runtimeHost.close();
     for (const pending of pendingProviderConnections.values()) pending.tombstoned = true;
     const currentCleanup = cleanup;
     cleanup = null;
@@ -360,7 +373,8 @@ export function createPluginWorker(options: {
       message.type === "provider.status" ||
       message.type === "provider.catalog_key" ||
       message.type === "usage.fetch" ||
-      message.type === "usage.discover"
+      message.type === "usage.discover" ||
+      message.type === "runtime.call"
     ) {
       send({ type: "error", requestId: message.requestId, error: "Plugin is stopping" });
     } else if (message.type === "provider.connect") {
@@ -420,6 +434,14 @@ export function createPluginWorker(options: {
     }
     if (stopping) {
       rejectWhileStopping(message);
+      return;
+    }
+    if (
+      runtimeHost.handle(message, {
+        result: (requestId, output) => send({ type: "result", requestId, output }),
+        error: (requestId, error) => send({ type: "error", requestId, error }),
+      })
+    ) {
       return;
     }
     if (message.type === "provider.status") {
@@ -483,6 +505,9 @@ export function createPluginWorker(options: {
       handleHookMessage(message);
       return;
     }
+    if (message.type === "invoke") handleInvoke(message);
+  }
+  function handleInvoke(message: Extract<PluginProcessRequest, { type: "invoke" }>): void {
     const registered = handlers.get(message.method);
     if (!registered) {
       send({
@@ -505,6 +530,7 @@ export function createPluginWorker(options: {
           send({ type: "error", requestId: message.requestId, error: describeError(error) }),
       );
   }
+
   channel.onMessage(handleMessage);
 
   function handleHookMessage(
