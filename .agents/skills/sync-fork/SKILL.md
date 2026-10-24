@@ -10,7 +10,7 @@ user-invocable: true
    to `main` and fast-forward it from `origin/main` (`git pull --ff-only`).
 2. If `upstream/main` has commits that `main` lacks (`git rev-list --count main..upstream/main`),
    follow the **Rebase checklist** in `FORK.md` end-to-end, including the `FORK.md` updates. Report
-   conflicts you resolved and how.
+   conflicts you resolved and how. Replace its desktop build step with step 4 below.
 3. If `package-lock.json` changed since the last install, run `node scripts/npm-retry.mjs ci`.
 4. Build only the AppImage:
    `npm run build:desktop -- --publish never --linux AppImage --x64 > /tmp/appimage-build.log 2>&1`.
