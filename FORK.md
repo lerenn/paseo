@@ -38,10 +38,19 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
 
 ### App dock and AgentChat
 
-- **API:** plugin-facing app dock and `AgentChat` surface. Owner: agent 3f8409a5.
-- **Fork PRs / branch:** branch `overseer-app-dock`, no merged fork PR yet. Owner to fill in.
-- **Upstream branch / Discussion / PR:** owner to fill in.
-- **Status:** in fork (unmerged).
+- **API:** `client.addAppPanel({ id, title, icon, Component })` adds a tab to the app dock, a
+  right-hand panel at the far right of the window that belongs to the app, not a workspace (open
+  state, width, maximized and selected tab are stored once). `client.openAppPanel(id)`,
+  `toggleAppPanel(id)` and `closeAppPanel()` drive it, e.g. from `addHeaderButton`.
+  `AgentChat({ agentId, workspaceId? })` from `@getpaseo/plugin/client/ui` embeds the host agent
+  conversation (real composer) for any agent. Reference: `public-docs/plugins/reference.md`,
+  sections "App panels" and "Agent chat".
+- **Fork PRs:** #10 (branch `overseer-app-dock`). First consumer: `lerenn/paseo-overseer`.
+- **Upstream branch:** `lerenn:upstream/app-dock` (one commit on upstream main; rebuild it from the
+  fork PR after each change).
+- **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/overseer-drafts/`
+  (`upstream-pr.md`, `upstream-discussion.md`, `screenshots/`). Ask Louis.
+- **Status:** in fork.
 
 ### Sidebar groups
 

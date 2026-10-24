@@ -69,6 +69,14 @@ export interface StreamedTextProps extends Omit<TextProps, "children"> {
 /** Plain assistant text with host-owned streaming pacing and typography. */
 export declare const StreamedText: ComponentType<StreamedTextProps>;
 
+export interface AgentChatProps {
+  agentId: string;
+  /** The agent's workspace. Defaults to the one the agent belongs to. */
+  workspaceId?: string;
+}
+/** The host's agent conversation: stream and composer, for any agent on the plugin's host. */
+export declare const AgentChat: ComponentType<AgentChatProps>;
+
 export type { PluginIconProps } from "../icons.js";
 
 /** React Native scrolling with the host's sheet gestures when rendered inside a sheet. */

@@ -37,6 +37,7 @@ import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog"
 import { ChangelogHost } from "@/changelog";
 import { AppDiagnosticHost } from "@/components/app-diagnostic-host";
 import { AppearanceStyleBoundary } from "@/components/appearance-style-boundary";
+import { AppDock } from "@/components/app-dock";
 import { LeftSidebar } from "@/components/left-sidebar";
 import { WindowSidebarMenuToggle } from "@/components/headers/sidebar-menu-toggle";
 import { DesktopWindowControls } from "@/components/desktop/window-controls";
@@ -456,6 +457,7 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
           <View style={flexStyle}>{children}</View>
         </WindowChromeRegion>
       </WorkspaceExplorerOpenGesture>
+      <AppDock placement="beside-content" />
     </View>
   );
 
@@ -464,6 +466,7 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
   const surface = (
     <View style={layoutStyles.surfaceFill}>
       {workspaceChrome}
+      <AppDock placement="over-content" />
       <AppearanceStyleBoundary>
         {!isCompactLayout && appChromeLayout.sidebarToggleOwner === "window" ? (
           <WindowChromeRegion corners="top-left">
