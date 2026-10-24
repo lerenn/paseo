@@ -945,6 +945,7 @@ export async function createPaseoDaemon(
     workspaceRegistry,
     workspaceGitService,
     isDirectory: async (target) => (await stat(target).catch(() => null))?.isDirectory() ?? false,
+    runtimes: pluginRuntime.workspaceRuntimes,
     logger,
   });
   const agentProviderRuntime = await createAgentProviderRuntime({
