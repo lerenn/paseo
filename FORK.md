@@ -85,9 +85,9 @@ resume?, destroy?, reconcile?, prepare?, beforeInput?, onActivity?, exec })` in 
   executables in daemon config; this layer registers plugin objects and can move onto #3360 if it
   merges. Reference: `public-docs/plugins/reference.md`, "Workspace runtimes"; `docs/plugins.md`,
   "Contribute a workspace runtime".
-- **Fork PRs:** see the PR that introduced this entry.
-- **Upstream branch:** `lerenn:workspace-runtimes-upstream` (rebuild from the fork PR after each
-  change).
+- **Fork PRs:** #17 (merged as `9320d9194`).
+- **Upstream branch:** `lerenn:workspace-runtimes-upstream` (one commit on upstream main; rebuild
+  it from the fork PR after each change).
 - **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/workspace-runtimes-pr.md`
   and `workspace-runtimes-discussion.md` (agent session 2wwhd7fm; ask Louis).
 - **Status:** in fork.
