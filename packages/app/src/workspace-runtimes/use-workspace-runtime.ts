@@ -29,8 +29,8 @@ export function useWorkspaceRuntimeBadge(
   const query = useFetchQuery<WorkspaceRuntimeSummary[], Error>({
     queryKey,
     queryFn: () => {
-      if (!client) throw new Error("Host is not connected");
-      return client.fetchWorkspaceRuntimes();
+      // The query is disabled without a client; the empty list only satisfies the type.
+      return client ? client.fetchWorkspaceRuntimes() : Promise.resolve([]);
     },
     enabled: Boolean(runtimeId) && supported && client !== null,
     retry: false,
