@@ -395,16 +395,17 @@ export default function contribute(server: PluginServerContext) {
 
 工作区通过 id 选择运行时：目录工作区的 `workspace.create.request` 接受 `runtime: { id, options? }`。`options` 是不透明的 JSON，Paseo 原样交给运行时。先检查 `server_info.features.workspaceRuntimes`；对于较旧的守护进程，客户端会抛出 "Update the host to use workspace runtimes."。
 
-| 方法                                      | 调用时机                                                                               |
-| ----------------------------------------- | -------------------------------------------------------------------------------------- |
-| `describe()`                              | 报告协议版本，以及 `exec` 是否支持管道或 PTY。                                         |
-| `create(request)`                         | 使用该运行时创建工作区时。幂等。                                                       |
-| `inspect`、`pause`、`resume`、`reconcile` | 保留给运行时自身的生命周期，以及 getpaseo/paseo#3360 的动词。                          |
-| `destroy(request)`                        | 工作区归档时。断开连接或守护进程重启时不会调用。                                       |
-| `prepare(request)`                        | 每次启动会话之前，带有最终的 argv、env、cwd 和该 Agent 的 MCP 服务器。                 |
-| `beforeInput(request)`                    | 在投递提示词或权限回答之前等待，使已挂起的沙箱先恢复。                                 |
-| `onActivity(event)`                       | `turn_started`、`turn_ended`、`permission_requested`、`permission_resolved`、`input`。 |
-| `exec(request, { notice, signal })`       | 启动进程。同一工作区的启动依次进行。`signal` 会中止尚未完成的启动。                    |
+| 方法                                      | 调用时机                                                                                                         |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `describe()`                              | 报告协议版本，以及 `exec` 是否支持管道或 PTY。                                                                   |
+| `mapCwd(request)`                         | 返回工作区目录在运行时内的路径。守护进程目录下的路径在传入时被改写为该路径，传出时再改回。两者路径相同时可省略。 |
+| `create(request)`                         | 使用该运行时创建工作区时，`cwd` 为守护进程上的目录。幂等。                                                       |
+| `inspect`、`pause`、`resume`、`reconcile` | 保留给运行时自身的生命周期，以及 getpaseo/paseo#3360 的动词。                                                    |
+| `destroy(request)`                        | 工作区归档时。断开连接或守护进程重启时不会调用。                                                                 |
+| `prepare(request)`                        | 每次启动会话之前，带有最终的 argv、env、cwd 和该 Agent 的 MCP 服务器。                                           |
+| `beforeInput(request)`                    | 在投递提示词或权限回答之前等待，使已挂起的沙箱先恢复。                                                           |
+| `onActivity(event)`                       | `turn_started`、`turn_ended`、`permission_requested`、`permission_resolved`、`input`。                           |
+| `exec(request, { notice, signal })`       | 启动进程。同一工作区的启动依次进行。`signal` 会中止尚未完成的启动。                                              |
 
 `exec` 返回 `{ stdin, stdout, stderr, exit, signal }`。`exit` 以 `{ code, signal, reason, message? }` 完成。当沙箱消失而不是进程结束时，使用 `reason: "runtime-lost"`：Paseo 会协调（reconcile）该运行时，下一次输入会重新启动进程。`context.notice(message, level?)` 会在 Agent 的时间线中显示进度或问题。
 

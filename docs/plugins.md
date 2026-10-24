@@ -462,9 +462,12 @@ Rules the code can't show:
   provider that cannot launch remotely. Nothing runs on the daemon host instead.
 - **The runtime gets a delta, not the daemon environment.** `exec.env` is the provider's own
   settings, plugin env and Paseo variables. The daemon's environment holds its tokens.
-- **Same path.** Paths inside provider protocols (a Codex `thread/start` cwd, a Claude session
-  file) are the daemon's. Present the workspace to the process at the daemon's absolute path.
-  `exec.cwd` is informational.
+- **Path mapping is textual.** `mapCwd` gives the workspace root inside the runtime. Core rewrites
+  that prefix in argv, environment values, the working directory, MCP servers and every line of
+  stdin, and rewrites it back on stdout and stderr, so the UI and the daemon's history readers keep
+  seeing daemon paths. Provider protocols are line-delimited (JSONL, NDJSON), which is why a line
+  rewrite works for every provider with no per-provider code. It only knows the workspace root:
+  paths outside it, and paths inside base64 or other encoded payloads, pass through unchanged.
 - **Probes stay on the host.** Model and version discovery runs on the daemon, so the provider
   binary must exist there too until a later phase moves discovery behind the runtime.
 - **Phase 1 only.** Files, Git, terminals and workspace scripts still use the daemon host.

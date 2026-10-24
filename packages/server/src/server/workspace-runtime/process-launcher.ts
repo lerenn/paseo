@@ -4,8 +4,14 @@ import type {
   WorkspaceRuntimeOptions,
   WorkspaceRuntimeProcessPurpose,
 } from "@getpaseo/plugin/server";
+import { createLineRewriter, toHostPaths, toRuntimePaths, type PathMap } from "./path-map.js";
 import { createRemoteChildProcess } from "./remote-child-process.js";
-import type { RuntimeNotice, WorkspaceRuntimeBackend } from "./types.js";
+import type {
+  RuntimeExecControl,
+  RuntimeExecSink,
+  RuntimeNotice,
+  WorkspaceRuntimeBackend,
+} from "./types.js";
 
 export interface ProviderProcessSpawnInput {
   command: string;
@@ -32,15 +38,66 @@ export interface RuntimeProcessLauncherOptions {
   runtimeOptions?: WorkspaceRuntimeOptions;
   agentId?: string;
   provider: string;
+  /** The workspace directory on the daemon. Enables path mapping through `mapCwd`. */
+  workspaceRoot?: string;
   /** The agent's final MCP servers, read when the process starts. */
   mcpServers?: () => Record<string, JsonValue> | undefined;
   onNotice?: (notice: RuntimeNotice) => void;
+}
+
+function mapJson<T>(value: T | undefined, rewrite: (text: string) => string): T | undefined {
+  return value === undefined ? undefined : (JSON.parse(rewrite(JSON.stringify(value))) as T);
+}
+
+/** Rewrites paths on the sink's output and on the control's input when the runtime maps them. */
+function mapStreams(
+  map: PathMap,
+  sink: RuntimeExecSink,
+): { sink: RuntimeExecSink; wrapControl(control: RuntimeExecControl): RuntimeExecControl } {
+  const stdout = createLineRewriter((line) => toHostPaths(line, map));
+  const stderr = createLineRewriter((line) => toHostPaths(line, map));
+  const stdin = createLineRewriter((line) => toRuntimePaths(line, map));
+  const drain = (): void => {
+    for (const chunk of stdout.flush()) sink.onStdout(chunk);
+    for (const chunk of stderr.flush()) sink.onStderr(chunk);
+  };
+  return {
+    sink: {
+      ...sink,
+      onStdout: (data) => stdout.push(data).forEach((chunk) => sink.onStdout(chunk)),
+      onStderr: (data) => stderr.push(data).forEach((chunk) => sink.onStderr(chunk)),
+      onExit(exit) {
+        drain();
+        sink.onExit({ ...exit, message: exit.message && toHostPaths(exit.message, map) });
+      },
+    },
+    wrapControl: (control) => ({
+      ...control,
+      writeStdin(data) {
+        if (data === null) {
+          for (const chunk of stdin.flush()) control.writeStdin(chunk);
+          control.writeStdin(null);
+          return;
+        }
+        for (const chunk of stdin.push(data)) control.writeStdin(chunk);
+      },
+    }),
+  };
 }
 
 export function createRuntimeProcessLauncher(
   options: RuntimeProcessLauncherOptions,
 ): ProviderProcessLauncher {
   const { backend, workspaceId } = options;
+  let pathMap: Promise<PathMap | null> | null = null;
+  const resolvePathMap = (): Promise<PathMap | null> => {
+    const root = options.workspaceRoot;
+    if (!root) return Promise.resolve(null);
+    pathMap ??= backend
+      .mapCwd({ workspaceId, options: options.runtimeOptions, cwd: root })
+      .then((runtimeRoot) => (runtimeRoot === root ? null : { host: root, runtime: runtimeRoot }));
+    return pathMap;
+  };
   return {
     runtimeId: backend.id,
     spawn(input) {
@@ -52,34 +109,42 @@ export function createRuntimeProcessLauncher(
               if (notice.workspaceId === workspaceId) options.onNotice?.(notice);
             })
           : () => undefined;
-        const request = {
-          workspaceId,
-          options: options.runtimeOptions,
-          agentId: options.agentId,
-          provider: options.provider,
-          purpose,
-          argv,
-          cwd: input.cwd,
-          env: input.env,
-        };
         try {
+          const map = await resolvePathMap();
+          const mapped = (text: string): string => toRuntimePaths(text, map);
+          const request = {
+            workspaceId,
+            options: options.runtimeOptions,
+            agentId: options.agentId,
+            provider: options.provider,
+            purpose,
+            argv: argv.map(mapped) as [string, ...string[]],
+            cwd: input.cwd === undefined ? undefined : mapped(input.cwd),
+            env: Object.fromEntries(Object.entries(input.env).map(([k, v]) => [k, mapped(v)])),
+          };
           if (purpose === "session") {
-            await backend.prepare({ ...request, mcpServers: options.mcpServers?.() });
+            await backend.prepare({
+              ...request,
+              mcpServers: mapJson(options.mcpServers?.(), mapped),
+            });
           }
-          const control = backend.exec(request, {
-            ...sink,
+          const streams = map ? mapStreams(map, sink) : null;
+          const target = streams?.sink ?? sink;
+          const rawControl = backend.exec(request, {
+            ...target,
             onExit(exit) {
               unsubscribe();
               // A lost sandbox is not a finished process: let the runtime re-adopt what is left,
               // so the next input relaunches into a consistent runtime.
               if (exit.reason === "runtime-lost") void backend.reconcile().catch(() => undefined);
-              sink.onExit(exit);
+              target.onExit(exit);
             },
             onFailed(error) {
               unsubscribe();
-              sink.onFailed(error);
+              target.onFailed(error);
             },
           });
+          const control = streams ? streams.wrapControl(rawControl) : rawControl;
           input.signal?.addEventListener("abort", () => control.abort(), { once: true });
           return control;
         } catch (error) {

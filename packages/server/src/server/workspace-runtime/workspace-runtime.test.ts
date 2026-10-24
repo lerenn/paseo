@@ -13,6 +13,7 @@ import type {
 } from "../plugins/plugin-process-protocol.js";
 import { PluginRuntimeBackend } from "../plugins/plugin-runtime-backend.js";
 import { createRuntimeProcessLauncher } from "./process-launcher.js";
+import { createLineRewriter, rewritePathPrefix } from "./path-map.js";
 import { WorkspaceRuntimeRegistry } from "./registry.js";
 import { spawnProviderProcess } from "./spawn-provider-process.js";
 import { WorkspaceRuntimeUnavailableError, type RuntimeNotice } from "./types.js";
@@ -25,13 +26,16 @@ interface Harness {
   notices: RuntimeNotice[];
   finishLast(exit: WorkspaceRuntimeExit): void;
   launch(overrides?: { purpose?: "session" | "probe" }): ReturnType<typeof spawnProviderProcess>;
+  launcher: ReturnType<typeof createRuntimeProcessLauncher>;
+  stdinSeen: string[];
 }
 
 /** A real plugin worker and a real backend, joined by an in-memory channel. */
-function createHarness(options: { failExec?: string } = {}): Harness {
+function createHarness(options: { failExec?: string; mapTo?: string } = {}): Harness {
   const calls: string[] = [];
   const prepared: WorkspaceRuntimePrepareRequest[] = [];
   const execs: WorkspaceRuntimeExecRequest[] = [];
+  const stdinSeen: string[] = [];
   const notices: RuntimeNotice[] = [];
   const exits: Array<(exit: WorkspaceRuntimeExit) => void> = [];
   const pending = new Map<string, { resolve(value: unknown): void; reject(error: Error): void }>();
@@ -41,6 +45,7 @@ function createHarness(options: { failExec?: string } = {}): Harness {
     id: "fake",
     label: "Fake",
     describe: () => ({ protocolVersion: 1, capabilities: { pipes: true, pty: false } }),
+    ...(options.mapTo ? { mapCwd: () => options.mapTo! } : {}),
     reconcile: () => {
       calls.push("reconcile");
     },
@@ -56,7 +61,10 @@ function createHarness(options: { failExec?: string } = {}): Harness {
       const stdin = new PassThrough();
       const stdout = new PassThrough();
       const stderr = new PassThrough();
-      stdin.on("data", (chunk) => stdout.write(chunk));
+      stdin.on("data", (chunk) => {
+        stdinSeen.push(chunk.toString());
+        stdout.write(chunk);
+      });
       stdin.on("end", () => stdout.end());
       let resolveExit!: (exit: WorkspaceRuntimeExit) => void;
       const exit = new Promise<WorkspaceRuntimeExit>((resolve) => {
@@ -109,10 +117,13 @@ function createHarness(options: { failExec?: string } = {}): Harness {
     workspaceId: "wks_0123456789abcdef",
     agentId: "agent-1",
     provider: "claude",
+    workspaceRoot: options.mapTo ? "/daemon/ws" : undefined,
     onNotice: (notice) => notices.push(notice),
   });
   return {
     backend,
+    launcher,
+    stdinSeen,
     calls,
     prepared,
     execs,
@@ -215,5 +226,51 @@ describe("workspace runtime registry", () => {
     const registry = new WorkspaceRuntimeRegistry();
     expect(() => registry.require("missing")).toThrow(WorkspaceRuntimeUnavailableError);
     expect(() => registry.require("missing")).toThrow(/does not fall back to running on the host/);
+  });
+});
+
+describe("workspace runtime path mapping", () => {
+  it("rewrites a path prefix only where it stands alone", () => {
+    const rewrite = (text: string) => rewritePathPrefix(text, "/daemon/ws", "/pod/ws");
+    expect(rewrite('{"cwd":"/daemon/ws","file":"/daemon/ws/src/a.ts"}')).toBe(
+      '{"cwd":"/pod/ws","file":"/pod/ws/src/a.ts"}',
+    );
+    expect(rewrite("/daemon/ws2 /other/daemon/ws /daemon/ws.bak")).toBe(
+      "/daemon/ws2 /other/daemon/ws /daemon/ws.bak",
+    );
+    expect(rewrite("file:///daemon/ws/x")).toBe("file:///pod/ws/x");
+  });
+
+  it("rewrites whole lines even when a path is split across chunks", () => {
+    const lines = createLineRewriter((line) => rewritePathPrefix(line, "/a", "/b"));
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    const out = [
+      ...lines.push(encoder.encode('{"p":"/')),
+      ...lines.push(encoder.encode('a/x"}\n{"p":"/a"}')),
+      ...lines.flush(),
+    ].map((chunk) => decoder.decode(chunk));
+    expect(out.join("")).toBe('{"p":"/b/x"}\n{"p":"/b"}');
+  });
+
+  it("maps argv, env, cwd and both stream directions through the runtime's mapCwd", async () => {
+    const harness = createHarness({ mapTo: "/pod/ws" });
+    const child = spawnProviderProcess("claude", ["--add-dir", "/daemon/ws/extra"], {
+      launcher: harness.launcher,
+      cwd: "/daemon/ws/sub",
+      envOverlay: { PASEO_AGENT_CWD: "/daemon/ws/sub" },
+    });
+    const echoed = new Promise<string>((resolve) =>
+      child.stdout!.once("data", (chunk) => resolve(chunk.toString())),
+    );
+    child.stdin!.write('{"cwd":"/daemon/ws/sub"}\n');
+    expect(await echoed).toBe('{"cwd":"/daemon/ws/sub"}\n');
+    expect(harness.execs[0]).toMatchObject({
+      argv: ["claude", "--add-dir", "/pod/ws/extra"],
+      cwd: "/pod/ws/sub",
+      env: { PASEO_AGENT_CWD: "/pod/ws/sub" },
+    });
+    expect(harness.stdinSeen).toEqual(['{"cwd":"/pod/ws/sub"}\n']);
+    child.kill();
   });
 });

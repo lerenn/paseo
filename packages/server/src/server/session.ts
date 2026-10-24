@@ -6815,6 +6815,7 @@ export class Session {
       await backend.create({
         workspaceId,
         options: request.runtime.options as WorkspaceRuntimeOptions | undefined,
+        cwd,
       });
     }
     const workspace = await this.workspaceProvisioning.createWorkspaceForDirectory(
