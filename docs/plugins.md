@@ -485,7 +485,13 @@ Rules the code can't show:
   command's stdout is held until exit and rewritten only if it is valid UTF-8, because Git blobs
   are binary. Background refreshes are marked `interactive: false`; a runtime must not resume a
   suspended sandbox for them.
-- **Still on the host.** The file explorer, terminals and workspace scripts.
+- **Files go through `fs`.** The file explorer (`file-explorer/service.ts`) routes a request whose
+  root is under a runtime workspace to `runtime-service.ts`, which mirrors the host explorer's
+  results over the runtime's `fs` verbs. Revisions are `rt:<size>:<mtimeMs>`, binary detection
+  samples the first 8 KiB, and a change is found by polling because a runtime has no watch. A
+  runtime without `fs` fails the request; the host copy of a runtime workspace is never read.
+  Symlink confinement is the runtime's job (`fs` must reject a path that leaves the workspace).
+- **Still on the host.** Terminals, workspace scripts and file uploads.
 
 ## Contribute a provider
 

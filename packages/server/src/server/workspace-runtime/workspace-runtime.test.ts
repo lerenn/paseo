@@ -106,7 +106,7 @@ function createHarness(options: { failExec?: string; mapTo?: string } = {}): Har
   const deliver = (message: PluginProcessRequest) => {
     host.handle(message, reply);
   };
-  backend = new PluginRuntimeBackend("fake", "Fake", undefined, {
+  backend = new PluginRuntimeBackend("fake", "Fake", undefined, false, {
     call: (message) =>
       new Promise((resolve, reject) => {
         pending.set(message.requestId, { resolve, reject });

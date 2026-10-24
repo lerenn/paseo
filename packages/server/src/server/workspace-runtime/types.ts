@@ -4,10 +4,21 @@ import type {
   WorkspaceRuntimeInputRequest,
   WorkspaceRuntimePrepareRequest,
   WorkspaceRuntimeWorkspaceRequest,
+  WorkspaceRuntimeFsRequest,
   WorkspaceRuntimeActivityEvent,
   WorkspaceRuntimeDescription,
   WorkspaceRuntimeStatus,
 } from "@getpaseo/plugin/server";
+
+export type RuntimeFsVerb =
+  | "fs.stat"
+  | "fs.readdir"
+  | "fs.read"
+  | "fs.write"
+  | "fs.mkdir"
+  | "fs.rename"
+  | "fs.remove"
+  | "fs.copy";
 
 export interface RuntimeExecSink {
   onStarted(): void;
@@ -38,6 +49,8 @@ export interface WorkspaceRuntimeBackend {
   readonly label: string;
   /** SVG markup for the runtime, if its plugin declared one. */
   readonly icon?: string;
+  /** The runtime serves the workspace's files; without it the Files panel is unavailable. */
+  readonly providesFiles: boolean;
   describe(): Promise<WorkspaceRuntimeDescription>;
   create(request: WorkspaceRuntimeWorkspaceRequest): Promise<void>;
   inspect(request: WorkspaceRuntimeWorkspaceRequest): Promise<WorkspaceRuntimeStatus>;
@@ -47,6 +60,8 @@ export interface WorkspaceRuntimeBackend {
   reconcile(): Promise<void>;
   prepare(request: WorkspaceRuntimePrepareRequest): Promise<void>;
   beforeInput(request: WorkspaceRuntimeInputRequest): Promise<void>;
+  /** One file system call; the result is whatever the verb returns (see WorkspaceRuntimeFileSystem). */
+  fs(verb: RuntimeFsVerb, request: WorkspaceRuntimeFsRequest): Promise<unknown>;
   /** The workspace directory inside the runtime; the daemon path when it is the same. */
   mapCwd(request: WorkspaceRuntimeWorkspaceRequest & { cwd: string }): Promise<string>;
   activity(event: WorkspaceRuntimeActivityEvent): void;
