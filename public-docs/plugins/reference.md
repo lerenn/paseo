@@ -2381,6 +2381,37 @@ header has no room for plugin buttons, so each one is a row of the workspace men
 icon and title; its menus and popovers open as pages of that sheet. Placement and overflow are host
 decisions.
 
+## Agent badges
+
+`client.addAgentBadge` marks agents that carry certain labels with a small badge: an icon, with
+optional text and tooltip. It shows in the sidebar workspace row's meta line (next to the host and
+runtime badges) and in the agent list. Several badges stack, and past three the rest are summarised.
+
+```tsx
+client.addAgentBadge({
+  id: "factory",
+  scope: "workspace",
+  match: { labels: { factory: "*" } },
+  render: {
+    icon: "Factory",
+    text: (agent) => agent.labels.factory,
+    tooltip: (agent) => `Run by the Factory (${agent.labels.factory})`,
+  },
+});
+```
+
+| Field            | Meaning                                                                                                                                |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`             | Lowercase letters, digits and hyphens, unique within the plugin.                                                                       |
+| `scope`          | `"agent"` (default) badges agents on agent surfaces. `"workspace"` also badges the sidebar workspace row when any agent in it matches. |
+| `match.labels`   | Every key must be on the agent. A value must equal the label's; `"*"` accepts any value.                                               |
+| `render.icon`    | A Lucide name or `{ svg }`, validated when you register.                                                                               |
+| `render.text`    | Optional `(agent) => string` shown beside the icon. A function that throws shows no text.                                              |
+| `render.tooltip` | Optional `(agent) => string`.                                                                                                          |
+
+`agent` is `{ id, title, labels }`. Agents get labels when they are created. The call returns a
+cleanup function, and the badge is removed when the plugin stops.
+
 ## Composer pills
 
 `client.addComposerPill({ id, workspaceId, agentId, button })` uses the same [button descriptor](#button-descriptor)

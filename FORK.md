@@ -121,10 +121,23 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   live status as the sidebar draws it (ring running, alert needs input, green dot attention, red dot
   failed, muted dot done). Reference: `public-docs/plugins/reference.md`, "Agent status indicator".
   First consumer: the Release Trains plugin's column headers.
-- **Fork PRs:** see the PR that introduced this entry.
-- **Upstream branch (one aspect, cut from upstream main):** `upstream/agent-status-indicator-1-indicator`.
+- **Fork PRs:** #35 (`1e043c806`).
+- **Upstream branch (one aspect, cut from upstream main):** `upstream/plugin-ui-0-agent-status-indicator`.
 - **Upstream Discussion / PR:** drafts only, not posted:
-  `/home/paseo/work/upstream-drafts/agent-status-indicator/` (ask Louis).
+  `/home/paseo/work/upstream-drafts/plugin-ui/` (ask Louis).
+- **Status:** in fork.
+
+### Agent badges
+
+- **API:** `client.addAgentBadge({ id, scope?, match: { labels }, render: { icon, text?, tooltip? } })`:
+  a small badge on agents that carry the given labels (`"*"` = any value), in the sidebar workspace
+  row's meta line (workspace scope) and in the agent list. Stacks, three visible. Reference:
+  `public-docs/plugins/reference.md`, "Agent badges". First consumer: the Paseo Factory plugin.
+  The agent tab header does not show badges yet.
+- **Fork PRs:** #36.
+- **Upstream branch (one aspect, cut from upstream main):** `upstream/plugin-ui-1-agent-badges`
+  (objective: plugin UI components, with `upstream/plugin-ui-0-agent-status-indicator`).
+- **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/plugin-ui/`.
 - **Status:** in fork.
 
 ### Queue action modifier (#7686)

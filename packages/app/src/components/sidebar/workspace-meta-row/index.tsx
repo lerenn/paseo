@@ -9,6 +9,8 @@ import {
 } from "@getpaseo/protocol/workspace-labels";
 import type { HostBadgeModel } from "@/hosts/appearance";
 import { HostBadge, HOST_BADGE_ICON_SIZE } from "@/hosts/host-badge";
+import { AgentBadges } from "@/plugins/badges";
+import { useAgentBadges } from "@/plugins/badges/view";
 import { RuntimeBadge } from "@/workspace-runtimes/runtime-badge";
 import { WorkspaceLabelChip, WORKSPACE_LABEL_CHIP_INSET } from "@/workspace-labels/chip";
 import type { PrHint } from "@/git/pr-hint";
@@ -66,6 +68,7 @@ export function WorkspaceMetaRow({
   projectName,
   hostBadge,
   serverId,
+  workspaceId,
   runtimeId,
   prHint,
   serviceSummary,
@@ -75,17 +78,21 @@ export function WorkspaceMetaRow({
   projectName: string | null;
   hostBadge: HostBadgeModel | null;
   serverId?: string;
+  workspaceId?: string;
   runtimeId?: string | null;
   prHint: PrHint | null;
   serviceSummary: WorkspaceServiceSummary | null;
   labels?: readonly WorkspaceLabelDefinition[];
 }) {
   const { rowItems, checksDisplay } = useSidebarMetaPreferences();
+  const hasAgentBadges =
+    useAgentBadges({ serverId: serverId ?? "", workspaceId: workspaceId ?? "" }).length > 0;
   const items = selectMetaRowItems({
     currentBranch,
     projectName,
     hasHostBadge: hostBadge !== null,
     runtimeId,
+    hasAgentBadges,
     prHint,
     serviceSummary,
     labels,
@@ -104,6 +111,7 @@ export function WorkspaceMetaRow({
             item={item}
             hostBadge={hostBadge}
             serverId={serverId}
+            workspaceId={workspaceId}
             leading={index === 0}
           />
         </Fragment>
@@ -116,11 +124,13 @@ function MetaItemNode({
   item,
   hostBadge,
   serverId,
+  workspaceId,
   leading,
 }: {
   item: MetaRowItem;
   hostBadge: HostBadgeModel | null;
   serverId?: string;
+  workspaceId?: string;
   /** First on the line, so this item's ink sets the rail the title above it already uses. */
   leading: boolean;
 }): ReactNode {
@@ -136,6 +146,11 @@ function MetaItemNode({
   if (item.kind === "runtime") {
     return serverId ? (
       <RuntimeBadge serverId={serverId} runtimeId={item.runtimeId} size={META_ICON_SIZE} />
+    ) : null;
+  }
+  if (item.kind === "agentBadges") {
+    return serverId && workspaceId ? (
+      <AgentBadges serverId={serverId} workspaceId={workspaceId} />
     ) : null;
   }
   if (item.kind === "changeRequest") {

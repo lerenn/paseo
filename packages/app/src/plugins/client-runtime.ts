@@ -11,6 +11,7 @@ import { createPluginClientStateSource } from "./client-state/source";
 import type { PluginClientRuntime } from "./evaluate";
 import { createPluginNavigation } from "./navigation";
 import { pluginButtonStore } from "./buttons";
+import { pluginAgentBadgeStore } from "./badges";
 import { useAppDockStore, type AppDockPanel } from "@/stores/app-dock-store";
 import type { InstalledPlugin } from "./types";
 
@@ -30,6 +31,9 @@ export function createPluginClientRuntime(
     hosts: createPluginHosts(getHostRuntimeStore(), installation.lifetime.signal),
     addComposerPill(contribution) {
       return pluginButtonStore.addComposerPill(installation, contribution);
+    },
+    addAgentBadge(contribution) {
+      return pluginAgentBadgeStore.add(installation, contribution);
     },
     addHeaderButton(contribution) {
       return pluginButtonStore.addHeaderButton(installation, contribution);

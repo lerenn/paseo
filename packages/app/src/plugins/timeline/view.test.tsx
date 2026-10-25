@@ -29,6 +29,7 @@ vi.mock("../client-runtime", () => ({
     openPanel: () => undefined,
     addComposerPill: () => ({ update() {}, remove() {} }),
     addHeaderButton: () => ({ update() {}, remove() {} }),
+    addAgentBadge: () => () => undefined,
   }),
 }));
 vi.mock("../icons", () => ({

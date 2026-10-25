@@ -1,3 +1,4 @@
+import type { PluginAgentBadgeContribution } from "./badges.js";
 import type { PluginText } from "../text.js";
 import type { ComponentType } from "react";
 import type { PaseoApi } from "@getpaseo/client";
@@ -219,6 +220,11 @@ export interface PluginClientContext extends PluginCommandCapabilities, PluginCl
   addComposerPill(
     contribution: PluginComposerPillContribution<PluginText>,
   ): PluginButtonRegistration<PluginText>;
+  /**
+   * Badges agents that carry certain labels: a small icon, with optional text, in the sidebar row,
+   * the agent list and the agent header. Several badges stack.
+   */
+  addAgentBadge(contribution: PluginAgentBadgeContribution): PluginCleanup;
   addAttachmentSource(contribution: PluginAttachmentSourceContribution<PluginText>): PluginCleanup;
   addWorkspaceLocation(
     contribution: PluginWorkspaceLocationContribution<PluginText>,
