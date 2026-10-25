@@ -506,6 +506,10 @@ Rules the code can't show:
   samples the first 8 KiB, and a change is found by polling because a runtime has no watch. A
   runtime without `fs` fails the request; the host copy of a runtime workspace is never read.
   Symlink confinement is the runtime's job (`fs` must reject a path that leaves the workspace).
+- **A command that cannot run is not an answer.** In a runtime workspace, a Git command that fails
+  because the sandbox is down or the runtime is gone makes checkout discovery throw instead of
+  reporting "non-Git", and project kind refresh leaves the project alone. Otherwise a suspended pod
+  would downgrade a git project to non-git and split it from the same repository on other hosts.
 - **Archive and removal end the sandbox.** `RuntimeWorkspaceIndex` watches workspace registry
   mutations, so `destroy` runs however a workspace goes away (archive, archive by path, removal by
   reconciliation). `reconcile` gets the list of live workspaces when a runtime registers (daemon

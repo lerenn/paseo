@@ -1,3 +1,4 @@
+import { hasWorkspaceRuntime } from "./command-launcher.js";
 import { MAX_RELAY_WEBSOCKET_MESSAGE_BYTES } from "@getpaseo/protocol/websocket-message-limit";
 import { resolve, dirname, basename } from "path";
 import { existsSync, realpathSync } from "fs";
@@ -1075,6 +1076,10 @@ async function getWorktreeRoot(cwd: string, context?: CheckoutContext): Promise<
     });
     return parseGitRevParsePath(stdout);
   } catch (error) {
+    // In a runtime workspace a command that could not run (sandbox suspended, runtime gone) says
+    // nothing about whether the directory is a repository; answering "non-Git" would downgrade
+    // the project. Only Git's own "not a git repository" is an answer.
+    if (!isNotGitRepositoryError(error) && hasWorkspaceRuntime(cwd)) throw error;
     if (!isNotGitRepositoryError(error)) {
       context?.logger?.warn(
         { err: error, cwd },
