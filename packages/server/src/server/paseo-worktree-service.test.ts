@@ -24,6 +24,7 @@ import { createWorktree, getPaseoWorktreesRoot } from "../utils/worktree.js";
 import { isPlatform } from "../test-utils/platform.js";
 import { areEquivalentPaths, createRealpathAwarePathMatcher } from "../utils/path.js";
 import { deriveProjectKey } from "./project-key.js";
+import { setCommandLauncherResolver } from "../utils/command-launcher.js";
 
 const cleanupPaths: string[] = [];
 
@@ -85,6 +86,44 @@ test("creates a worktree and registers it in the source workspace project withou
     updatedAt: expect.any(String),
   });
   expect(events).toEqual([`workspace:${result.workspace.workspaceId}`]);
+});
+
+test("creates a worktree on the host even when the source directory belongs to a runtime", async () => {
+  const { repoDir, tempDir } = createGitRepo();
+  cleanupPaths.push(tempDir);
+  const deps = createDeps();
+  const sourceProject = createPersistedProjectRecordForTest({
+    projectId: "remote:github.com/acme/repo",
+    rootPath: repoDir,
+    displayName: "acme/repo",
+  });
+  deps.projects.set(sourceProject.projectId, sourceProject);
+  deps.workspaces.set(
+    "ws-main-checkout",
+    createPersistedWorkspaceRecordForTest({
+      workspaceId: "ws-main-checkout",
+      projectId: sourceProject.projectId,
+      cwd: repoDir,
+      kind: "local_checkout",
+      displayName: "main",
+    }),
+  );
+  let asked = 0;
+  setCommandLauncherResolver(() => {
+    asked += 1;
+    throw new Error("a worktree must not be created through the runtime");
+  });
+  try {
+    const result = await createPaseoWorktree(
+      { cwd: repoDir, worktreeSlug: "in-pod", paseoHome: path.join(tempDir, ".paseo") },
+      deps,
+    );
+    expect(result.created).toBe(true);
+    expect(existsSync(result.worktree.worktreePath)).toBe(true);
+    expect(asked).toBe(0);
+  } finally {
+    setCommandLauncherResolver(null);
+  }
 });
 
 test("refreshes a source project that became Git while creating a worktree", async () => {

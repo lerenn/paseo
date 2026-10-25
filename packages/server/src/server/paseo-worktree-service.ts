@@ -2,6 +2,7 @@ import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import type { WorkspaceGitService } from "./workspace-git-service.js";
+import { runCommandsOnHost } from "../utils/command-launcher.js";
 import { getRealpathAwareRelativePath } from "../utils/path.js";
 import type { PersistedWorkspaceRecord } from "./workspace-registry.js";
 import type { WorkspaceProvisioningService } from "./session/workspace-provisioning/workspace-provisioning-service.js";
@@ -69,7 +70,11 @@ export async function createPaseoWorktree(
   input: CreatePaseoWorktreeInput,
   deps: CreatePaseoWorktreeDeps,
 ): Promise<CreatePaseoWorktreeResult> {
-  return runWithGitCommandPriority("high", () => createPaseoWorktreeWithPriority(input, deps));
+  // A worktree is made from the daemon's own checkout, even when the source workspace lives in a
+  // runtime: its git state must not depend on a sandbox that may be stopped.
+  return runCommandsOnHost(() =>
+    runWithGitCommandPriority("high", () => createPaseoWorktreeWithPriority(input, deps)),
+  );
 }
 
 async function createPaseoWorktreeWithPriority(
