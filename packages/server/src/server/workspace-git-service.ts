@@ -1,3 +1,4 @@
+import { runCommandsOnHost } from "../utils/command-launcher.js";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
@@ -210,7 +211,11 @@ export interface WorkspaceGitService {
 
   /** Publishes computed snapshot changes independently of workspace UI subscriptions. */
   onSnapshotUpdated(listener: WorkspaceGitSnapshotUpdatedListener): WorkspaceGitSubscription;
-  getCheckout(cwd: string): Promise<ProjectCheckoutLitePayload>;
+  /**
+   * `onHost` reads the daemon's own checkout even where a runtime workspace holds a copy: for
+   * project identity, which must not depend on a sandbox.
+   */
+  getCheckout(cwd: string, options?: { onHost?: boolean }): Promise<ProjectCheckoutLitePayload>;
   getSnapshot(
     cwd: string,
     options?: WorkspaceGitSnapshotOptions,
@@ -756,16 +761,22 @@ export class WorkspaceGitServiceImpl implements WorkspaceGitService {
     return this.requestWorkspaceSnapshot(target, request);
   }
 
-  async getCheckout(cwd: string): Promise<ProjectCheckoutLitePayload> {
+  async getCheckout(
+    cwd: string,
+    options?: { onHost?: boolean },
+  ): Promise<ProjectCheckoutLitePayload> {
     this.assertNotDisposed();
     const normalizedCwd = resolve(cwd);
-    const status = await this.deps.getCheckoutStatus(normalizedCwd, {
-      paseoHome: this.paseoHome,
-      worktreesRoot: this.worktreesRoot,
-      logger: this.logger,
-    });
+    const readStatus = () =>
+      this.deps.getCheckoutStatus(normalizedCwd, {
+        paseoHome: this.paseoHome,
+        worktreesRoot: this.worktreesRoot,
+        logger: this.logger,
+      });
+    const status = await (options?.onHost ? runCommandsOnHost(readStatus) : readStatus());
     const cached = this.getCachedSnapshot(normalizedCwd);
-    if (cached && cached.git.isGit !== status.isGit) {
+    // A host read of a runtime workspace's directory says nothing about the workspace's snapshot.
+    if (!options?.onHost && cached && cached.git.isGit !== status.isGit) {
       // A fresh checkout read discovered a repository transition. Keep the
       // shared snapshot current before exposing the new project capability.
       await this.getSnapshot(normalizedCwd, {

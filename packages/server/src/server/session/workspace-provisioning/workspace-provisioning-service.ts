@@ -211,7 +211,7 @@ export function createWorkspaceProvisioningService(deps: {
 
   async function findOrCreateProjectForDirectory(cwd: string): Promise<PersistedProjectRecord> {
     const rootPath = resolve(cwd);
-    const checkout = await workspaceGitService.getCheckout(rootPath);
+    const checkout = await workspaceGitService.getCheckout(rootPath, { onHost: true });
     const timestamp = new Date().toISOString();
     return projectRegistry.getOrCreateActiveByRoot({
       rootPath,
@@ -381,7 +381,7 @@ export function createWorkspaceProvisioningService(deps: {
       // Orphaned legacy workspace FKs fall through to exact-root allocation.
     }
 
-    const checkout = await workspaceGitService.getCheckout(input.repoRoot);
+    const checkout = await workspaceGitService.getCheckout(input.repoRoot, { onHost: true });
     const project = await projectRegistry.getOrCreateActiveByRoot({
       rootPath: input.repoRoot,
       kind: "git",
@@ -480,7 +480,7 @@ export function createWorkspaceProvisioningService(deps: {
       const projectCheckout =
         checkout && areEquivalentPaths(project.rootPath, workspace.cwd)
           ? checkout
-          : await workspaceGitService.getCheckout(project.rootPath);
+          : await workspaceGitService.getCheckout(project.rootPath, { onHost: true });
       const kind = projectCheckout.isGit ? "git" : "non_git";
       const projectKey = deriveProjectKey({
         rootPath: project.rootPath,
@@ -532,7 +532,7 @@ export function createWorkspaceProvisioningService(deps: {
       projectCheckout =
         workspaceCwd && workspaceCheckout && areEquivalentPaths(project.rootPath, workspaceCwd)
           ? workspaceCheckout
-          : await workspaceGitService.getCheckout(project.rootPath);
+          : await workspaceGitService.getCheckout(project.rootPath, { onHost: true });
     } catch (error) {
       // A checkout that cannot be read (a runtime that is down) must not rewrite the project.
       logger.warn({ err: error, projectId: project.projectId }, "Project kind left unchanged");
