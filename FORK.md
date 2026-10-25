@@ -142,6 +142,18 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
 - **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/plugin-ui/`.
 - **Status:** in fork.
 
+### Plugin agent-create context
+
+- **API:** `before("agent.create")` requests carry read-only `labels` and `parentAgentId` (null for a
+  top-level agent); `PluginHookAgent` carries `labels`. A hook that edits them is ignored. Daemons
+  advertise `server_info.features.pluginCreateContext`. Reference:
+  `public-docs/plugins/reference.md`, "Before hooks". First consumer: the Assistant mailbox.
+- **Fork PRs:** see the PR that introduced this entry.
+- **Upstream branch (one aspect, cut from upstream main):** `upstream/plugin-create-context-1-hooks`.
+- **Upstream Discussion / PR:** drafts only, not posted:
+  `/home/paseo/work/upstream-drafts/plugin-create-context/`.
+- **Status:** in fork.
+
 ### Queue action modifier (#7686)
 
 - **Change:** show the queue action while Cmd/Ctrl is held (`feat(app): show queue action while

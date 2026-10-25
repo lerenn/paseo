@@ -945,6 +945,7 @@ interface PluginHookAgent {
   provider: string;
   cwd: string;
   title: string | null;
+  labels: Record<string, string>;
 }
 
 interface PluginHookWorkspace {
@@ -971,11 +972,16 @@ type PluginTurnOutcome =
 
 ### Before hooks
 
-| Name                 | Request fields                                                          | Editable                                |
-| -------------------- | ----------------------------------------------------------------------- | --------------------------------------- |
-| `agent.create`       | `config`, optional `env`, optional `pluginOptions`                      | Public agent config except `cwd`; `env` |
-| `agent.session_open` | `agentId`, `workspaceId`, `provider`, `cwd`, `reason`, `purpose`, `env` | Only `env`                              |
-| `workspace.create`   | `source`, optional `title`, `firstAgentContext`                         | Entire explicit creation request        |
+| Name                 | Request fields                                                                | Editable                                |
+| -------------------- | ----------------------------------------------------------------------------- | --------------------------------------- |
+| `agent.create`       | `config`, optional `env`, optional `pluginOptions`, `labels`, `parentAgentId` | Public agent config except `cwd`; `env` |
+| `agent.session_open` | `agentId`, `workspaceId`, `provider`, `cwd`, `reason`, `purpose`, `env`       | Only `env`                              |
+| `workspace.create`   | `source`, optional `title`, `firstAgentContext`                               | Entire explicit creation request        |
+
+`labels` and `parentAgentId` are read-only context: the labels the agent is created with, and the
+agent that created it as a subagent (`null` for a top-level agent). A hook that changes them has
+the change ignored. `agent.created` and the other agent events carry the same `labels` on
+`PluginHookAgent`. Hosts advertise this as `server_info.features.pluginCreateContext`.
 
 **`agent.create.config`** uses `AgentSessionConfig`:
 

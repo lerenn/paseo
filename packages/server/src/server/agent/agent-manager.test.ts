@@ -12013,6 +12013,7 @@ test.each([
               provider: "codex",
               cwd: workdir,
               title: null,
+              labels: {},
             },
             turnId: "hook-turn",
             outcome,

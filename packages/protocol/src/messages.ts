@@ -3668,6 +3668,8 @@ export const ServerInfoStatusPayloadSchema = z
         internalWorkspaces: z.boolean().optional(),
         backgroundWorkspaces: z.boolean().optional(),
         pluginCreateOptions: z.boolean().optional(),
+        // Plugin agent.create hooks see read-only labels and parentAgentId; agent hooks see labels.
+        pluginCreateContext: z.boolean().optional(),
         providersSnapshot: z.boolean().optional(),
         connectedHosts: z.boolean().optional(),
         hostMultiplexing: z.boolean().optional(),

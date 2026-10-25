@@ -1,7 +1,8 @@
 import { expect, test } from "vitest";
 import { createPaseoApi } from "@getpaseo/client";
 import { DaemonClient } from "@getpaseo/client/internal/daemon-client";
-import { PluginHookHandlers } from "./index.js";
+import { PARENT_AGENT_ID_LABEL } from "@getpaseo/protocol/agent-labels";
+import { PluginHookHandlers, describeHookAgent } from "./index.js";
 
 const paseo = createPaseoApi(
   new DaemonClient({ url: "ws://127.0.0.1:1/ws", clientId: "lifecycle-unit" }),
@@ -97,4 +98,73 @@ test("session-open hooks reject changes to session identity instead of silently 
       paseo,
     ),
   ).rejects.toThrow("agent.session_open hooks can only change env");
+});
+
+const createConfig = { provider: "claude", cwd: "/project" };
+
+test("agent.create hooks see the labels and parent of a top-level agent and of a subagent", async () => {
+  const hooks = new PluginHookHandlers(() => {});
+  const seen: Array<{ labels: Record<string, string>; parentAgentId: string | null }> = [];
+  hooks.before("agent.create", ({ request }) => {
+    seen.push({ labels: request.labels, parentAgentId: request.parentAgentId });
+  });
+  await hooks.invoke(
+    "operation",
+    "before",
+    "agent.create",
+    { config: createConfig, labels: { team: "payments" }, parentAgentId: null },
+    paseo,
+  );
+  await hooks.invoke(
+    "operation",
+    "before",
+    "agent.create",
+    {
+      config: createConfig,
+      labels: { [PARENT_AGENT_ID_LABEL]: "agent-1" },
+      parentAgentId: "agent-1",
+    },
+    paseo,
+  );
+  expect(seen).toEqual([
+    { labels: { team: "payments" }, parentAgentId: null },
+    { labels: { [PARENT_AGENT_ID_LABEL]: "agent-1" }, parentAgentId: "agent-1" },
+  ]);
+});
+
+test("edits to the labels and parent of agent.create are ignored", async () => {
+  const hooks = new PluginHookHandlers(() => {});
+  hooks.before("agent.create", ({ request }) => ({
+    ...request,
+    labels: { injected: "yes" },
+    parentAgentId: "someone-else",
+  }));
+  const later: Array<{ labels: Record<string, string>; parentAgentId: string | null }> = [];
+  hooks.before("agent.create", ({ request }) => {
+    later.push({ labels: request.labels, parentAgentId: request.parentAgentId });
+  });
+  const output = (await hooks.invoke(
+    "operation",
+    "before",
+    "agent.create",
+    { config: createConfig, labels: { team: "payments" }, parentAgentId: null },
+    paseo,
+  )) as { labels: Record<string, string>; parentAgentId: string | null };
+  expect(output.labels).toEqual({ team: "payments" });
+  expect(output.parentAgentId).toBeNull();
+  expect(later).toEqual([{ labels: { team: "payments" }, parentAgentId: null }]);
+});
+
+test("agent events carry the agent's labels", () => {
+  expect(
+    describeHookAgent({
+      id: "a",
+      provider: "claude",
+      cwd: "/project",
+      labels: { team: "payments", [PARENT_AGENT_ID_LABEL]: "p" },
+    }),
+  ).toMatchObject({
+    labels: { team: "payments", [PARENT_AGENT_ID_LABEL]: "p" },
+    parentAgentId: "p",
+  });
 });
