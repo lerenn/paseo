@@ -138,11 +138,21 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
     return output ?? null;
   }
 
+  // The channel closes while a plugin is stopped (update, reload). Output and exits that arrive
+  // after that have nowhere to go, and the daemon already treats the runtime as lost.
+  function sendIfOpen(message: PluginProcessMessage): void {
+    try {
+      send(message);
+    } catch {
+      // ERR_IPC_CHANNEL_CLOSED
+    }
+  }
+
   async function pumpExit(execId: string, child: WorkspaceRuntimeProcess): Promise<void> {
     try {
       const exit = await child.exit;
       execs.delete(execId);
-      send({
+      sendIfOpen({
         type: "runtime.exec.exit",
         execId,
         code: exit.code,
@@ -152,7 +162,7 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
       });
     } catch (error) {
       execs.delete(execId);
-      send({
+      sendIfOpen({
         type: "runtime.exec.exit",
         execId,
         code: null,
@@ -196,10 +206,10 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
       }
       send({ type: "runtime.exec.started", execId });
       child.stdout.on("data", (chunk) =>
-        send({ type: "runtime.exec.stdout", execId, data: asBytes(chunk) }),
+        sendIfOpen({ type: "runtime.exec.stdout", execId, data: asBytes(chunk) }),
       );
       child.stderr.on("data", (chunk) =>
-        send({ type: "runtime.exec.stderr", execId, data: asBytes(chunk) }),
+        sendIfOpen({ type: "runtime.exec.stderr", execId, data: asBytes(chunk) }),
       );
       void pumpExit(execId, child);
     } catch (error) {

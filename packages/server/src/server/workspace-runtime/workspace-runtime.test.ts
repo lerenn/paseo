@@ -504,6 +504,62 @@ describe("workspace runtime lifecycle", () => {
   });
 });
 
+describe("plugin runtime host on a closed channel", () => {
+  it("does not throw when an exec ends or prints after the channel closed", async () => {
+    let open = true;
+    const sent: string[] = [];
+    const host = createPluginRuntimeHost({
+      send: (message) => {
+        if (!open) throw Object.assign(new Error("closed"), { code: "ERR_IPC_CHANNEL_CLOSED" });
+        sent.push(message.type);
+      },
+    });
+    let finish: (exit: { code: number; signal: null; reason: "exited" }) => void = () => undefined;
+    const stdout = new PassThrough();
+    host.register({
+      id: "fake",
+      label: "Fake",
+      describe: () => ({ protocolVersion: 1, capabilities: { pipes: true, pty: false } }),
+      exec: () => ({
+        stdin: new PassThrough(),
+        stdout,
+        stderr: new PassThrough(),
+        exit: new Promise((resolve) => (finish = resolve)),
+        signal: () => undefined,
+      }),
+    });
+    const unhandled: unknown[] = [];
+    const record = (error: unknown) => unhandled.push(error);
+    process.on("unhandledRejection", record);
+    process.on("uncaughtException", record);
+    try {
+      host.handle(
+        {
+          type: "runtime.exec.start",
+          execId: "e1",
+          runtimeId: "fake",
+          request: {
+            workspaceId: "w",
+            purpose: "session",
+            argv: ["x"],
+            env: {},
+          },
+        } as never,
+        { result: () => undefined, error: () => undefined },
+      );
+      await vi.waitFor(() => expect(sent).toContain("runtime.exec.started"));
+      open = false;
+      stdout.write("late output");
+      finish({ code: 0, signal: null, reason: "exited" });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", record);
+      process.off("uncaughtException", record);
+    }
+  });
+});
+
 describe("workspace directory on every call", () => {
   it("tells the runtime where the workspace is, whatever options it inherited", async () => {
     const seen: Array<{ workspaceCwd?: string }> = [];
