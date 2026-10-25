@@ -1142,7 +1142,7 @@ import { Markdown } from "@getpaseo/plugin/client/ui";
 
 ### 智能体聊天 {#agent-chat}
 
-`@getpaseo/plugin/client/ui` 的 `AgentChat` 渲染宿主的对话（消息流和输入框），可用于插件所在主机上的任意智能体。用它在面板中显示你创建的智能体。
+`@getpaseo/plugin/client/ui` 的 `AgentChat` 渲染宿主的对话（消息流和输入框），可用于插件所在主机上的任意智能体。用它在面板中显示你创建的智能体。对话中列出的子 Agent（输入框上方的子 Agent 行和“working”标记）会就地打开，并带有返回按钮；其中没有标签页和分栏。
 
 ```tsx
 import { AgentChat } from "@getpaseo/plugin/client/ui";
