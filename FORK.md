@@ -113,6 +113,18 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   `pr-8-icon.md`), not posted (ask Louis).
 - **Status:** in fork.
 
+### Agent status indicator
+
+- **API:** `AgentStatusIndicator({ agentId, size? })` from `@getpaseo/plugin/client/ui`: an agent's
+  live status as the sidebar draws it (ring running, alert needs input, green dot attention, red dot
+  failed, muted dot done). Reference: `public-docs/plugins/reference.md`, "Agent status indicator".
+  First consumer: the Release Trains plugin's column headers.
+- **Fork PRs:** see the PR that introduced this entry.
+- **Upstream branch (one aspect, cut from upstream main):** `upstream/agent-status-indicator-1-indicator`.
+- **Upstream Discussion / PR:** drafts only, not posted:
+  `/home/paseo/work/upstream-drafts/agent-status-indicator/` (ask Louis).
+- **Status:** in fork.
+
 ### Queue action modifier (#7686)
 
 - **Change:** show the queue action while Cmd/Ctrl is held (`feat(app): show queue action while
