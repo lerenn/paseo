@@ -2524,7 +2524,34 @@ export class Session {
       });
       return undefined;
     }
+    if (msg.type === "workspace.runtime.details.request") {
+      return this.handleWorkspaceRuntimeDetails(msg);
+    }
     return undefined;
+  }
+
+  private async handleWorkspaceRuntimeDetails(
+    msg: Extract<SessionInboundMessage, { type: "workspace.runtime.details.request" }>,
+  ): Promise<void> {
+    const workspace = await this.workspaceRegistry.get(msg.workspaceId);
+    const runtime = workspace?.runtime;
+    const display =
+      workspace && runtime
+        ? await this.workspaceRuntimeRegistry()?.displayOf(runtime.id, {
+            workspaceId: workspace.workspaceId,
+            workspaceCwd: workspace.cwd,
+            options: runtime.options,
+          })
+        : null;
+    this.emit({
+      type: "workspace.runtime.details.response",
+      payload: {
+        requestId: msg.requestId,
+        label: display?.label,
+        tooltip: display?.tooltip,
+        detail: display?.detail,
+      },
+    });
   }
 
   private dispatchPluginMessage(msg: SessionInboundMessage): Promise<void> | undefined {

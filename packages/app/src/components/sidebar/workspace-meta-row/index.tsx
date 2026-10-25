@@ -145,7 +145,12 @@ function MetaItemNode({
   }
   if (item.kind === "runtime") {
     return serverId ? (
-      <RuntimeBadge serverId={serverId} runtimeId={item.runtimeId} size={META_ICON_SIZE} />
+      <RuntimeBadge
+        serverId={serverId}
+        runtimeId={item.runtimeId}
+        workspaceId={workspaceId}
+        size={META_ICON_SIZE}
+      />
     ) : null;
   }
   if (item.kind === "agentBadges") {

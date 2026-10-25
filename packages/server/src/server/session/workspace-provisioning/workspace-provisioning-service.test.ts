@@ -1011,6 +1011,7 @@ function runtimeProvisioning(created: Array<{ workspaceId: string; cwd?: string 
     ({
       id,
       label: id,
+      onNotice: () => () => undefined,
       create: async (request: { workspaceId: string; cwd?: string }) => {
         created.push({ workspaceId: `${id}:${request.workspaceId}`, cwd: request.cwd });
       },

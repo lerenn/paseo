@@ -350,15 +350,17 @@ describe("workspace commands", () => {
   });
 });
 
+const onNotice = () => () => undefined;
+
 describe("live workspace runtime backend", () => {
   it("follows a plugin reload and fails, not falls back, once the runtime is gone", () => {
     const registry = new WorkspaceRuntimeRegistry();
-    const first = { id: "pod", label: "First", providesFiles: false } as never;
+    const first = { id: "pod", label: "First", providesFiles: false, onNotice } as never;
     const unregister = registry.register(first);
     const live = registry.live("pod");
     expect(live.label).toBe("First");
     unregister();
-    registry.register({ id: "pod", label: "Reloaded", providesFiles: false } as never);
+    registry.register({ id: "pod", label: "Reloaded", providesFiles: false, onNotice } as never);
     expect(live.label).toBe("Reloaded");
     const gone = new WorkspaceRuntimeRegistry();
     expect(() => gone.live("pod").label).toThrow(WorkspaceRuntimeUnavailableError);
@@ -370,6 +372,7 @@ describe("live workspace runtime backend", () => {
       id: "pod",
       label: "Old",
       providesFiles: false,
+      onNotice,
       checkCommand: async () => false,
     } as never);
     const live = registry.live("pod");
@@ -380,6 +383,7 @@ describe("live workspace runtime backend", () => {
       id: "pod",
       label: "New",
       providesFiles: false,
+      onNotice,
       checkCommand: async () => true,
     } as never);
     expect(await pending).toBe(true);
@@ -390,6 +394,65 @@ describe("live workspace runtime backend", () => {
     await expect(new WorkspaceRuntimeRegistry().available("pod")).rejects.toBeInstanceOf(
       WorkspaceRuntimeUnavailableError,
     );
+  });
+});
+
+describe("workspace runtime display details", () => {
+  function runtimeWithDisplay(calls: { count: number }) {
+    const listeners = new Set<(notice: { workspaceId: string }) => void>();
+    return {
+      backend: {
+        id: "pod",
+        label: "Pod",
+        providesFiles: false,
+        onNotice: (listener: (notice: { workspaceId: string }) => void) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+        describeWorkspace: async () => {
+          calls.count += 1;
+          return { label: `image-${calls.count}`, tooltip: "full ref" };
+        },
+      },
+      notify: (workspaceId: string) => listeners.forEach((listener) => listener({ workspaceId })),
+    };
+  }
+
+  it("caches a workspace's details, refreshes after a state change and has none for an unknown runtime", async () => {
+    const registry = new WorkspaceRuntimeRegistry();
+    const calls = { count: 0 };
+    const { backend, notify } = runtimeWithDisplay(calls);
+    registry.register(backend as never);
+    const request = { workspaceId: "w1" };
+
+    expect(await registry.displayOf("pod", request)).toEqual({
+      label: "image-1",
+      tooltip: "full ref",
+    });
+    expect(await registry.displayOf("pod", request)).toEqual({
+      label: "image-1",
+      tooltip: "full ref",
+    });
+    expect(calls.count).toBe(1);
+
+    notify("w1");
+    expect((await registry.displayOf("pod", request))?.label).toBe("image-2");
+
+    expect(await registry.displayOf("gone", request)).toBeNull();
+  });
+
+  it("answers null when the runtime cannot describe the workspace", async () => {
+    const registry = new WorkspaceRuntimeRegistry();
+    registry.register({
+      id: "pod",
+      label: "Pod",
+      providesFiles: false,
+      onNotice: () => () => undefined,
+      describeWorkspace: async () => {
+        throw new Error("pod is gone");
+      },
+    } as never);
+    expect(await registry.displayOf("pod", { workspaceId: "w1" })).toBeNull();
   });
 });
 
@@ -439,6 +502,7 @@ describe("workspace runtime lifecycle", () => {
       id: "pod",
       label: "Pod",
       providesFiles: false,
+      onNotice,
       destroy: async (request: { workspaceId: string }) => void destroyed.push(request.workspaceId),
       reconcile: async (request: { workspaces: Array<{ workspaceId: string }> }) =>
         void reconciled.push(request.workspaces.map((workspace) => workspace.workspaceId)),

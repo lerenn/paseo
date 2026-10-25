@@ -10,6 +10,7 @@ import type {
   WorkspaceRuntimeActivityEvent,
   WorkspaceRuntimeDescription,
   WorkspaceRuntimeStatus,
+  WorkspaceRuntimeDisplay,
 } from "@getpaseo/plugin/server";
 
 export type RuntimeFsVerb =
@@ -61,6 +62,10 @@ export interface WorkspaceRuntimeBackend {
   destroy(request: WorkspaceRuntimeWorkspaceRequest): Promise<void>;
   reconcile(request: WorkspaceRuntimeReconcileRequest): Promise<void>;
   checkCommand(request: WorkspaceRuntimeCommandRequest): Promise<boolean>;
+  /** Display details for one workspace, or null when the runtime has none. Must not wake the sandbox. */
+  describeWorkspace(
+    request: WorkspaceRuntimeWorkspaceRequest,
+  ): Promise<WorkspaceRuntimeDisplay | null>;
   prepare(request: WorkspaceRuntimePrepareRequest): Promise<void>;
   beforeInput(request: WorkspaceRuntimeInputRequest): Promise<void>;
   /** One file system call; the result is whatever the verb returns (see WorkspaceRuntimeFileSystem). */

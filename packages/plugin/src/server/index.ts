@@ -41,6 +41,7 @@ export type {
   WorkspaceRuntimeOptions,
   WorkspaceRuntimePrepareRequest,
   WorkspaceRuntimeCommandRequest,
+  WorkspaceRuntimeDisplay,
   WorkspaceRuntimeProcess,
   WorkspaceRuntimeReconcileRequest,
   WorkspaceRuntimeProcessPurpose,

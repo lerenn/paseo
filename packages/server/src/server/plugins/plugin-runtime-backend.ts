@@ -8,6 +8,7 @@ import type {
   WorkspaceRuntimeReconcileRequest,
   WorkspaceRuntimeInputRequest,
   WorkspaceRuntimePrepareRequest,
+  WorkspaceRuntimeDisplay,
   WorkspaceRuntimeStatus,
   WorkspaceRuntimeWorkspaceRequest,
 } from "@getpaseo/plugin/server";
@@ -95,6 +96,13 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
 
   async checkCommand(request: WorkspaceRuntimeCommandRequest): Promise<boolean> {
     return (await this.call("check_command", request)) !== false;
+  }
+
+  async describeWorkspace(
+    request: WorkspaceRuntimeWorkspaceRequest,
+  ): Promise<WorkspaceRuntimeDisplay | null> {
+    const display = await this.call("describe_workspace", request);
+    return display && typeof display === "object" ? (display as WorkspaceRuntimeDisplay) : null;
   }
 
   async prepare(request: WorkspaceRuntimePrepareRequest): Promise<void> {
