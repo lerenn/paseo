@@ -1338,7 +1338,9 @@ to your plugin.
 ### Agent chat
 
 `AgentChat` from `@getpaseo/plugin/client/ui` renders the host's conversation, stream and composer,
-for any agent on the plugin's host. Use it to show an agent you created in a panel.
+for any agent on the plugin's host. Use it to show an agent you created in a panel. Subagents the
+conversation lists (the composer's subagent rows and "working" pill) open in place, with a Back
+button to return; tabs and splits do not exist inside it.
 
 ```tsx
 import { AgentChat } from "@getpaseo/plugin/client/ui";
