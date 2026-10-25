@@ -114,7 +114,8 @@ export function createWorkspaceProvisioningService(deps: {
   projectRegistry: ProjectRegistry;
   workspaceGitService: Pick<WorkspaceGitService, "getCheckout" | "getSnapshot">;
   isDirectory: (path: string) => Promise<boolean>;
-  runtimes?: Pick<WorkspaceRuntimeRegistry, "find">;
+  /** Required, not optional: a service built without it fails every runtime workspace. */
+  runtimes: Pick<WorkspaceRuntimeRegistry, "find"> | null;
   logger: Logger;
   lifecycle?: PluginLifecycle;
 }): WorkspaceProvisioningService {
@@ -526,10 +527,17 @@ export function createWorkspaceProvisioningService(deps: {
     workspaceCwd?: string,
     workspaceCheckout?: Awaited<ReturnType<WorkspaceGitService["getCheckout"]>>,
   ): Promise<PersistedProjectRecord> {
-    const projectCheckout =
-      workspaceCwd && workspaceCheckout && areEquivalentPaths(project.rootPath, workspaceCwd)
-        ? workspaceCheckout
-        : await workspaceGitService.getCheckout(project.rootPath);
+    let projectCheckout: Awaited<ReturnType<WorkspaceGitService["getCheckout"]>>;
+    try {
+      projectCheckout =
+        workspaceCwd && workspaceCheckout && areEquivalentPaths(project.rootPath, workspaceCwd)
+          ? workspaceCheckout
+          : await workspaceGitService.getCheckout(project.rootPath);
+    } catch (error) {
+      // A checkout that cannot be read (a runtime that is down) must not rewrite the project.
+      logger.warn({ err: error, projectId: project.projectId }, "Project kind left unchanged");
+      return project;
+    }
     const kind: PersistedProjectRecord["kind"] = projectCheckout.isGit ? "git" : "non_git";
     const projectKey = deriveProjectKey({
       rootPath: project.rootPath,

@@ -6,6 +6,7 @@ import type {
   WorkspaceRuntimePrepareRequest,
   WorkspaceRuntimeRegistration,
 } from "@getpaseo/plugin/server";
+import { getCheckoutStatus } from "../../utils/checkout-git.js";
 import { createPluginRuntimeHost } from "../plugins/plugin-runtime-host.js";
 import type {
   PluginProcessMessage,
@@ -473,5 +474,32 @@ describe("workspace directory on every call", () => {
       options: { cwd: "/caller/copy" },
     });
     expect(seen).toEqual([expect.objectContaining({ workspaceCwd: "/daemon/a" })]);
+  });
+});
+
+describe("project kind in a runtime workspace", () => {
+  it("does not answer non-Git when the runtime cannot run Git", async () => {
+    const registry = new WorkspaceRuntimeRegistry();
+    const index = new RuntimeWorkspaceIndex({
+      workspaceRegistry: {
+        list: async () => [
+          { workspaceId: "wks_a", cwd: "/daemon/a", runtime: { id: "gone" }, archivedAt: null },
+        ],
+        subscribeToMutations: () => () => {},
+      } as never,
+      runtimes: registry,
+      logger: { debug() {}, warn() {} } as never,
+    });
+    await index.initialize();
+    setCommandLauncherResolver((cwd) => index.launcherForPath(cwd));
+    try {
+      await expect(getCheckoutStatus("/daemon/a")).rejects.toThrow(
+        WorkspaceRuntimeUnavailableError,
+      );
+      // A host directory still answers non-Git.
+      expect((await getCheckoutStatus("/tmp")).isGit).toBe(false);
+    } finally {
+      setCommandLauncherResolver(null);
+    }
   });
 });

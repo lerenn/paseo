@@ -14,6 +14,11 @@ export function setCommandLauncherResolver(resolver: CommandLauncherResolver | n
   resolveCommandLauncher = resolver;
 }
 
+/** Whether a directory belongs to a workspace runtime, so a failed command there proves nothing about it. */
+export function hasWorkspaceRuntime(cwd: string): boolean {
+  return resolveCommandLauncher?.(cwd) != null;
+}
+
 export interface SpawnCommandOptions extends SpawnProcessOptions {
   /** A user is waiting on the result; a runtime may resume a suspended sandbox for it. */
   interactive?: boolean;

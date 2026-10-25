@@ -952,6 +952,7 @@ export class Session {
       projectRegistry: this.projectRegistry,
       workspaceGitService: this.workspaceGitService,
       isDirectory: (path) => this.filesystem.isDirectory(path),
+      runtimes: this.workspaceRuntimeRegistry(),
       logger: this.sessionLogger,
     });
     this.workspaceRecovery = createWorkspaceRecoveryService({
@@ -6817,6 +6818,10 @@ export class Session {
     return creationRequest.source.kind === "directory"
       ? this.handleWorkspaceCreateLocal(creationRequest, workspaceId)
       : this.handleWorkspaceCreateWorktree(creationRequest, workspaceId);
+  }
+
+  private workspaceRuntimeRegistry() {
+    return this.pluginRuntime?.workspaceRuntimes ?? null;
   }
 
   /** No host fallback: a workspace that names a runtime nobody registered is refused. */
