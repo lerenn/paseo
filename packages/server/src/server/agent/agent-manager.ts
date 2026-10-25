@@ -1342,6 +1342,8 @@ export class AgentManager {
         config,
         env: options.env,
         pluginOptions: options.pluginOptions,
+        labels: { ...options.labels },
+        parentAgentId: options.labels?.[PARENT_AGENT_ID_LABEL] ?? null,
       });
       config = { ...request.config, internal: config.internal };
       options = { ...options, env: request.env };
