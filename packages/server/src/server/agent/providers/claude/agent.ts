@@ -1,4 +1,5 @@
 import type { ProviderProcessLauncher } from "../../../workspace-runtime/process-launcher.js";
+import type { RemoteChildProcess } from "../../../workspace-runtime/remote-child-process.js";
 import { validateProviderOptions } from "../../provider-options.js";
 import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -145,6 +146,9 @@ import { withTimeout } from "../../../../utils/promise-timeout.js";
 import { terminateWithTreeKill } from "../../../../utils/tree-kill.js";
 import { execCommand } from "../../../../utils/spawn.js";
 import { composeSystemPromptParts } from "../../system-prompt.js";
+
+/** How long the query pump gets to report a mid-turn process exit before the turn is failed. */
+const CLAUDE_EXIT_PUMP_GRACE_MS = 10_000;
 
 const fsPromises = promises;
 const CLAUDE_SETTING_SOURCES: NonNullable<ClaudeOptions["settingSources"]> = [
@@ -3996,15 +4000,26 @@ class ClaudeAgentSession implements AgentSession {
       return;
     }
     this.childProcess = null;
-    this.logger.warn(
-      { agentId: this.agentId, pid: child.pid, code, signal },
-      "Claude runtime exited unexpectedly",
-    );
+    const suspended = (child as Partial<RemoteChildProcess>).runtimeExit?.reason === "suspended";
+    const exitDetail = { agentId: this.agentId, pid: child.pid, code, signal };
+    if (suspended) {
+      this.logger.debug(exitDetail, "Claude runtime suspended");
+    } else {
+      this.logger.warn(exitDetail, "Claude runtime exited unexpectedly");
+    }
     this.failRunningRuntimeTasks();
+    if (suspended && !this.activeForegroundTurnId && !this.autonomousTurn) {
+      // The runtime stopped an idle workspace on purpose. Drop the dead handles so the next
+      // input starts a fresh process; there is nothing to report.
+      this.query = null;
+      this.input = null;
+      return;
+    }
     if (this.activeForegroundTurnId || this.autonomousTurn) {
       // The pump is about to throw. It waits for stderr to flush and reports the
       // real cause; reporting here first would replace that with a bare exit code
       // and detach this.query, which is how the pump recognizes its own stream.
+      this.failTurnIfPumpStalls(code, signal);
       return;
     }
     // Drop the dead handles so the next write spawns a fresh process instead of
@@ -4016,6 +4031,29 @@ class ClaudeAgentSession implements AgentSession {
         `Claude stopped unexpectedly (${signal ? `signal ${signal}` : `exit code ${code ?? "unknown"}`}). Any background shells, monitors or other work it had running were terminated with it.`,
       ),
     ]);
+  }
+
+  // A process in a workspace runtime can vanish with its sandbox (eviction, node loss) without
+  // the stream ever erroring, and the pump then waits forever with the turn open and every queued
+  // message stuck behind it. If the pump has not reported the death shortly after the exit, end
+  // the turn here and drop the dead query so the next message starts a fresh process.
+  private failTurnIfPumpStalls(code: number | null, signal: NodeJS.Signals | null): void {
+    const stalledQuery = this.query;
+    const timer = setTimeout(() => {
+      if (this.closed || this.query !== stalledQuery) return;
+      if (!this.activeForegroundTurnId && !this.autonomousTurn) return;
+      this.query = null;
+      this.input = null;
+      try {
+        stalledQuery?.close();
+      } catch {
+        // The query is already dead.
+      }
+      this.failActiveTurns(
+        `Claude stopped unexpectedly (${signal ? `signal ${signal}` : `exit code ${code ?? "unknown"}`}).`,
+      );
+    }, CLAUDE_EXIT_PUMP_GRACE_MS);
+    timer.unref();
   }
 
   private failRunningRuntimeTasks(): void {
