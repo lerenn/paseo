@@ -348,4 +348,74 @@ describe("Claude runtime exit", () => {
       await session.close();
     }
   });
+
+  test("fails a mid-turn exit that the query pump never reports", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    let capturedOptions: Options | undefined;
+    const queryFactory = vi.fn(({ options }: ClaudeQueryInput) => {
+      capturedOptions = options;
+      // The stream stays open: the sandbox vanished without closing it.
+      return createQueryMock(COMPLETED_TURN_EVENTS.slice(0, 2), {
+        tail: new Promise<never>(() => undefined),
+      });
+    });
+    const child = createChildProcessStub();
+    vi.spyOn(spawnUtils, "spawnProcess").mockReturnValue(child);
+    const client = new ClaudeAgentClient({
+      logger: createTestLogger(),
+      queryFactory,
+      resolveBinary: async () => "/test/claude/bin",
+    });
+    const session = await client.createSession({ provider: "claude", cwd: process.cwd() });
+
+    try {
+      const events: AgentStreamEvent[] = [];
+      session.subscribe((event) => events.push(event));
+      const turn = session.run("start a background shell");
+      turn.catch(() => undefined);
+      await vi.waitFor(() => expect(capturedOptions?.spawnClaudeCodeProcess).toBeDefined());
+      capturedOptions?.spawnClaudeCodeProcess?.(SPAWN_OPTIONS);
+
+      child.emit("exit", 137, null);
+      await vi.advanceTimersByTimeAsync(11_000);
+
+      await expect(turn).rejects.toThrow("exit code 137");
+      expect(events.filter((event) => event.type === "turn_failed")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+      await session.close();
+    }
+  });
+
+  test("a planned runtime suspend between turns is not a failure", async () => {
+    let capturedOptions: Options | undefined;
+    const queryFactory = vi.fn(({ options }: ClaudeQueryInput) => {
+      capturedOptions = options;
+      return createQueryMock(COMPLETED_TURN_EVENTS);
+    });
+    const child = createChildProcessStub() as ReturnType<typeof createChildProcessStub> & {
+      runtimeExit: { code: number; signal: null; reason: "suspended" };
+    };
+    child.runtimeExit = { code: 137, signal: null, reason: "suspended" };
+    vi.spyOn(spawnUtils, "spawnProcess").mockReturnValue(child);
+    const client = new ClaudeAgentClient({
+      logger: createTestLogger(),
+      queryFactory,
+      resolveBinary: async () => "/test/claude/bin",
+    });
+    const session = await client.createSession({ provider: "claude", cwd: process.cwd() });
+
+    try {
+      await session.run("first turn");
+      capturedOptions?.spawnClaudeCodeProcess?.(SPAWN_OPTIONS);
+      const events: AgentStreamEvent[] = [];
+      session.subscribe((event) => events.push(event));
+
+      child.emit("exit", 137, null);
+
+      expect(events.some((event) => event.type === "turn_failed")).toBe(false);
+    } finally {
+      await session.close();
+    }
+  });
 });

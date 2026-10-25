@@ -104,8 +104,10 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   #22 (`b35d3853d`, inheritance), #28 (`811da2353`, files), #27 (`411763c3f`, reliability and CLI),
   #30 (`474f56076`, lifecycle), #25 (`7b730b08e`, sidebar icon). The app dock title-bar fix is #24
   (`b0a12c5ca`, see App dock). Follow-ups: #32/#33 (registry and project reads on the host),
-  #37 (worktrees created and deleted on the host), and the reload-gap PR (a runtime unregistered
-  by a plugin update is waited for up to 30 s; workspace creation reads its checkout on the host).
+  #37 (worktrees created and deleted on the host), #38 (a runtime unregistered by a plugin update is waited
+  for up to 30 s; workspace creation reads its checkout on the host), and the runtime-exit PR (a
+  mid-turn process exit the stream never reports fails the turn after 10 s; exit reason `suspended`
+  is a planned stop that shows no error).
 - **Upstream branches (one aspect each, stacked in this order, cut from upstream main):**
   `upstream/workspace-runtimes-1-launch`, `-2-cwd`, `-3-git`, `-4-inheritance`, `-5-files`,
   `-6-reliability`, `-7-lifecycle`, `-8-icon` (on `lerenn/paseo`). Rebuild each by cherry-picking

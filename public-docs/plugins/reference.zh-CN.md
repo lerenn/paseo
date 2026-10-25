@@ -410,7 +410,7 @@ export default function contribute(server: PluginServerContext) {
 | `onActivity(event)`                 | `turn_started`、`turn_ended`、`permission_requested`、`permission_resolved`、`input`。                                                                    |
 | `exec(request, { notice, signal })` | 启动进程。同一工作区的启动依次进行。`signal` 会中止尚未完成的启动。                                                                                       |
 
-`exec` 返回 `{ stdin, stdout, stderr, exit, signal }`。`exit` 以 `{ code, signal, reason, message? }` 完成。当沙箱消失而不是进程结束时，使用 `reason: "runtime-lost"`：Paseo 会协调（reconcile）该运行时，下一次输入会重新启动进程。`context.notice(message, level?)` 会在 Agent 的时间线中显示进度或问题。
+`exec` 返回 `{ stdin, stdout, stderr, exit, signal }`。`exit` 以 `{ code, signal, reason, message? }` 完成。当沙箱消失而不是进程结束时，使用 `reason: "runtime-lost"`：Paseo 会协调（reconcile）该运行时，下一次输入会重新启动进程。当运行时自己有意停止空闲的工作区时，使用 `reason: "suspended"`：空闲的 Agent 不会显示错误，下一次输入会重新启动进程。正在运行的轮次在进程结束时总是失败，无论原因如何。`context.notice(message, level?)` 会在 Agent 的时间线中显示进度或问题。
 
 每个工作区范围的请求都带有 `workspaceCwd`，即工作区在守护进程上的目录（exec 的 `cwd` 是进程的目录）。继承了运行时的工作区也继承了调用者的 `options`，因此请从 `workspaceCwd` 读取目录，而不是从它们读取。
 

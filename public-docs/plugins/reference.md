@@ -488,6 +488,9 @@ the runtime unchanged. Check `server_info.features.workspaceRuntimes` first; the
 `exec` returns `{ stdin, stdout, stderr, exit, signal }`. `exit` resolves with
 `{ code, signal, reason, message? }`. Use `reason: "runtime-lost"` when the sandbox went away rather
 than the process finishing: Paseo reconciles the runtime and the next input relaunches into it.
+Use `reason: "suspended"` when the runtime itself stopped an idle workspace on purpose: an idle
+agent shows no error and the next input relaunches. A turn running when its process ends fails
+whatever the reason.
 `context.notice(message, level?)` shows progress or a problem in the agent's timeline.
 
 Every workspace-scoped request carries `workspaceCwd`, the workspace's directory on the daemon
