@@ -1240,6 +1240,24 @@ The component adds no page padding or scroll container. Use a surrounding layout
 scroll view when needed. Fetching content and showing loading or error states belong
 to your plugin.
 
+### Agent status indicator
+
+`AgentStatusIndicator` from `@getpaseo/plugin/client/ui` draws an agent's live status the way the
+sidebar does: a ring while it runs, an alert when it needs input, a green dot when it wants your
+attention, a red dot when it failed, a muted dot when it is done. It draws nothing for an agent the
+host does not know.
+
+```tsx
+import { AgentStatusIndicator } from "@getpaseo/plugin/client/ui";
+
+<AgentStatusIndicator agentId={agentId} size={14} />;
+```
+
+| Prop      | Meaning                                                       |
+| --------- | ------------------------------------------------------------- |
+| `agentId` | The agent to show, on the plugin's host.                      |
+| `size`    | Optional. Width and height of the glyph's box in pixels (14). |
+
 ### Modal
 
 `Modal` uses a bottom sheet on compact layouts and a centered dialog otherwise. The plugin owns

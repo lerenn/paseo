@@ -28,3 +28,4 @@ export { useToast } from "./toast";
 export { StreamedText } from "./streamed-text";
 
 export { Markdown } from "./markdown";
+export { AgentStatusIndicator } from "./agent-status-indicator";

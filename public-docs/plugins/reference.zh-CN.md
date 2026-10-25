@@ -1079,6 +1079,21 @@ import { Markdown } from "@getpaseo/plugin/client/ui";
 组件不添加页面内边距或滚动容器。需要时请在外层使用布局或滚动视图。
 内容获取以及加载和错误状态由插件负责。
 
+### 智能体状态指示器 {#agent-status-indicator}
+
+`@getpaseo/plugin/client/ui` 的 `AgentStatusIndicator` 按侧边栏的方式绘制智能体的实时状态：运行时是圆环，需要输入时是警示图标，需要关注时是绿点，失败时是红点，完成时是灰点。对于宿主不认识的智能体，它不绘制任何内容。
+
+```tsx
+import { AgentStatusIndicator } from "@getpaseo/plugin/client/ui";
+
+<AgentStatusIndicator agentId={agentId} size={14} />;
+```
+
+| 属性      | 含义                                       |
+| --------- | ------------------------------------------ |
+| `agentId` | 要显示的智能体，位于插件所在的主机。       |
+| `size`    | 可选。图标所在方框的宽高，单位像素（14）。 |
+
 ### Modal {#modal}
 
 `Modal` 在紧凑布局中使用底部面板，否则使用居中的对话框。`open` 状态由插件负责。

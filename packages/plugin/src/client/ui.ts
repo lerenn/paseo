@@ -69,6 +69,18 @@ export interface StreamedTextProps extends Omit<TextProps, "children"> {
 /** Plain assistant text with host-owned streaming pacing and typography. */
 export declare const StreamedText: ComponentType<StreamedTextProps>;
 
+export interface AgentStatusIndicatorProps {
+  agentId: string;
+  /** Width and height of the box the glyph sits in, in pixels. Defaults to 14. */
+  size?: number;
+}
+/**
+ * The agent's live status as the sidebar draws it: a ring while it runs, an alert when it needs
+ * input, a coloured dot for attention or failure, a muted dot when it is done. Draws nothing for
+ * an agent the host does not know.
+ */
+export declare const AgentStatusIndicator: ComponentType<AgentStatusIndicatorProps>;
+
 export type { PluginIconProps } from "../icons.js";
 
 /** React Native scrolling with the host's sheet gestures when rendered inside a sheet. */
