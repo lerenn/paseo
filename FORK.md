@@ -105,12 +105,13 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   #30 (`474f56076`, lifecycle), #25 (`7b730b08e`, sidebar icon). The app dock title-bar fix is #24
   (`b0a12c5ca`, see App dock). Follow-ups: #32/#33 (registry and project reads on the host),
   #37 (worktrees created and deleted on the host), #38 (a runtime unregistered by a plugin update is waited
-  for up to 30 s; workspace creation reads its checkout on the host), and the runtime-exit PR (a
+  for up to 30 s; workspace creation reads its checkout on the host), and #39 (a
   mid-turn process exit the stream never reports fails the turn after 10 s; exit reason `suspended`
-  is a planned stop that shows no error).
+  is a planned stop that shows no error). #40 (`c54b6daa4`, per-workspace display details) and #41
+  (`02e1adea4`, closed-channel fix in the runtime host, with the agent-create context).
 - **Upstream branches (one aspect each, stacked in this order, cut from upstream main):**
   `upstream/workspace-runtimes-1-launch`, `-2-cwd`, `-3-git`, `-4-inheritance`, `-5-files`,
-  `-6-reliability`, `-7-lifecycle`, `-8-icon`, `-9-details` (on `lerenn/paseo`). Rebuild each by cherry-picking
+  `-6-reliability`, `-7-lifecycle`, `-8-icon`, `-9-details`, `-10-closed-channel` (on `lerenn/paseo`). Rebuild each by cherry-picking
   its fork PR commit onto the previous branch.
 - **Upstream Discussion / PRs:** one Discussion, eight PRs; drafts at
   `/home/paseo/work/upstream-drafts/workspace-runtimes/` (`discussion.md`, `pr-1-launch.md` ..
@@ -148,7 +149,7 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   top-level agent); `PluginHookAgent` carries `labels`. A hook that edits them is ignored. Daemons
   advertise `server_info.features.pluginCreateContext`. Reference:
   `public-docs/plugins/reference.md`, "Before hooks". First consumer: the Assistant mailbox.
-- **Fork PRs:** see the PR that introduced this entry.
+- **Fork PRs:** #41 (`02e1adea4`).
 - **Upstream branch (one aspect, cut from upstream main):** `upstream/plugin-create-context-1-hooks`.
 - **Upstream Discussion / PR:** drafts only, not posted:
   `/home/paseo/work/upstream-drafts/plugin-create-context/`.
