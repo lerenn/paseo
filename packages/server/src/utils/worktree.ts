@@ -32,6 +32,7 @@ import {
   writePaseoWorktreeRuntimeMetadata,
 } from "./worktree-metadata.js";
 import { runGitCommand } from "./run-git-command.js";
+import { runCommandsOnHost } from "./command-launcher.js";
 import { getCurrentBranch, resolveRepositoryDefaultBranch } from "./checkout-git.js";
 import { spawnProcess } from "./spawn.js";
 import { resolvePaseoHome } from "../server/paseo-home.js";
@@ -1057,7 +1058,12 @@ export interface DeletePaseoWorktreeOptions {
   worktreesBaseRoot?: string;
 }
 
-export async function deletePaseoWorktree({
+export function deletePaseoWorktree(options: DeletePaseoWorktreeOptions): Promise<void> {
+  // Worktrees live on the daemon host, whatever runtime the workspace uses.
+  return runCommandsOnHost(() => deletePaseoWorktreeOnHost(options));
+}
+
+async function deletePaseoWorktreeOnHost({
   cwd,
   worktreePath,
   teardownCwds,
