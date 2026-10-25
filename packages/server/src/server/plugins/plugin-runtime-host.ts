@@ -109,6 +109,8 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
     resume: (runtime, input, context) => runtime.resume?.(input, context),
     destroy: (runtime, input, context) => runtime.destroy?.(input, context),
     reconcile: (runtime, input, context) => runtime.reconcile?.(input, context),
+    describe_workspace: async (runtime, input) =>
+      (await runtime.describeWorkspace?.(input)) ?? null,
     check_command: async (runtime, input) => (await runtime.checkCommand?.(input)) ?? true,
     prepare: (runtime, input, context) => runtime.prepare?.(input, context),
     before_input: (runtime, input, context) => runtime.beforeInput?.(input, context),

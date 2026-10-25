@@ -19,7 +19,7 @@ type HostIcon = (props: HostIconProps) => ReactElement | null;
 const lucideIconComponents = new Map<string, HostIcon>();
 const svgIconComponents = new Map<string, HostIcon>();
 
-function findLucideIcon(name: string): LucideIcon | null {
+export function findLucideIcon(name: string): LucideIcon | null {
   const candidate = Reflect.get(LucideIcons, name);
   if (candidate === LucideIcons.Icon || candidate === LucideIcons.createLucideIcon) return null;
   return isComponent(candidate) ? (candidate as LucideIcon) : null;

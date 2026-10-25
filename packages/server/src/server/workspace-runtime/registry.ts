@@ -3,11 +3,22 @@ import {
   WorkspaceRuntimeUnavailableError,
   type WorkspaceRuntimeBackend,
 } from "./types.js";
+import type {
+  WorkspaceRuntimeDisplay,
+  WorkspaceRuntimeWorkspaceRequest,
+} from "@getpaseo/plugin/server";
+
+/** How long a workspace's display details are reused before the runtime is asked again. */
+const DISPLAY_TTL_MS = 10_000;
 
 /** Workspace runtimes registered by plugins, keyed by runtime id. */
 export class WorkspaceRuntimeRegistry {
   private readonly backends = new Map<string, WorkspaceRuntimeBackend>();
   private readonly listeners = new Set<() => void>();
+  private readonly displays = new Map<
+    string,
+    { at: number; value: Promise<WorkspaceRuntimeDisplay | null> }
+  >();
   private workspaceDirectory: ((workspaceId: string) => string | undefined) | null = null;
 
   /** Where a workspace lives on the daemon, so every runtime call can carry it. */
@@ -29,10 +40,14 @@ export class WorkspaceRuntimeRegistry {
       throw new Error(`Workspace runtime already registered: ${backend.id}`);
     }
     this.backends.set(backend.id, backend);
+    this.displays.clear();
+    const stopNotices = backend.onNotice((notice) => this.displays.delete(notice.workspaceId));
     this.notify();
     return () => {
+      stopNotices();
       if (this.backends.get(backend.id) === backend) {
         this.backends.delete(backend.id);
+        this.displays.clear();
         this.notify();
       }
     };
@@ -62,6 +77,24 @@ export class WorkspaceRuntimeRegistry {
         return typeof value === "function" ? value.bind(backend) : value;
       },
     });
+  }
+
+  /**
+   * Display details for a workspace of a registered runtime, cached for a few seconds and dropped
+   * when the runtime reports a state change for the workspace, or registers or unregisters. A
+   * runtime that is not registered or cannot answer has no details.
+   */
+  async displayOf(
+    id: string,
+    request: WorkspaceRuntimeWorkspaceRequest,
+  ): Promise<WorkspaceRuntimeDisplay | null> {
+    const backend = this.backends.get(id);
+    if (!backend) return null;
+    const cached = this.displays.get(request.workspaceId);
+    if (cached && Date.now() - cached.at < DISPLAY_TTL_MS) return cached.value;
+    const value = backend.describeWorkspace(request).catch(() => null);
+    this.displays.set(request.workspaceId, { at: Date.now(), value });
+    return value;
   }
 
   list(): Array<{ id: string; label: string; icon: string | undefined }> {

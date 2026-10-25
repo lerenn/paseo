@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { WorkspaceRuntimeSummary } from "@getpaseo/protocol/messages";
+import type { WorkspaceRuntimeDetails, WorkspaceRuntimeSummary } from "@getpaseo/protocol/messages";
 import { useFetchQuery } from "@/data/query";
 import { useHostFeature } from "@/runtime/host-features";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
@@ -51,4 +51,40 @@ export function resolveRuntimeBadge(
     label: runtime?.label ?? runtimeId,
     icon: runtime?.icon ?? null,
   };
+}
+
+const DETAILS_STALE_MS = 10_000;
+
+/**
+ * What the workspace's runtime says about it (label, tooltip, header detail), or null. Refetched
+ * every few seconds while mounted so a state change in the sandbox shows without a reload.
+ */
+export function useWorkspaceRuntimeDetails(
+  serverId: string,
+  workspaceId: string | null | undefined,
+  runtimeId: string | null | undefined,
+): WorkspaceRuntimeDetails | null {
+  const client = useHostRuntimeClient(serverId);
+  const supported = useHostFeature(serverId, "workspaceRuntimeDetails");
+  const queryKey = useMemo(
+    () => ["host", serverId, "workspace-runtime-details", workspaceId ?? ""] as const,
+    [serverId, workspaceId],
+  );
+  const query = useFetchQuery<WorkspaceRuntimeDetails, Error>({
+    queryKey,
+    queryFn: () =>
+      client && workspaceId
+        ? client.fetchWorkspaceRuntimeDetails(workspaceId)
+        : Promise.resolve({}),
+    enabled: Boolean(runtimeId) && Boolean(workspaceId) && supported && client !== null,
+    retry: false,
+    dataShape: "value",
+    staleTimeMs: DETAILS_STALE_MS,
+    refetchInterval: DETAILS_STALE_MS,
+  });
+  const data = query.data;
+  return useMemo(
+    () => (data && (data.label || data.tooltip || data.detail || data.hostIcon) ? data : null),
+    [data],
+  );
 }

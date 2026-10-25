@@ -10,6 +10,7 @@ import {
 import type { HostBadgeModel } from "@/hosts/appearance";
 import { HostBadge, HOST_BADGE_ICON_SIZE } from "@/hosts/host-badge";
 import { RuntimeBadge } from "@/workspace-runtimes/runtime-badge";
+import { useWorkspaceRuntimeDetails } from "@/workspace-runtimes/use-workspace-runtime";
 import { WorkspaceLabelChip, WORKSPACE_LABEL_CHIP_INSET } from "@/workspace-labels/chip";
 import type { PrHint } from "@/git/pr-hint";
 import { getForgePresentation, normalizeForge } from "@/git/forge";
@@ -66,6 +67,7 @@ export function WorkspaceMetaRow({
   projectName,
   hostBadge,
   serverId,
+  workspaceId,
   runtimeId,
   prHint,
   serviceSummary,
@@ -75,6 +77,7 @@ export function WorkspaceMetaRow({
   projectName: string | null;
   hostBadge: HostBadgeModel | null;
   serverId?: string;
+  workspaceId?: string;
   runtimeId?: string | null;
   prHint: PrHint | null;
   serviceSummary: WorkspaceServiceSummary | null;
@@ -104,6 +107,8 @@ export function WorkspaceMetaRow({
             item={item}
             hostBadge={hostBadge}
             serverId={serverId}
+            workspaceId={workspaceId}
+            runtimeId={runtimeId}
             leading={index === 0}
           />
         </Fragment>
@@ -112,15 +117,36 @@ export function WorkspaceMetaRow({
   );
 }
 
+/** The host badge, with the icon and tooltip the workspace's runtime asks for, if any. */
+function RuntimeHostBadge({
+  badge,
+  serverId,
+  workspaceId,
+  runtimeId,
+}: {
+  badge: HostBadgeModel;
+  serverId?: string;
+  workspaceId?: string;
+  runtimeId?: string | null;
+}) {
+  const details = useWorkspaceRuntimeDetails(serverId ?? "", workspaceId, runtimeId);
+  const icon = details?.hostIcon ?? null;
+  return <HostBadge badge={badge} icon={icon} tooltip={icon ? details?.tooltip : null} />;
+}
+
 function MetaItemNode({
   item,
   hostBadge,
   serverId,
+  workspaceId,
+  runtimeId,
   leading,
 }: {
   item: MetaRowItem;
   hostBadge: HostBadgeModel | null;
   serverId?: string;
+  workspaceId?: string;
+  runtimeId?: string | null;
   /** First on the line, so this item's ink sets the rail the title above it already uses. */
   leading: boolean;
 }): ReactNode {
@@ -131,11 +157,24 @@ function MetaItemNode({
     return <IdentityItem kind="project" name={item.name} />;
   }
   if (item.kind === "host") {
-    return hostBadge ? <HostBadge badge={hostBadge} /> : null;
+    return hostBadge ? (
+      <RuntimeHostBadge
+        badge={hostBadge}
+        serverId={serverId}
+        workspaceId={workspaceId}
+        runtimeId={runtimeId}
+      />
+    ) : null;
   }
   if (item.kind === "runtime") {
     return serverId ? (
-      <RuntimeBadge serverId={serverId} runtimeId={item.runtimeId} size={META_ICON_SIZE} />
+      <RuntimeBadge
+        serverId={serverId}
+        runtimeId={item.runtimeId}
+        workspaceId={workspaceId}
+        size={META_ICON_SIZE}
+        hostIconShown={hostBadge !== null}
+      />
     ) : null;
   }
   if (item.kind === "changeRequest") {

@@ -43,6 +43,25 @@ export interface WorkspaceRuntimeReconcileRequest {
   workspaces: Array<{ workspaceId: string; options?: WorkspaceRuntimeOptions; cwd: string }>;
 }
 
+/**
+ * What apps show about one workspace's sandbox: a short label next to the runtime's icon in the
+ * sidebar row, a tooltip on hover, and a longer detail line in the workspace header. All optional.
+ */
+export interface WorkspaceRuntimeDisplay {
+  /** Short, one word or so, such as an image name. Shown beside the runtime icon. */
+  label?: string;
+  /** Several lines of facts (full image reference, instance name, state), shown on hover. */
+  tooltip?: string;
+  /** One line for the workspace header. */
+  detail?: string;
+  /**
+   * A Lucide icon name. When set, the sidebar's host indicator draws this icon instead of the
+   * server icon, in the host's colour and followed by the host name, with `tooltip` on hover.
+   * No separate runtime badge is drawn when this is set and `label` is empty.
+   */
+  hostIcon?: string;
+}
+
 export interface WorkspaceRuntimeCommandRequest extends WorkspaceRuntimeWorkspaceRequest {
   command: string;
 }
@@ -199,6 +218,14 @@ export interface WorkspaceRuntimeRegistration {
    * unavailable. Paseo polls for changes, since a runtime has no watch.
    */
   fs?: WorkspaceRuntimeFileSystem;
+  /**
+   * Display details for one workspace. Called when an app shows the workspace and again after the
+   * runtime's state changes; the answer is cached briefly. It must not create or resume the
+   * sandbox: answer from what the runtime already knows.
+   */
+  describeWorkspace?(
+    request: WorkspaceRuntimeWorkspaceRequest,
+  ): WorkspaceRuntimeDisplay | null | Promise<WorkspaceRuntimeDisplay | null>;
   /** Materialize the workspace. Idempotent. */
   create?(
     request: WorkspaceRuntimeWorkspaceRequest,

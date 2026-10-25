@@ -11,6 +11,7 @@ export { MobileWorkspaceTabSwitcher } from "./tab-switcher";
 
 interface CompactWorkspaceHeaderProps {
   serverId: string;
+  workspaceId?: string;
   isLoading: boolean;
   title: string;
   subtitle: string;
@@ -33,6 +34,7 @@ export function CompactWorkspaceHeader({
   explorerToggleAccessibilityState,
   children,
   serverId,
+  workspaceId,
 }: CompactWorkspaceHeaderProps) {
   const { t } = useTranslation();
   const projectRow = useMemo(
@@ -41,9 +43,10 @@ export function CompactWorkspaceHeader({
         subtitle={subtitle}
         isSubtitleDistinct={isSubtitleDistinct}
         serverId={serverId}
+        workspaceId={workspaceId}
       />
     ),
-    [subtitle, isSubtitleDistinct, serverId],
+    [subtitle, isSubtitleDistinct, serverId, workspaceId],
   );
   const actions = (
     <>

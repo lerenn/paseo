@@ -1619,6 +1619,14 @@ export const WorkspaceRuntimesListRequestSchema = z
   .object({ type: z.literal("workspace.runtimes.list.request"), requestId: z.string() })
   .strict();
 
+export const WorkspaceRuntimeDetailsRequestSchema = z
+  .object({
+    type: z.literal("workspace.runtime.details.request"),
+    requestId: z.string(),
+    workspaceId: z.string(),
+  })
+  .strict();
+
 export const AgentSkillsGetStatusRequestSchema = agentSkillsRequest(
   "agent.skills.get_status.request",
 );
@@ -3314,6 +3322,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   PluginRpcInvokeRequestSchema,
   AgentTimelineAppendRequestSchema,
   WorkspaceRuntimesListRequestSchema,
+  WorkspaceRuntimeDetailsRequestSchema,
   AgentSkillsGetStatusRequestSchema,
   AgentSkillsReconcileRequestSchema,
   AgentSkillsUninstallRequestSchema,
@@ -3642,6 +3651,8 @@ export const ServerInfoStatusPayloadSchema = z
         // The daemon honors `runtime` on workspace.create.request. An older daemon ignores it
         // and would run the workspace on its host, so clients must check before sending it.
         workspaceRuntimes: z.boolean().optional(),
+        // The daemon answers workspace.runtime.details.request.
+        workspaceRuntimeDetails: z.boolean().optional(),
         // COMPAT(hubAgentRpc): added in v0.8.0; remove gate after 2027-03-05.
         hubAgentRpc: z.boolean().optional(),
         // COMPAT(internalAgents): added in v0.9.0; remove gate after 2027-03-17.
@@ -6928,12 +6939,31 @@ export const WorkspaceRuntimeSummarySchema = z.object({
   icon: z.string().optional(),
 });
 export type WorkspaceRuntimeSummary = z.infer<typeof WorkspaceRuntimeSummarySchema>;
+export interface WorkspaceRuntimeDetails {
+  label?: string;
+  tooltip?: string;
+  detail?: string;
+  hostIcon?: string;
+}
 
 export const WorkspaceRuntimesListResponseSchema = z.object({
   type: z.literal("workspace.runtimes.list.response"),
   payload: z.object({
     requestId: z.string(),
     runtimes: z.array(WorkspaceRuntimeSummarySchema),
+  }),
+});
+
+// What the workspace's runtime says about it, for display. Every field is absent when the
+// runtime has nothing to show; the response is still sent.
+export const WorkspaceRuntimeDetailsResponseSchema = z.object({
+  type: z.literal("workspace.runtime.details.response"),
+  payload: z.object({
+    requestId: z.string(),
+    label: z.string().optional(),
+    tooltip: z.string().optional(),
+    detail: z.string().optional(),
+    hostIcon: z.string().optional(),
   }),
 });
 
@@ -6996,6 +7026,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   PluginRpcInvokeResponseSchema,
   AgentTimelineAppendResponseSchema,
   WorkspaceRuntimesListResponseSchema,
+  WorkspaceRuntimeDetailsResponseSchema,
   AgentSkillsGetStatusResponseSchema,
   AgentSkillsReconcileResponseSchema,
   AgentSkillsUninstallResponseSchema,

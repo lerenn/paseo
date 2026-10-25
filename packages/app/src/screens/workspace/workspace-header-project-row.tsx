@@ -3,6 +3,8 @@ import { StyleSheet } from "react-native-unistyles";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { HostBadge } from "@/hosts/host-badge";
 import { useHostBadges } from "@/hosts/use-host-badges";
+import { useWorkspace } from "@/stores/session-store-hooks";
+import { useWorkspaceRuntimeDetails } from "@/workspace-runtimes/use-workspace-runtime";
 
 /**
  * Which project the workspace belongs to, and which machine it runs on.
@@ -17,15 +19,19 @@ export function WorkspaceHeaderProjectRow({
   subtitle,
   isSubtitleDistinct,
   serverId,
+  workspaceId,
 }: {
   subtitle: string;
   isSubtitleDistinct: boolean;
   serverId: string;
+  workspaceId?: string;
 }) {
+  const runtimeId = useWorkspace(serverId, workspaceId ?? "")?.runtimeId;
+  const runtimeDetail = useWorkspaceRuntimeDetails(serverId, workspaceId, runtimeId)?.detail;
   const isCompact = useIsCompactFormFactor();
   const hostBadge = useHostBadges({ enabled: isCompact }).get(serverId) ?? null;
   const showProject = isSubtitleDistinct || isCompact;
-  if (!showProject && !hostBadge) {
+  if (!showProject && !hostBadge && !runtimeDetail) {
     return null;
   }
   return (
@@ -37,6 +43,11 @@ export function WorkspaceHeaderProjectRow({
       ) : null}
       {showProject && hostBadge ? <Text style={styles.separator}>·</Text> : null}
       {hostBadge ? <HostBadge badge={hostBadge} /> : null}
+      {runtimeDetail ? (
+        <Text testID="workspace-header-runtime-detail" style={styles.project} numberOfLines={1}>
+          {showProject || hostBadge ? `· ${runtimeDetail}` : runtimeDetail}
+        </Text>
+      ) : null}
     </View>
   );
 }
