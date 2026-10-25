@@ -27,6 +27,8 @@ export interface PluginHookAgent {
   provider: string;
   cwd: string;
   title: string | null;
+  /** The agent's labels. `parentAgentId` is derived from them. */
+  labels: Record<string, string>;
 }
 
 export interface PluginSessionOpenRequest {
@@ -70,7 +72,16 @@ export interface PluginLifecycleEvents {
 }
 
 export interface PluginBeforeRequests {
-  "agent.create": { config: AgentSessionConfig; env?: Record<string, string> };
+  "agent.create": {
+    config: AgentSessionConfig;
+    env?: Record<string, string>;
+    /**
+     * Read-only context: the labels the agent is created with and the agent that created it as a
+     * subagent (null for a top-level agent). A hook cannot change them; edits are ignored.
+     */
+    labels: Record<string, string>;
+    parentAgentId: string | null;
+  };
   "agent.session_open": PluginSessionOpenRequest;
   "workspace.create": Omit<WorkspaceCreateRequest, "type" | "requestId">;
 }

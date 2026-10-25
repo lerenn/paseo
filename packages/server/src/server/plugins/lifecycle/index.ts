@@ -29,7 +29,13 @@ export const lifecycleEventNames = [
 export const beforeHookNames = ["agent.create", "agent.session_open", "workspace.create"] as const;
 
 const beforeSchemas = {
-  "agent.create": CreateAgentRequestMessageSchema.pick({ config: true, env: true }).strict(),
+  "agent.create": CreateAgentRequestMessageSchema.pick({ config: true, env: true })
+    // A hook may return a request without them; they are restored from the original.
+    .extend({
+      labels: z.record(z.string(), z.string()).optional(),
+      parentAgentId: z.string().nullable().optional(),
+    })
+    .strict(),
   "agent.session_open": z
     .object({
       agentId: z.string(),
@@ -87,6 +93,7 @@ export function describeHookAgent(agent: {
     provider: agent.provider,
     cwd: agent.cwd,
     title: agent.title ?? null,
+    labels: agent.labels,
   };
 }
 
@@ -155,6 +162,13 @@ export function validateBeforeResult<Name extends keyof PluginBeforeRequests>(
     if (previous.config.cwd !== next.config.cwd) {
       throw new Error("agent.create hooks cannot change the workspace directory");
     }
+    // The creation context is read-only: whatever a hook returns, the next hook and the daemon
+    // see the original labels and parent.
+    return {
+      ...result,
+      labels: previous.labels,
+      parentAgentId: previous.parentAgentId,
+    } as PluginBeforeRequests[Name];
   }
   return result;
 }
