@@ -51,7 +51,8 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   state, width, maximized and selected tab are stored once). `client.openAppPanel(id)`,
   `toggleAppPanel(id)` and `closeAppPanel()` drive it, e.g. from `addHeaderButton`.
   `AgentChat({ agentId, workspaceId? })` from `@getpaseo/plugin/client/ui` embeds the host agent
-  conversation (real composer) for any agent. The dock header sits in the window-chrome safe area
+  conversation (real composer) for any agent. Subagents it lists open in place with a Back button (the pane context's
+  `openSubagentTarget`, since the dock has no workspace tabs). The dock header sits in the window-chrome safe area
   (`WindowChromeRegion` / `WindowChromeSafeArea`), so the desktop window controls never overlap its
   buttons. Reference: `public-docs/plugins/reference.md`,
   sections "App panels" and "Agent chat".

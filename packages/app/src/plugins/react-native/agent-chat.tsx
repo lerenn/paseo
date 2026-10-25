@@ -1,9 +1,14 @@
 import type { AgentChatProps } from "@getpaseo/plugin/client/ui";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
+import { ChevronLeft } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { StyleSheet } from "react-native-unistyles";
+import { Button } from "@/components/ui/button";
 import { WorkspaceComposerEditingSessionsProvider } from "@/composer/editing-session";
 import { AgentConversationPanel } from "@/panels/agent-panel";
+import { providerSubagentPanelRegistration } from "@/panels/provider-subagent-panel";
+import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
 import {
   createPaneFocusContextValue,
   PaneFocusProvider,
@@ -13,26 +18,46 @@ import {
 import { useSessionStore } from "@/stores/session-store";
 import { usePluginServerId } from "../installation-provider";
 
+type ChatTarget = Extract<WorkspaceTabTarget, { kind: "agent" | "provider_subagent" }>;
+
 const noop = () => undefined;
+const ProviderSubagentPanelView = providerSubagentPanelRegistration.component;
 const FOCUSED = createPaneFocusContextValue({ isWorkspaceFocused: true, isPaneFocused: true });
 
 /**
  * The host's agent conversation for any agent, outside a workspace's tab layout.
- * It stands in for a pane: tabs and splits do not exist here, so navigation callbacks do nothing.
+ * It stands in for a pane: tabs and splits do not exist here, so tab navigation does nothing,
+ * but a subagent the conversation points at opens in place, with a back button to return.
  */
 export function AgentChat({ agentId, workspaceId }: AgentChatProps) {
   const serverId = usePluginServerId();
+  const { t } = useTranslation();
+  // The conversation the dock was asked for, then each subagent opened from it.
+  const [stack, setStack] = useState<ChatTarget[]>([]);
+  useEffect(() => setStack([]), [agentId]);
+  const root = useMemo<ChatTarget>(() => ({ kind: "agent", agentId }), [agentId]);
+  const target = stack.at(-1) ?? root;
+  const open = useCallback((next: WorkspaceTabTarget) => {
+    if (next.kind === "agent" || next.kind === "provider_subagent") {
+      setStack((current) => [...current, next]);
+    }
+  }, []);
+  const back = useCallback(() => setStack((current) => current.slice(0, -1)), []);
+  const targetAgentId = target.kind === "agent" ? target.agentId : target.parentAgentId;
   const agentWorkspaceId = useSessionStore((state) => {
     const session = state.sessions[serverId];
     return (
-      (session?.agents.get(agentId) ?? session?.agentDetails.get(agentId))?.workspaceId ?? null
+      (session?.agents.get(targetAgentId) ?? session?.agentDetails.get(targetAgentId))
+        ?.workspaceId ?? null
     );
   });
-  const resolvedWorkspaceId = workspaceId ?? agentWorkspaceId;
+  const resolvedWorkspaceId = (target === root ? workspaceId : undefined) ?? agentWorkspaceId;
   const viewedTimelineSync = useSessionStore(
     (state) => state.sessions[serverId]?.viewedTimelineSync ?? null,
   );
-  const tabId = `plugin-agent-chat:${agentId}`;
+  const tabId = `plugin-agent-chat:${stack.length}:${targetAgentId}:${
+    target.kind === "provider_subagent" ? target.subagentId : ""
+  }`;
   const value = useMemo<PaneContextValue | null>(
     () =>
       resolvedWorkspaceId
@@ -41,26 +66,27 @@ export function AgentChat({ agentId, workspaceId }: AgentChatProps) {
             workspaceId: resolvedWorkspaceId,
             host: "explorer",
             tabId,
-            target: { kind: "agent", agentId },
-            openTab: noop,
+            target,
+            openTab: open,
+            openSubagentTarget: open,
             openPreferredTarget: noop,
-            closeCurrentTab: noop,
+            closeCurrentTab: back,
             retargetCurrentTab: noop,
             setCurrentTabState: noop,
             openFileInWorkspace: noop,
             openImportSheet: noop,
           }
         : null,
-    [agentId, resolvedWorkspaceId, serverId, tabId],
+    [back, open, resolvedWorkspaceId, serverId, tabId, target],
   );
   const tabIds = useMemo(() => [tabId], [tabId]);
 
   // A workspace screen tells the timeline sync which chats are on screen; this chat has no tab.
   useEffect(() => {
-    if (!viewedTimelineSync) return;
-    viewedTimelineSync.replaceVisibleAgentIds(tabId, [agentId]);
+    if (!viewedTimelineSync || target.kind !== "agent") return;
+    viewedTimelineSync.replaceVisibleAgentIds(tabId, [target.agentId]);
     return () => viewedTimelineSync.replaceVisibleAgentIds(tabId, []);
-  }, [agentId, tabId, viewedTimelineSync]);
+  }, [tabId, target, viewedTimelineSync]);
 
   if (!value) {
     return (
@@ -69,21 +95,46 @@ export function AgentChat({ agentId, workspaceId }: AgentChatProps) {
       </View>
     );
   }
+  const Panel = target.kind === "agent" ? AgentConversationPanel : ProviderSubagentPanelView;
   return (
-    <WorkspaceComposerEditingSessionsProvider
-      workspaceKey={`${serverId}:${value.workspaceId}`}
-      tabIds={tabIds}
-    >
-      <PaneProvider value={value}>
-        <PaneFocusProvider value={FOCUSED}>
-          <AgentConversationPanel />
-        </PaneFocusProvider>
-      </PaneProvider>
-    </WorkspaceComposerEditingSessionsProvider>
+    <View style={styles.frame}>
+      {stack.length > 0 ? (
+        <View style={styles.backRow}>
+          <Button
+            variant="ghost"
+            size="sm"
+            leftIcon={ChevronLeft}
+            onPress={back}
+            testID="agent-chat-back"
+          >
+            {t("common.actions.back")}
+          </Button>
+        </View>
+      ) : null}
+      <WorkspaceComposerEditingSessionsProvider
+        workspaceKey={`${serverId}:${value.workspaceId}`}
+        tabIds={tabIds}
+      >
+        <PaneProvider value={value}>
+          <PaneFocusProvider value={FOCUSED}>
+            <Panel />
+          </PaneFocusProvider>
+        </PaneProvider>
+      </WorkspaceComposerEditingSessionsProvider>
+    </View>
   );
 }
 
 const styles = StyleSheet.create((theme) => ({
+  frame: { flex: 1, backgroundColor: theme.colors.surface0 },
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: theme.spacing[2],
+    paddingVertical: theme.spacing[1],
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
   unavailable: {
     flex: 1,
     alignItems: "center",
