@@ -363,6 +363,34 @@ describe("live workspace runtime backend", () => {
     const gone = new WorkspaceRuntimeRegistry();
     expect(() => gone.live("pod").label).toThrow(WorkspaceRuntimeUnavailableError);
   });
+
+  it("waits for a runtime that a plugin update unregistered a moment ago", async () => {
+    const registry = new WorkspaceRuntimeRegistry();
+    const unregister = registry.register({
+      id: "pod",
+      label: "Old",
+      providesFiles: false,
+      checkCommand: async () => false,
+    } as never);
+    const live = registry.live("pod");
+    unregister();
+    const pending = live.checkCommand({ workspaceId: "w", command: "git" });
+    const available = registry.available("pod");
+    registry.register({
+      id: "pod",
+      label: "New",
+      providesFiles: false,
+      checkCommand: async () => true,
+    } as never);
+    expect(await pending).toBe(true);
+    expect((await available).label).toBe("New");
+  });
+
+  it("does not wait for a runtime nobody registered", async () => {
+    await expect(new WorkspaceRuntimeRegistry().available("pod")).rejects.toBeInstanceOf(
+      WorkspaceRuntimeUnavailableError,
+    );
+  });
 });
 
 describe("workspace runtime lifecycle", () => {

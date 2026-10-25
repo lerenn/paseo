@@ -145,6 +145,30 @@ test("fresh non-git directory creates a directory workspace at the exact path", 
   expect(workspace.cwd).toBe(dir);
 });
 
+test("creating a workspace for a directory reads its checkout on the host", async () => {
+  const dir = path.join(tmpDir, "plain");
+  const reads: Array<{ onHost?: boolean } | undefined> = [];
+  const git = gitService();
+  const getCheckout = git.getCheckout.bind(git);
+  provisioning = createWorkspaceProvisioningService({
+    workspaceRegistry,
+    projectRegistry,
+    workspaceGitService: {
+      ...git,
+      getCheckout: (cwd: string, options?: { onHost?: boolean }) => {
+        reads.push(options);
+        return getCheckout(cwd, options);
+      },
+    },
+    isDirectory,
+    logger,
+  });
+
+  await provisioning.createWorkspaceForDirectory(dir);
+
+  expect(reads[0]).toEqual({ onHost: true });
+});
+
 test("background workspace creation preserves hooks, inheritance and durable visibility", async () => {
   const dir = path.join(tmpDir, "plain");
   const events: string[] = [];
