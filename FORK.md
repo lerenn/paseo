@@ -103,7 +103,9 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
 - **Fork PRs:** #17 (`9320d9194`, launch), #20 (`d87671f18`, cwd mapping), #21 (`2bd9e903e`, Git),
   #22 (`b35d3853d`, inheritance), #28 (`811da2353`, files), #27 (`411763c3f`, reliability and CLI),
   #30 (`474f56076`, lifecycle), #25 (`7b730b08e`, sidebar icon). The app dock title-bar fix is #24
-  (`b0a12c5ca`, see App dock).
+  (`b0a12c5ca`, see App dock). Follow-ups: #32/#33 (registry and project reads on the host),
+  #37 (worktrees created and deleted on the host), and the reload-gap PR (a runtime unregistered
+  by a plugin update is waited for up to 30 s; workspace creation reads its checkout on the host).
 - **Upstream branches (one aspect each, stacked in this order, cut from upstream main):**
   `upstream/workspace-runtimes-1-launch`, `-2-cwd`, `-3-git`, `-4-inheritance`, `-5-files`,
   `-6-reliability`, `-7-lifecycle`, `-8-icon` (on `lerenn/paseo`). Rebuild each by cherry-picking

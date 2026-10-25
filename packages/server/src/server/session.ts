@@ -6825,13 +6825,16 @@ export class Session {
   }
 
   /** No host fallback: a workspace that names a runtime nobody registered is refused. */
-  private assertRuntimeAvailable(runtime: { id: string } | undefined): void {
+  private async assertRuntimeAvailable(runtime: { id: string } | undefined): Promise<void> {
     if (!runtime || runtime.id === LOCAL_WORKSPACE_RUNTIME_ID) return;
-    if (!this.pluginRuntime?.workspaceRuntimes?.find(runtime.id)) {
-      throw new SessionRequestError(
-        "runtime_unavailable",
-        new WorkspaceRuntimeUnavailableError(runtime.id).message,
-      );
+    // A plugin update unregisters its runtimes for a moment; wait it out instead of refusing.
+    const registry = this.pluginRuntime?.workspaceRuntimes;
+    try {
+      if (!registry) throw new WorkspaceRuntimeUnavailableError(runtime.id);
+      await registry.available(runtime.id);
+    } catch (error) {
+      if (!(error instanceof WorkspaceRuntimeUnavailableError)) throw error;
+      throw new SessionRequestError("runtime_unavailable", error.message);
     }
   }
 
@@ -6851,7 +6854,7 @@ export class Session {
 
     const explicitTitle = request.title?.trim() || null;
     const promptTitle = resolveFirstAgentPromptTitle(request.firstAgentContext);
-    this.assertRuntimeAvailable(request.runtime);
+    await this.assertRuntimeAvailable(request.runtime);
     const workspace = await this.workspaceProvisioning.createWorkspaceForDirectory(
       cwd,
       explicitTitle ?? promptTitle,
@@ -6901,7 +6904,7 @@ export class Session {
     }
 
     const source = request.source;
-    this.assertRuntimeAvailable(request.runtime);
+    await this.assertRuntimeAvailable(request.runtime);
 
     if (!source.cwd && !source.projectId) {
       throw new SessionRequestError(
