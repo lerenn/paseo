@@ -1930,6 +1930,34 @@ review.remove();
 贡献移入一个共享的溢出菜单。在手机和较窄的窗口中，标题栏没有空间放置插件按钮，因此每个按钮都会成为工作区
 菜单（`···`）中的一行，显示它的图标和标题；它的菜单和弹出框以该底部面板中的页面打开。位置和溢出由宿主决定。
 
+## 智能体徽章 {#agent-badges}
+
+`client.addAgentBadge` 为带有特定标签的智能体添加一个小徽章：一个图标，可附带文字和提示。它显示在侧边栏工作区行的元信息行中（位于主机和运行时徽章旁边）以及智能体列表中。多个徽章会叠放，超过三个时其余的会被汇总。
+
+```tsx
+client.addAgentBadge({
+  id: "factory",
+  scope: "workspace",
+  match: { labels: { factory: "*" } },
+  render: {
+    icon: "Factory",
+    text: (agent) => agent.labels.factory,
+    tooltip: (agent) => `Run by the Factory (${agent.labels.factory})`,
+  },
+});
+```
+
+| 字段             | 含义                                                                                                            |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| `id`             | 小写字母、数字和连字符，在插件内唯一。                                                                          |
+| `scope`          | `"agent"`（默认）在智能体界面显示徽章。`"workspace"` 还会在工作区内任一智能体匹配时，为侧边栏工作区行添加徽章。 |
+| `match.labels`   | 智能体必须带有每个键。值必须与标签值相等；`"*"` 接受任意值。                                                    |
+| `render.icon`    | Lucide 名称或 `{ svg }`，注册时校验。                                                                           |
+| `render.text`    | 可选的 `(agent) => string`，显示在图标旁。抛出异常的函数不显示文字。                                            |
+| `render.tooltip` | 可选的 `(agent) => string`。                                                                                    |
+
+`agent` 为 `{ id, title, labels }`。智能体在创建时获得标签。调用返回清理函数，插件停止时徽章会被移除。
+
 ## Composer 胶囊 {#composer-pills}
 
 `client.addComposerPill({ id, workspaceId, agentId, button })` 使用同样的[按钮描述符](#button-descriptor)，

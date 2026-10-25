@@ -9,6 +9,8 @@ import {
 } from "@getpaseo/protocol/workspace-labels";
 import type { HostBadgeModel } from "@/hosts/appearance";
 import { HostBadge, HOST_BADGE_ICON_SIZE } from "@/hosts/host-badge";
+import { AgentBadges } from "@/plugins/badges";
+import { useAgentBadges } from "@/plugins/badges/view";
 import { WorkspaceLabelChip, WORKSPACE_LABEL_CHIP_INSET } from "@/workspace-labels/chip";
 import type { PrHint } from "@/git/pr-hint";
 import { getForgePresentation, normalizeForge } from "@/git/forge";
@@ -64,6 +66,8 @@ export function WorkspaceMetaRow({
   currentBranch,
   projectName,
   hostBadge,
+  serverId,
+  workspaceId,
   prHint,
   serviceSummary,
   labels = EMPTY_LABELS,
@@ -71,15 +75,20 @@ export function WorkspaceMetaRow({
   currentBranch: string | null;
   projectName: string | null;
   hostBadge: HostBadgeModel | null;
+  serverId?: string;
+  workspaceId?: string;
   prHint: PrHint | null;
   serviceSummary: WorkspaceServiceSummary | null;
   labels?: readonly WorkspaceLabelDefinition[];
 }) {
   const { rowItems, checksDisplay } = useSidebarMetaPreferences();
+  const hasAgentBadges =
+    useAgentBadges({ serverId: serverId ?? "", workspaceId: workspaceId ?? "" }).length > 0;
   const items = selectMetaRowItems({
     currentBranch,
     projectName,
     hasHostBadge: hostBadge !== null,
+    hasAgentBadges,
     prHint,
     serviceSummary,
     labels,
@@ -95,6 +104,13 @@ export function WorkspaceMetaRow({
         <Fragment key={item.kind}>
           {index > 0 ? <Text style={styles.separator}>·</Text> : null}
           <MetaItemNode item={item} hostBadge={hostBadge} leading={index === 0} />
+          <MetaItemNode
+            item={item}
+            hostBadge={hostBadge}
+            serverId={serverId}
+            workspaceId={workspaceId}
+            leading={index === 0}
+          />
         </Fragment>
       ))}
     </View>
@@ -104,10 +120,14 @@ export function WorkspaceMetaRow({
 function MetaItemNode({
   item,
   hostBadge,
+  serverId,
+  workspaceId,
   leading,
 }: {
   item: MetaRowItem;
   hostBadge: HostBadgeModel | null;
+  serverId?: string;
+  workspaceId?: string;
   /** First on the line, so this item's ink sets the rail the title above it already uses. */
   leading: boolean;
 }): ReactNode {
@@ -119,6 +139,11 @@ function MetaItemNode({
   }
   if (item.kind === "host") {
     return hostBadge ? <HostBadge badge={hostBadge} /> : null;
+  }
+  if (item.kind === "agentBadges") {
+    return serverId && workspaceId ? (
+      <AgentBadges serverId={serverId} workspaceId={workspaceId} />
+    ) : null;
   }
   if (item.kind === "changeRequest") {
     return <PullRequestItem hint={item.hint} />;

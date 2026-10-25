@@ -113,6 +113,7 @@ export type PluginClientRuntime = Pick<
   | "openPanel"
   | "addComposerPill"
   | "addHeaderButton"
+  | "addAgentBadge"
 > & { hosts: ReturnType<typeof createPluginHosts> };
 
 // COMPAT(pluginReactNativeEntrypoint): added in v0.13.0, remove after 2027-04-20
@@ -504,6 +505,16 @@ export function runPluginClientBundle(
     addHeaderButton(contribution) {
       if (stopped) throw new Error("Plugin has stopped");
       return trackButton(runtime.addHeaderButton(contribution));
+    },
+    addAgentBadge(contribution) {
+      if (stopped) throw new Error("Plugin has stopped");
+      const remove = runtime.addAgentBadge(contribution);
+      const tracked = () => {
+        removals.delete(tracked);
+        return remove();
+      };
+      removals.add(tracked);
+      return tracked;
     },
   };
   const runtimeRequire = (name: string): unknown => {
