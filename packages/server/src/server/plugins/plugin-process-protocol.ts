@@ -45,6 +45,7 @@ export type PluginRuntimeCallVerb =
   | "before_input"
   | "map_cwd"
   | "check_command"
+  | "describe_workspace"
   | "fs.stat"
   | "fs.readdir"
   | "fs.read"
@@ -338,6 +339,7 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
           "before_input",
           "map_cwd",
           "check_command",
+          "describe_workspace",
           "fs.stat",
           "fs.readdir",
           "fs.read",

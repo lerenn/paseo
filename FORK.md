@@ -94,7 +94,7 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   the workspace root by textual rewriting of every stream line; Git runs through `exec` with
   `purpose: "command"`; files run through `fs` verbs (polling, no watch); `destroy` runs on every
   removal path, `reconcile` gets the live workspace list, `checkCommand` names a missing binary;
-  `workspaceCwd` is on every request. The sidebar shows the runtime's icon and label. Verbs and
+  `workspaceCwd` is on every request. The sidebar shows the runtime's icon and label; an optional `describeWorkspace` adds a per-workspace short label, tooltip and header detail (RPC `workspace.runtime.details.request`, feature `workspaceRuntimeDetails`). Verbs and
   names follow getpaseo/paseo#3360 (workspace runtime contract), which registers executables in
   daemon config; this layer registers plugin objects and can move onto #3360 if it merges. Not in
   the fork: terminals, scripts, uploads and per-runtime provider catalogs in the runtime.
@@ -110,7 +110,7 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   is a planned stop that shows no error).
 - **Upstream branches (one aspect each, stacked in this order, cut from upstream main):**
   `upstream/workspace-runtimes-1-launch`, `-2-cwd`, `-3-git`, `-4-inheritance`, `-5-files`,
-  `-6-reliability`, `-7-lifecycle`, `-8-icon` (on `lerenn/paseo`). Rebuild each by cherry-picking
+  `-6-reliability`, `-7-lifecycle`, `-8-icon`, `-9-details` (on `lerenn/paseo`). Rebuild each by cherry-picking
   its fork PR commit onto the previous branch.
 - **Upstream Discussion / PRs:** one Discussion, eight PRs; drafts at
   `/home/paseo/work/upstream-drafts/workspace-runtimes/` (`discussion.md`, `pr-1-launch.md` ..

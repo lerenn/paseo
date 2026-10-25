@@ -136,6 +136,7 @@ import type {
   AgentSkillSelection,
   AgentSkillsStatus,
   WorkspaceRuntimeSummary,
+  WorkspaceRuntimeDetails,
   AgentSkillsSaveResult,
 } from "@getpaseo/protocol/messages";
 import type {
@@ -5812,6 +5813,16 @@ export class DaemonClient {
       responseType: "workspace.runtimes.list.response",
     });
     return response.runtimes;
+  }
+
+  /** What the workspace's runtime shows about it; all fields absent when it has nothing. */
+  async fetchWorkspaceRuntimeDetails(workspaceId: string): Promise<WorkspaceRuntimeDetails> {
+    const requestId = this.createRequestId();
+    const response = await this.sendCorrelatedSessionRequest({
+      message: { type: "workspace.runtime.details.request", requestId, workspaceId },
+      responseType: "workspace.runtime.details.response",
+    });
+    return { label: response.label, tooltip: response.tooltip, detail: response.detail };
   }
 
   async reconcileAgentSkills(): Promise<AgentSkillsStatus> {

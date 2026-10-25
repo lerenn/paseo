@@ -5,7 +5,7 @@ import { SvgIcon } from "@/components/provider-icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { densityIconSize } from "@/styles/density";
 import type { Theme } from "@/styles/theme";
-import { useWorkspaceRuntimeBadge } from "./use-workspace-runtime";
+import { useWorkspaceRuntimeBadge, useWorkspaceRuntimeDetails } from "./use-workspace-runtime";
 
 function RuntimeGlyphBase({
   svg,
@@ -50,33 +50,44 @@ export function RuntimeKindIcon({
 export function RuntimeBadge({
   serverId,
   runtimeId,
+  workspaceId,
   size,
 }: {
   serverId: string;
   runtimeId: string | null | undefined;
+  workspaceId?: string;
   size: number;
 }) {
   const badge = useWorkspaceRuntimeBadge(serverId, runtimeId);
+  const details = useWorkspaceRuntimeDetails(serverId, workspaceId, runtimeId);
   if (!badge) return null;
+  const shortLabel = details?.label;
+  const tooltip = details?.tooltip ?? badge.label;
   return (
     <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>
         <View
           style={styles.badge}
           testID={`runtime-badge-${badge.id}`}
-          accessibilityLabel={badge.label}
+          accessibilityLabel={shortLabel ? `${badge.label}: ${shortLabel}` : badge.label}
         >
           <ThemedRuntimeGlyph svg={badge.icon} size={size} uniProps={mutedColor} />
+          {shortLabel ? (
+            <Text style={styles.label} numberOfLines={1}>
+              {shortLabel}
+            </Text>
+          ) : null}
         </View>
       </TooltipTrigger>
       <TooltipContent side="top" align="center" offset={8}>
-        <Text style={styles.tooltipText}>{badge.label}</Text>
+        <Text style={styles.tooltipText}>{tooltip}</Text>
       </TooltipContent>
     </Tooltip>
   );
 }
 
 const styles = StyleSheet.create((theme) => ({
-  badge: { flexDirection: "row", alignItems: "center", flexShrink: 0 },
+  badge: { flexDirection: "row", alignItems: "center", flexShrink: 1, minWidth: 0, gap: 4 },
+  label: { color: theme.colors.foregroundMuted, fontSize: theme.fontSize.sm, flexShrink: 1 },
   tooltipText: { color: theme.colors.foreground, fontSize: theme.fontSize.sm },
 }));
