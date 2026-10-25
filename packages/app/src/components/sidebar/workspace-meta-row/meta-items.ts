@@ -20,6 +20,7 @@ export type MetaRowItem =
   | { kind: "project"; name: string }
   | { kind: "host" }
   | { kind: "runtime"; runtimeId: string }
+  | { kind: "agentBadges" }
   | { kind: "changeRequest"; hint: PrHint }
   | { kind: "checks"; summary: CheckSummary; label: boolean }
   | { kind: "services"; summary: WorkspaceServiceSummary }
@@ -40,6 +41,7 @@ export function selectMetaRowItems(input: {
   projectName: string | null;
   hasHostBadge: boolean;
   runtimeId?: string | null;
+  hasAgentBadges?: boolean;
   prHint: PrHint | null;
   serviceSummary: WorkspaceServiceSummary | null;
   labels: readonly WorkspaceLabelDefinition[];
@@ -51,6 +53,7 @@ export function selectMetaRowItems(input: {
     projectName,
     hasHostBadge,
     runtimeId,
+    hasAgentBadges,
     prHint,
     serviceSummary,
     labels,
@@ -71,6 +74,10 @@ export function selectMetaRowItems(input: {
   // Where the agents run is a fact about the workspace, not a preference: it always shows.
   if (runtimeId) {
     items.push({ kind: "runtime", runtimeId });
+  }
+  // Plugin badges for the workspace's agents (for example which system an agent belongs to).
+  if (hasAgentBadges) {
+    items.push({ kind: "agentBadges" });
   }
   if (prHint && visible.changeRequest) {
     items.push({ kind: "changeRequest", hint: prHint });

@@ -65,6 +65,7 @@ export type {
   PluginHeaderButtonContribution,
 } from "./buttons.js";
 export type { PluginIconProps, PluginSerializableIcon, PluginSvgIcon } from "../icons.js";
+export type { PluginAgentBadgeContribution, PluginBadgeAgent } from "./badges.js";
 export type {
   PluginFile,
   PluginFileBytesState,

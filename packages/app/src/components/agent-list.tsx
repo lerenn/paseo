@@ -1,3 +1,4 @@
+import { AgentBadges } from "@/plugins/badges";
 import {
   View,
   Text,
@@ -233,6 +234,7 @@ function SessionRow({
         numberOfLines={1}
         testID={`agent-row-title-${agent.serverId}-${agent.id}`}
       />
+      <AgentBadges serverId={agent.serverId} agentId={agent.id} />
     </View>
   );
 

@@ -65,6 +65,7 @@ function registry(
         openPanel: () => {},
         addComposerPill: () => ({ update() {}, remove() {} }),
         addHeaderButton: () => ({ update() {}, remove() {} }),
+        addAgentBadge: () => () => undefined,
       };
     },
   });
