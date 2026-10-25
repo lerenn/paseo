@@ -14,7 +14,11 @@ import type {
 } from "../plugins/plugin-process-protocol.js";
 import { PluginRuntimeBackend } from "../plugins/plugin-runtime-backend.js";
 import { createRuntimeProcessLauncher } from "./process-launcher.js";
-import { setCommandLauncherResolver, spawnWorkspaceCommand } from "../../utils/command-launcher.js";
+import {
+  runCommandsOnHost,
+  setCommandLauncherResolver,
+  spawnWorkspaceCommand,
+} from "../../utils/command-launcher.js";
 import { createLineRewriter, rewritePathPrefix } from "./path-map.js";
 import { WorkspaceRuntimeRegistry } from "./registry.js";
 import { RuntimeWorkspaceIndex } from "./workspace-index.js";
@@ -498,6 +502,35 @@ describe("project kind in a runtime workspace", () => {
       );
       // A host directory still answers non-Git.
       expect((await getCheckoutStatus("/tmp")).isGit).toBe(false);
+    } finally {
+      setCommandLauncherResolver(null);
+    }
+  });
+});
+
+function commandOutput(cwd: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = spawnWorkspaceCommand("node", ["-e", "process.stdout.write('host')"], {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let text = "";
+    child.stdout!.on("data", (chunk) => (text += chunk));
+    child.once("error", reject);
+    child.once("close", () => resolve(text));
+  });
+}
+
+describe("project identity on the host", () => {
+  it("runs commands on the host inside runCommandsOnHost even for a runtime directory", async () => {
+    let launches = 0;
+    setCommandLauncherResolver(() => {
+      launches += 1;
+      throw new Error("the runtime must not be asked");
+    });
+    try {
+      expect(await runCommandsOnHost(() => commandOutput(process.cwd()))).toBe("host");
+      expect(launches).toBe(0);
     } finally {
       setCommandLauncherResolver(null);
     }

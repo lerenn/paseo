@@ -510,6 +510,9 @@ Rules the code can't show:
   because the sandbox is down or the runtime is gone makes checkout discovery throw instead of
   reporting "non-Git", and project kind refresh leaves the project alone. Otherwise a suspended pod
   would downgrade a git project to non-git and split it from the same repository on other hosts.
+- **A project is the daemon's checkout.** Project kind and identity are read with
+  `getCheckout(cwd, { onHost: true })` (`runCommandsOnHost`), so they never depend on a sandbox
+  that holds a copy of the directory.
 - **Archive and removal end the sandbox.** `RuntimeWorkspaceIndex` watches workspace registry
   mutations, so `destroy` runs however a workspace goes away (archive, archive by path, removal by
   reconciliation). `reconcile` gets the list of live workspaces when a runtime registers (daemon

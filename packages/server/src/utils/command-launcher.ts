@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type { ChildProcess } from "node:child_process";
 import type { ProviderProcessLauncher } from "../server/workspace-runtime/process-launcher.js";
 import { spawnProcess, type SpawnProcessOptions } from "./spawn.js";
@@ -9,6 +10,16 @@ import { spawnProcess, type SpawnProcessOptions } from "./spawn.js";
 export type CommandLauncherResolver = (cwd: string) => ProviderProcessLauncher | null;
 
 let resolveCommandLauncher: CommandLauncherResolver | null = null;
+const hostOnly = new AsyncLocalStorage<true>();
+
+/**
+ * Runs an operation with its commands on the daemon host even for a runtime workspace's
+ * directory. A project is the daemon's own registered checkout: its kind and identity come from
+ * that checkout, not from whichever sandbox happens to hold a copy.
+ */
+export function runCommandsOnHost<T>(operation: () => T): T {
+  return hostOnly.run(true, operation);
+}
 
 export function setCommandLauncherResolver(resolver: CommandLauncherResolver | null): void {
   resolveCommandLauncher = resolver;
@@ -34,7 +45,7 @@ export function spawnWorkspaceCommand(
   options: SpawnCommandOptions & { cwd: string },
 ): ChildProcess {
   const { interactive, ...spawnOptions } = options;
-  const launcher = resolveCommandLauncher?.(options.cwd);
+  const launcher = hostOnly.getStore() ? null : resolveCommandLauncher?.(options.cwd);
   if (!launcher) return spawnProcess(command, args, spawnOptions);
   const child = launcher.spawn({
     command,
