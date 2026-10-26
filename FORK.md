@@ -50,15 +50,14 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   agent conversation (real composer) for any agent, in any plugin panel. Subagents it lists open in
   place with a Back button (the pane context's `openSubagentTarget`, since there are no workspace
   tabs there). Reference: `public-docs/plugins/reference.md`, section "Agent chat".
-- **Fork PRs:** #10 (`8ff47622d`, with the since-removed app dock). First consumer:
+- **Fork PRs:** #10 (`8ff47622d`, with the since-removed app dock), #34, #44 (dock removal, `53e880322`). First consumer:
   `lerenn/paseo-assistant`.
 - **Removed:** the app dock (`addAppPanel`, `openAppPanel`, `toggleAppPanel`, `closeAppPanel`) was
   taken out of the fork; the Assistant moved to a sidebar entry that opens a full screen. Its
   upstream branches `upstream/app-dock-1-dock` and `-3-window-controls` and its drafts are dropped.
-- **Upstream branch (one aspect, cut from upstream main):** `upstream/agent-chat-1-agent-chat`
-  (standalone, re-cut from `upstream/app-dock-2-agent-chat` without the dock).
-- **Upstream Discussion / PR:** drafts only, not posted:
-  `/home/paseo/work/upstream-drafts/agent-chat/`. Ask Louis.
+- **Upstream branch (one aspect):** `upstream/plugin-ui-2-agent-chat` (stacked on
+  `upstream/plugin-ui-0-agent-status-indicator`; objective: plugin UI components).
+- **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/plugin-ui/`.
 - **Status:** in fork.
 
 ### Sidebar groups

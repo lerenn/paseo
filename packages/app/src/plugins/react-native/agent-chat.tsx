@@ -32,7 +32,7 @@ const FOCUSED = createPaneFocusContextValue({ isWorkspaceFocused: true, isPaneFo
 export function AgentChat({ agentId, workspaceId }: AgentChatProps) {
   const serverId = usePluginServerId();
   const { t } = useTranslation();
-  // The conversation the dock was asked for, then each subagent opened from it.
+  // The conversation AgentChat was asked for, then each subagent opened from it.
   const [stack, setStack] = useState<ChatTarget[]>([]);
   useEffect(() => setStack([]), [agentId]);
   const root = useMemo<ChatTarget>(() => ({ kind: "agent", agentId }), [agentId]);
