@@ -62,7 +62,6 @@ function installed(serverId: string, themes: PluginThemeContribution[]): Install
     legacySidebarItems: [],
     filePanels: [],
     workspacePanels: [],
-    appPanels: [],
     commandCenterItems: [],
     clientSlashCommands: [],
     createOptions: [],

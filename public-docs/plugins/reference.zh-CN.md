@@ -1751,26 +1751,6 @@ Agent 快照字段：
 
 标签页的焦点、拆分、关闭、持久化、查询状态、API/RPC Provider 以及渲染错误边界都由 Paseo 负责。如果恢复的标签页所对应的插件、面板、上下文、工作区或 Agent 不可用，该标签页会保持打开并显示“不可用”消息，而不会让工作区崩溃。
 
-### 应用面板 {#app-panels}
-
-`addAppPanel` 向**应用停靠栏**添加面板。停靠栏是位于窗口最右侧的侧边面板，属于应用而不是某个工作区。打开状态、宽度和所选面板只保存一份，因此切换工作区时停靠栏不会变化。宽布局下它位于最右侧并压缩内容（包括资源管理器）；紧凑布局下它覆盖整个屏幕并提供关闭按钮。
-
-```tsx
-client.addAppPanel({ id: "inbox", title: "Inbox", icon: "Inbox", Component: InboxPanel });
-
-// 在任何回调中调用，例如头部按钮的 onPress：
-client.toggleAppPanel("inbox");
-```
-
-| 字段        | 必填 | 含义                                                    |
-| ----------- | ---- | ------------------------------------------------------- |
-| `id`        | 是   | 插件内唯一的面板 ID。                                   |
-| `title`     | 是   | 停靠栏标题。                                            |
-| `icon`      | 是   | Lucide 名称、`{ svg }` 或组件。参见[图标](#icons)。     |
-| `Component` | 是   | 接收 `PluginAppPanelProps`：`theme`、`host`、`layout`。 |
-
-应用面板没有 `workspaceId`；需要时使用 `usePaseo()` 或 `useWorkspace`。`client.openAppPanel(id)` 显示面板，`client.toggleAppPanel(id)` 在停靠栏已显示该面板时关闭它，`client.closeAppPanel()` 在停靠栏显示你的面板时关闭它。传入未知面板 ID 会抛出错误。停靠栏一次显示一个面板。
-
 ## 文件面板 {#file-panels}
 
 注册一个组件，把文件渲染为文件标签页的主体。组件会收到所选主机上该文件的句柄，远程主机也一样。由组件读取文件、显示自己的加载状态，并在用户编辑时写回文件。面板报告有未保存更改时，标签页会显示一个圆点。

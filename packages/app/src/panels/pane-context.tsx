@@ -18,7 +18,7 @@ export interface PaneContextValue {
   openPreferredTarget: (target: WorkspaceTabTarget, source: OpenInSidePaneSource) => void;
   openTargetToSide?: (target: WorkspaceTabTarget) => void;
   /**
-   * Hosts without workspace tabs (the plugin AgentChat in the app dock) open subagents here, in
+   * Hosts without workspace tabs (the plugin AgentChat) open subagents here, in
    * place. Absent in a workspace pane, whose subagents open as tabs.
    */
   openSubagentTarget?: (target: WorkspaceTabTarget) => void;

@@ -100,7 +100,6 @@ export class PluginRegistry {
           legacySidebarItems: [],
           filePanels: [],
           workspacePanels: [],
-          appPanels: [],
           commandCenterItems: [],
           clientSlashCommands: [],
           createOptions: [],
