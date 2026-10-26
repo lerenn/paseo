@@ -87,6 +87,30 @@ export interface PluginBeforeRequests {
     labels: Record<string, string>;
     parentAgentId: string | null;
   };
+  /**
+   * Runs before a user or agent prompt is delivered to the provider, for every provider. Return the
+   * request with `prepend` set to add content in front of the prompt as a separate, marked block;
+   * the user's text is never edited and the timeline still shows only what was sent. Hooks of
+   * several plugins compose in plugin-ID order (a later one sees the earlier `prepend`). Only
+   * `prepend` can change. A hook that throws or exceeds its time budget is skipped: the prompt is
+   * always delivered.
+   */
+  "agent.prompt": {
+    agentId: string;
+    labels: Record<string, string>;
+    parentAgentId: string | null;
+    /**
+     * The prompt's text, unwrapped from the agent-message envelope; image and attachment blocks are
+     * not included. Slash commands never reach the hook.
+     */
+    prompt: string;
+    /** Who sent it: the user, or another agent (`sourceAgentId` names it). */
+    source: "user" | "agent";
+    sourceAgentId: string | null;
+    /** First prompt delivered to this provider session (a resumed session counts as new). */
+    isFirstPrompt: boolean;
+    prepend?: string;
+  };
   "agent.session_open": PluginSessionOpenRequest;
   "workspace.create": Omit<WorkspaceCreateRequest, "type" | "requestId">;
 }

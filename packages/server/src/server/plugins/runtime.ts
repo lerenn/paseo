@@ -7,7 +7,11 @@ import {
   type ProviderStatusRequest,
 } from "@getpaseo/plugin/server/provider";
 import type { PluginBeforeRequests, PluginLifecycleEvents } from "@getpaseo/plugin/server";
-import { validateBeforeRequest, validateBeforeResult } from "./lifecycle/index.js";
+import {
+  isolatedBeforeHookNames,
+  validateBeforeRequest,
+  validateBeforeResult,
+} from "./lifecycle/index.js";
 import { fork } from "node:child_process";
 import { stat } from "node:fs/promises";
 import path from "node:path";
@@ -43,6 +47,8 @@ import { evaluateBundle } from "./bundle-evaluator.js";
 const CLIENT_ENTRY_FILENAMES = ["index.client.ts", "index.client.tsx"] as const;
 const SERVER_ENTRY_FILENAMES = ["index.server.ts", "index.server.tsx"] as const;
 const REQUEST_TIMEOUT_MS = 30_000;
+/** Time budget of one plugin's hook that must not delay the operation it precedes. */
+const ISOLATED_HOOK_TIMEOUT_MS = 3_000;
 /** A runtime verb may start a sandbox, which takes minutes; its exec has no deadline either. */
 const RUNTIME_LIFECYCLE_TIMEOUT_MS = 15 * 60_000;
 const RUNTIME_FILE_TIMEOUT_MS = 2 * 60_000;
@@ -588,15 +594,28 @@ export class PluginRuntime {
         continue;
       }
       try {
-        const output = await this.request(loaded, {
-          type: "hook",
-          requestId: randomUUID(),
-          kind: "before",
-          name,
-          input: request,
-        });
+        const isolated = isolatedBeforeHookNames.has(name);
+        const output = await this.request(
+          loaded,
+          {
+            type: "hook",
+            requestId: randomUUID(),
+            kind: "before",
+            name,
+            input: request,
+          },
+          isolated ? ISOLATED_HOOK_TIMEOUT_MS : REQUEST_TIMEOUT_MS,
+        );
         request = validateBeforeResult(name, request, output);
       } catch (error) {
+        if (isolatedBeforeHookNames.has(name)) {
+          this.appendLog(
+            loaded.id,
+            "stderr",
+            `Before hook ${name} skipped: ${describeError(error)}`,
+          );
+          continue;
+        }
         throw new Error(`Plugin ${loaded.id} before ${name} failed: ${describeError(error)}`, {
           cause: error,
         });

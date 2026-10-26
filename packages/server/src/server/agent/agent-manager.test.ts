@@ -8450,6 +8450,119 @@ describe("activeTurnBehavior skip", () => {
   });
 });
 
+describe("agent.prompt hook", () => {
+  class CapturingSession extends TestAgentSession {
+    readonly prompts: unknown[] = [];
+    override async startTurn(
+      prompt: Parameters<TestAgentSession["startTurn"]>[0],
+      options?: Parameters<TestAgentSession["startTurn"]>[1],
+    ): Promise<{ turnId: string }> {
+      this.prompts.push(prompt);
+      return super.startTurn(prompt, options);
+    }
+  }
+  class CapturingClient implements AgentClient {
+    readonly provider = "codex" as const;
+    readonly capabilities = TEST_CAPABILITIES;
+    readonly sessions: CapturingSession[] = [];
+    async isAvailable(): Promise<boolean> {
+      return true;
+    }
+    async createSession(config: AgentSessionConfig): Promise<AgentSession> {
+      const session = new CapturingSession(config);
+      this.sessions.push(session);
+      return session;
+    }
+    async resumeSession(config?: Partial<AgentSessionConfig>): Promise<AgentSession> {
+      return new CapturingSession({ provider: "codex", cwd: config?.cwd ?? process.cwd() });
+    }
+  }
+
+  async function setup(before: (name: string, request: never) => Promise<unknown>) {
+    const workdir = mkdtempSync(join(tmpdir(), "agent-manager-prompt-hook-"));
+    const client = new CapturingClient();
+    const requests: unknown[] = [];
+    const manager = new AgentManager({
+      clients: { codex: client },
+      registry: new AgentStorage(join(workdir, "agents"), logger),
+      logger,
+      idFactory: () => "00000000-0000-4000-8000-000000000132",
+      pluginLifecycle: {
+        before: (async (name: string, request: never) => {
+          if (name === "agent.prompt") requests.push(request);
+          return before(name, request);
+        }) as never,
+        emit: () => undefined,
+      },
+    });
+    const agent = await manager.createAgent(
+      { provider: "codex", cwd: workdir, title: "Prompt hook" },
+      undefined,
+      { workspaceId: undefined, labels: { team: "payments" } },
+    );
+    return { manager, agent, session: client.sessions[0]!, requests };
+  }
+
+  test("prepends a marked block, keeps the user's text and reports the first prompt once", async () => {
+    const { manager, agent, session, requests } = await setup(async (name, request) =>
+      name === "agent.prompt" ? { ...(request as object), prepend: "Remember: be brief" } : request,
+    );
+    await manager.runAgent(agent.id, "hello");
+    await manager.runAgent(agent.id, "again");
+    expect(session.prompts).toEqual([
+      "<paseo-plugin-context>\nRemember: be brief\n</paseo-plugin-context>\n\nhello",
+      "<paseo-plugin-context>\nRemember: be brief\n</paseo-plugin-context>\n\nagain",
+    ]);
+    expect(requests).toMatchObject([
+      {
+        prompt: "hello",
+        isFirstPrompt: true,
+        source: "user",
+        sourceAgentId: null,
+        labels: { team: "payments" },
+        parentAgentId: null,
+      },
+      { prompt: "again", isFirstPrompt: false },
+    ]);
+  });
+
+  test("a failing hook never blocks the prompt", async () => {
+    const { manager, agent, session } = await setup(async (name, request) => {
+      if (name === "agent.prompt") throw new Error("hook exploded");
+      return request;
+    });
+    await manager.runAgent(agent.id, "hello");
+    expect(session.prompts).toEqual(["hello"]);
+  });
+
+  test("agent messages are unwrapped for the hook and slash commands are left alone", async () => {
+    const { manager, agent, session, requests } = await setup(async (name, request) =>
+      name === "agent.prompt" ? { ...(request as object), prepend: "ctx" } : request,
+    );
+    await manager.runAgent(
+      agent.id,
+      '<paseo-system version="1" kind="agent-message" source-agent-id="peer-1" message-id="m1">\nping\n</paseo-system>',
+    );
+    await manager.runAgent(agent.id, "/compact");
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({ prompt: "ping", source: "agent", sourceAgentId: "peer-1" });
+    expect(session.prompts[1]).toBe("/compact");
+  });
+
+  test("structured prompts get the block as a leading text part", async () => {
+    const { manager, agent, session } = await setup(async (name, request) =>
+      name === "agent.prompt" ? { ...(request as object), prepend: "ctx" } : request,
+    );
+    await manager.runAgent(agent.id, [{ type: "text", text: "see image" }]);
+    expect(session.prompts).toEqual([
+      [
+        { type: "text", text: "<paseo-plugin-context>\nctx\n</paseo-plugin-context>" },
+        { type: "text", text: "see image" },
+      ],
+    ]);
+  });
+});
+
 test("streamAgent clears pending run when startTurn fails before a turn id exists", async () => {
   const workdir = mkdtempSync(join(tmpdir(), "agent-manager-start-turn-failure-"));
   const storagePath = join(workdir, "agents");
