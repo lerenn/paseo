@@ -52,15 +52,19 @@ export function RuntimeBadge({
   runtimeId,
   workspaceId,
   size,
+  hostIconShown = false,
 }: {
   serverId: string;
   runtimeId: string | null | undefined;
   workspaceId?: string;
   size: number;
+  /** The host indicator already draws the runtime's `hostIcon`; skip this badge if it has no label. */
+  hostIconShown?: boolean;
 }) {
   const badge = useWorkspaceRuntimeBadge(serverId, runtimeId);
   const details = useWorkspaceRuntimeDetails(serverId, workspaceId, runtimeId);
   if (!badge) return null;
+  if (hostIconShown && details?.hostIcon && !details.label) return null;
   const shortLabel = details?.label;
   const tooltip = details?.tooltip ?? badge.label;
   return (

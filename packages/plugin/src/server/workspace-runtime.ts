@@ -54,6 +54,12 @@ export interface WorkspaceRuntimeDisplay {
   tooltip?: string;
   /** One line for the workspace header. */
   detail?: string;
+  /**
+   * A Lucide icon name. When set, the sidebar's host indicator draws this icon instead of the
+   * server icon, in the host's colour and followed by the host name, with `tooltip` on hover.
+   * No separate runtime badge is drawn when this is set and `label` is empty.
+   */
+  hostIcon?: string;
 }
 
 export interface WorkspaceRuntimeCommandRequest extends WorkspaceRuntimeWorkspaceRequest {

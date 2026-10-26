@@ -6984,6 +6984,7 @@ export interface WorkspaceRuntimeDetails {
   label?: string;
   tooltip?: string;
   detail?: string;
+  hostIcon?: string;
 }
 
 export const WorkspaceRuntimesListResponseSchema = z.object({
@@ -7003,6 +7004,7 @@ export const WorkspaceRuntimeDetailsResponseSchema = z.object({
     label: z.string().optional(),
     tooltip: z.string().optional(),
     detail: z.string().optional(),
+    hostIcon: z.string().optional(),
   }),
 });
 

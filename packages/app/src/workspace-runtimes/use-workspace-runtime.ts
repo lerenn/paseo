@@ -83,5 +83,8 @@ export function useWorkspaceRuntimeDetails(
     refetchInterval: DETAILS_STALE_MS,
   });
   const data = query.data;
-  return useMemo(() => (data && (data.label || data.tooltip || data.detail) ? data : null), [data]);
+  return useMemo(
+    () => (data && (data.label || data.tooltip || data.detail || data.hostIcon) ? data : null),
+    [data],
+  );
 }

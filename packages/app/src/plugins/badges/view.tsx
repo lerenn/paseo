@@ -1,9 +1,10 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { Text, View } from "react-native";
-import { StyleSheet } from "react-native-unistyles";
+import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import type { PluginBadgeAgent } from "@getpaseo/plugin/client";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSessionStore } from "@/stores/session-store";
+import type { Theme } from "@/styles/theme";
 import { PluginIconView } from "../icons";
 import { resolveAgentBadges, type ResolvedAgentBadge } from "./model";
 import { pluginAgentBadgeStore } from "./store";
@@ -11,6 +12,16 @@ import { pluginAgentBadgeStore } from "./store";
 const BADGE_ICON_SIZE = 12;
 /** Badges stack; past this many the rest are summarised so a row stays compact. */
 const MAX_VISIBLE_BADGES = 3;
+
+/**
+ * `currentColor` does not follow the theme on native and inherits a fixed colour on web, so the
+ * badge icon takes the theme's foreground colour (which changes with light and dark mode).
+ */
+function BadgeIcon({ icon, color = "" }: { icon: ResolvedAgentBadge["icon"]; color?: string }) {
+  return <PluginIconView icon={icon} size={BADGE_ICON_SIZE} color={color} />;
+}
+const ThemedBadgeIcon = withUnistyles(BadgeIcon);
+const foregroundMapping = (theme: Theme) => ({ color: theme.colors.foreground });
 
 /** The agents a surface stands for, as the badge functions see them. */
 function useBadgeAgents(input: {
@@ -53,7 +64,7 @@ export function useAgentBadges(input: {
 function Badge({ badge }: { badge: ResolvedAgentBadge }) {
   const content = (
     <View style={styles.badge} testID={`agent-badge-${badge.key}`}>
-      <PluginIconView icon={badge.icon} size={BADGE_ICON_SIZE} color="currentColor" />
+      <ThemedBadgeIcon icon={badge.icon} uniProps={foregroundMapping} />
       {badge.text ? (
         <Text style={styles.text} numberOfLines={1}>
           {badge.text}

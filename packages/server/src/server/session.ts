@@ -2568,6 +2568,7 @@ export class Session {
         label: display?.label,
         tooltip: display?.tooltip,
         detail: display?.detail,
+        hostIcon: display?.hostIcon,
       },
     });
   }
