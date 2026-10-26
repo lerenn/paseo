@@ -11,7 +11,9 @@ user-invocable: true
 2. If `upstream/main` has commits that `main` lacks (`git rev-list --count main..upstream/main`),
    follow the **Rebase checklist** in `FORK.md` end-to-end, including the `FORK.md` updates. Report
    conflicts you resolved and how. Replace its desktop build step with step 4 below.
-3. If `package-lock.json` changed since the last install, run `node scripts/npm-retry.mjs ci`.
+3. If `package-lock.json` or anything under `patches/` changed since the last install, run
+   `node scripts/npm-retry.mjs ci`. Patches apply at install time, so a changed patch with an
+   unchanged lockfile still leaves stale types in `node_modules`.
 4. Build only the AppImage:
    `npm run build:desktop -- --publish never --linux AppImage --x64 > /tmp/appimage-build.log 2>&1`.
    On failure, read the log, fix the cause, and rebuild.

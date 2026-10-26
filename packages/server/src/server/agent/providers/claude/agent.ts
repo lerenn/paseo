@@ -1,5 +1,6 @@
 import type { ProviderProcessLauncher } from "../../../workspace-runtime/process-launcher.js";
 import type { RemoteChildProcess } from "../../../workspace-runtime/remote-child-process.js";
+import { ClaudeRuntimeSafety } from "./runtime-safety.js";
 import { validateProviderOptions } from "../../provider-options.js";
 import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -2265,6 +2266,8 @@ class ClaudeAgentSession implements AgentSession {
   private readonly queryFactory?: ClaudeQueryFactory;
   private readonly resolveBinary: () => Promise<string>;
   private query: Query | null = null;
+  private readonly runtimeSafety = new ClaudeRuntimeSafety();
+  private processingSdkMessages = 0;
   private readonly harnessEnvironment: Record<string, string>;
   private readonly usageSessionKey = randomUUID();
   private childProcess: ChildProcess | null = null;
@@ -2942,6 +2945,18 @@ class ClaudeAgentSession implements AgentSession {
     return this.persistence;
   }
 
+  async canStopRuntime(): Promise<boolean> {
+    return (
+      !this.activeForegroundTurnId &&
+      !this.autonomousTurn &&
+      !this.mainTurnInFlight &&
+      this.unstartedMessageUuids.size === 0 &&
+      this.pendingPermissions.size === 0 &&
+      this.processingSdkMessages === 0 &&
+      this.runtimeSafety.canStopRuntime()
+    );
+  }
+
   async close(): Promise<void> {
     this.logger.trace(
       {
@@ -3435,6 +3450,7 @@ class ClaudeAgentSession implements AgentSession {
     const options = await this.buildOptions(launchMode);
     this.logger.debug({ options: summarizeClaudeOptionsForLog(options) }, "claude query");
     this.input = input;
+    this.runtimeSafety.reset();
     // A fresh Claude process has no turn of its own in flight.
     this.mainTurnInFlight = false;
     this.query = claudeQuery(
@@ -4126,13 +4142,17 @@ class ClaudeAgentSession implements AgentSession {
       );
     };
     const handlePumpedMessage = async (message: SDKMessage): Promise<boolean> => {
-      logRawMessage(message);
-      consecutiveInterruptAbortRecoveries = 0;
-      if (await this.handleMissingResumedConversation(message, activeQuery)) {
-        return true;
+      this.processingSdkMessages++;
+      try {
+        this.runtimeSafety.observe(message);
+        logRawMessage(message);
+        consecutiveInterruptAbortRecoveries = 0;
+        if (await this.handleMissingResumedConversation(message, activeQuery)) return true;
+        await this.routeSdkMessageFromPump(message);
+        return false;
+      } finally {
+        this.processingSdkMessages--;
       }
-      await this.routeSdkMessageFromPump(message);
-      return false;
     };
     const drainActiveQuery = async (): Promise<boolean> => {
       for await (const message of activeQuery) {

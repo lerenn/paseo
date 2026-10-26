@@ -107,19 +107,18 @@ export async function startAgentRun(
     },
     "agent.session.start_stream.request",
   );
-  // "skip" is decided here, before any await, so the idle check and the run it allows cannot be
-  // split by another send: Node runs this synchronously through the start of the new run.
-  if (options?.activeTurnBehavior === "skip" && isBusyForSkip(agentManager, agentId)) {
-    options.onDispatch?.("skipped");
-    return { disposition: "skipped" };
-  }
+  // A busy agent skips "skip" sends, out-of-band commands included.
+  if (skipBusyAgent(agentManager, agentId, options)) return { disposition: "skipped" };
   // Out-of-band commands (e.g. /goal pause) must run WITHOUT canceling an
   // in-flight turn — replaceAgentRun would interrupt the running turn. The
   // intercept lives at this layer so it covers every prompt entrypoint.
-  if (agentManager.tryRunOutOfBand(agentId, prompt, options?.runOptions)) {
+  if (await agentManager.tryRunOutOfBand(agentId, prompt, options?.runOptions)) {
     options?.onDispatch?.("out_of_band");
     return { disposition: "out_of_band" };
   }
+  // Decide "skip" again after the last await so the idle check and the run it allows cannot be
+  // split by another send: Node runs this synchronously through the start of the new run.
+  if (skipBusyAgent(agentManager, agentId, options)) return { disposition: "skipped" };
   try {
     return await startAgentRunInner(agentManager, agentId, prompt, logger, options);
   } catch (error) {
@@ -130,6 +129,16 @@ export async function startAgentRun(
     await agentManager.reloadAgentSession(agentId);
     return await startAgentRunInner(agentManager, agentId, prompt, logger, options);
   }
+}
+
+function skipBusyAgent(
+  agentManager: AgentRunController,
+  agentId: string,
+  options: StartAgentRunOptions | undefined,
+): boolean {
+  if (options?.activeTurnBehavior !== "skip" || !isBusyForSkip(agentManager, agentId)) return false;
+  options.onDispatch?.("skipped");
+  return true;
 }
 
 function isBusyForSkip(agentManager: AgentRunController, agentId: string): boolean {
