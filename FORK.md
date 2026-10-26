@@ -150,6 +150,19 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   `/home/paseo/work/upstream-drafts/plugin-create-context/`.
 - **Status:** in fork.
 
+### Skip-if-busy sends
+
+- **API:** MCP `send_agent_prompt` takes `activeTurnBehavior: "skip"`: delivers only if the agent
+  is not running a turn, otherwise returns `{ skipped: true }` with nothing queued. The check and
+  the start of the run happen with no await between them in `startAgentRun`, so two concurrent
+  skip sends deliver exactly one. It bypasses the agent-message quiet window. Daemons advertise
+  `server_info.features.activeTurnSkip`. First consumers: the Assistant and Agents Mail.
+- **Fork PRs:** see the PR that introduced this entry.
+- **Upstream branch (one aspect, cut from upstream main):** `upstream/agent-send-skip-1-skip`.
+- **Upstream Discussion / PR:** drafts only, not posted:
+  `/home/paseo/work/upstream-drafts/agent-send-skip/`.
+- **Status:** in fork.
+
 ### Queue action modifier (#7686)
 
 - **Change:** show the queue action while Cmd/Ctrl is held (`feat(app): show queue action while

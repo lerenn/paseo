@@ -16,7 +16,10 @@ import type { Logger } from "pino";
 
 import type { AgentMode, AgentProvider, AgentSessionConfig } from "../agent-sdk-types.js";
 import type { AgentManager } from "../agent-manager.js";
-import { ActiveTurnBehaviorSchema, AgentProfileSchema } from "@getpaseo/protocol/messages";
+import {
+  AgentPromptActiveTurnBehaviorSchema,
+  AgentProfileSchema,
+} from "@getpaseo/protocol/messages";
 import type { DaemonConfigStore } from "../../daemon-config-store.js";
 import {
   AgentFeatureSchema,
@@ -199,6 +202,18 @@ const WorkspaceAutomationSummarySchema = z.object({
   title: z.string().nullable(),
   background: z.boolean().optional(),
 });
+
+function skippedPromptResult(status: string): PaseoToolResult {
+  return {
+    content: [],
+    structuredContent: {
+      success: true,
+      skipped: true,
+      status,
+      guidance: "The agent was running a turn, so the message was not delivered.",
+    },
+  };
+}
 
 function toWorkspaceAutomationSummary(workspace: PersistedWorkspaceRecord) {
   return {
@@ -1266,8 +1281,8 @@ function createToolCatalog(
     .object(legacyTopLevelCreateAgentInputSchema)
     .strict();
   const commonSendAgentPromptInputSchema = {
-    activeTurnBehavior: ActiveTurnBehaviorSchema.optional().describe(
-      'How to send into a running turn: "steer" joins it, falling back to interrupt when unavailable; "interrupt" replaces it. Defaults to steer for agent callers and interrupt otherwise.',
+    activeTurnBehavior: AgentPromptActiveTurnBehaviorSchema.optional().describe(
+      'How to send into a running turn: "steer" joins it, falling back to interrupt when unavailable; "interrupt" replaces it; "skip" delivers only if the agent is not running a turn and otherwise returns { skipped: true } without queuing (decided atomically on the daemon). Defaults to steer for agent callers and interrupt otherwise.',
     ),
     agentId: z.string(),
     prompt: z.string(),
@@ -1965,6 +1980,7 @@ function createToolCatalog(
       outputSchema: {
         success: z.boolean(),
         disposition: z.enum(["turn_started", "out_of_band", "steered"]).optional(),
+        skipped: z.boolean().optional(),
         deliveryStatus: z.literal("queued").optional(),
         messageId: z.string().optional(),
         status: AgentStatusEnum,
@@ -2006,7 +2022,10 @@ function createToolCatalog(
           );
       }
 
-      if (callerAgentId) {
+      function queueAgentPrompt(
+        callerId: string,
+        behavior: "steer" | "interrupt",
+      ): PaseoToolResult {
         const receipt = (() => {
           try {
             return agentMessages().enqueue({
@@ -2014,11 +2033,11 @@ function createToolCatalog(
               prompt,
               source: {
                 kind: "agent-message",
-                agentId: callerAgentId,
+                agentId: callerId,
                 title: resolveCallerAgent()?.config.title ?? undefined,
               },
               sessionMode,
-              activeTurnBehavior,
+              activeTurnBehavior: behavior,
               onDispatch: confirmDispatch,
             });
           } catch (error) {
@@ -2043,6 +2062,11 @@ function createToolCatalog(
         };
       }
 
+      // "skip" is decided at dispatch, so it bypasses the quiet-window queue.
+      if (callerAgentId && activeTurnBehavior !== "skip") {
+        return queueAgentPrompt(callerAgentId, activeTurnBehavior);
+      }
+
       const { disposition } = await sendPromptToAgent({
         agentManager,
         agentStorage,
@@ -2060,6 +2084,11 @@ function createToolCatalog(
         }
         throw error;
       });
+
+      if (disposition === "skipped") {
+        rejectNotification();
+        return skippedPromptResult(agentManager.getAgent(agentId)?.lifecycle ?? "idle");
+      }
 
       // Return once the provider has accepted the turn, so the status reports it running.
       if (disposition === "turn_started") {
