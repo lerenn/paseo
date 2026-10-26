@@ -1348,12 +1348,19 @@ export class AgentManager {
     this.assertAcceptingAgentRegistrations();
     const resolvedAgentId = validateAgentId(agentId ?? this.idFactory(), "createAgent");
     if (this.pluginLifecycle && !config.internal) {
+      const workspaceId = options.workspaceId ?? null;
+      const runtimeId =
+        workspaceId && this.workspaceRuntimes
+          ? ((await this.workspaceRuntimes.getWorkspaceRuntime(workspaceId))?.id ?? null)
+          : null;
       const request = await this.pluginLifecycle.before("agent.create", {
         config,
         env: options.env,
         pluginOptions: options.pluginOptions,
         labels: { ...options.labels },
         parentAgentId: options.labels?.[PARENT_AGENT_ID_LABEL] ?? null,
+        workspaceId,
+        runtimeId,
       });
       config = { ...request.config, internal: config.internal };
       options = { ...options, env: request.env };

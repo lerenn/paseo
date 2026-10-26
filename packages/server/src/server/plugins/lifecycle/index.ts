@@ -49,6 +49,8 @@ const beforeSchemas = {
     .extend({
       labels: z.record(z.string(), z.string()).optional(),
       parentAgentId: z.string().nullable().optional(),
+      workspaceId: z.string().nullable().optional(),
+      runtimeId: z.string().nullable().optional(),
     })
     .strict(),
   "agent.prompt": z
@@ -204,6 +206,8 @@ export function validateBeforeResult<Name extends keyof PluginBeforeRequests>(
       ...result,
       labels: previous.labels,
       parentAgentId: previous.parentAgentId,
+      workspaceId: previous.workspaceId,
+      runtimeId: previous.runtimeId,
     } as PluginBeforeRequests[Name];
   }
   return result;
