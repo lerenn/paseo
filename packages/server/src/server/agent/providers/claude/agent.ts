@@ -1,5 +1,5 @@
 import type { ProviderProcessLauncher } from "../../../workspace-runtime/process-launcher.js";
-import type { RemoteChildProcess } from "../../../workspace-runtime/remote-child-process.js";
+import { runtimeExitOf } from "../../../workspace-runtime/remote-child-process.js";
 import { ClaudeRuntimeSafety } from "./runtime-safety.js";
 import { validateProviderOptions } from "../../provider-options.js";
 import type { ChildProcess } from "node:child_process";
@@ -4016,7 +4016,8 @@ class ClaudeAgentSession implements AgentSession {
       return;
     }
     this.childProcess = null;
-    const suspended = (child as Partial<RemoteChildProcess>).runtimeExit?.reason === "suspended";
+    const runtimeReason = runtimeExitOf(child)?.reason;
+    const suspended = runtimeReason === "suspended";
     const exitDetail = { agentId: this.agentId, pid: child.pid, code, signal };
     if (suspended) {
       this.logger.debug(exitDetail, "Claude runtime suspended");
@@ -4024,6 +4025,14 @@ class ClaudeAgentSession implements AgentSession {
       this.logger.warn(exitDetail, "Claude runtime exited unexpectedly");
     }
     this.failRunningRuntimeTasks();
+    if (runtimeReason === "interrupted") {
+      // The platform cut the process. Drop the dead handles and end an open turn as canceled, not
+      // failed: the pump's stall watchdog and "stopped unexpectedly" do not apply.
+      this.query = null;
+      this.input = null;
+      this.cancelOpenTurnAfterRuntimeInterruption();
+      return;
+    }
     if (suspended && !this.activeForegroundTurnId && !this.autonomousTurn) {
       // The runtime stopped an idle workspace on purpose. Drop the dead handles so the next
       // input starts a fresh process; there is nothing to report.
@@ -4047,6 +4056,21 @@ class ClaudeAgentSession implements AgentSession {
         `Claude stopped unexpectedly (${signal ? `signal ${signal}` : `exit code ${code ?? "unknown"}`}). Any background shells, monitors or other work it had running were terminated with it.`,
       ),
     ]);
+  }
+
+  private cancelOpenTurnAfterRuntimeInterruption(): void {
+    const canceled = {
+      type: "turn_canceled" as const,
+      provider: "claude" as const,
+      reason: "Interrupted by the runtime",
+    };
+    this.rejectAllPendingPermissions(new Error("Permission request canceled"));
+    this.flushPendingToolCalls();
+    if (this.activeForegroundTurnId) {
+      this.finishForegroundTurn(canceled);
+    } else if (this.autonomousTurn) {
+      this.dispatchEvents([canceled]);
+    }
   }
 
   // A process in a workspace runtime can vanish with its sandbox (eviction, node loss) without

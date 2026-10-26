@@ -6,6 +6,7 @@ import {
   createFakeCodexAppServer,
 } from "./test-utils/fake-app-server.js";
 import { CodexAppServerClient } from "./app-server-transport.js";
+import { RuntimeInterruptedError } from "../../../workspace-runtime/remote-child-process.js";
 
 describe("Codex app-server transport", () => {
   test("ignores non-JSON stdout lines without dropping pending requests", async () => {
@@ -181,5 +182,27 @@ describe("Codex app-server transport", () => {
     codex.child.stdout.end();
     codex.child.stderr.end();
     codex.child.stdin.end();
+  });
+
+  test("an interrupted runtime exit reaches the termination handler as RuntimeInterruptedError", async () => {
+    const child = createCodexAppServerChildProcess();
+    Object.assign(child, {
+      runtimeExit: {
+        code: null,
+        signal: "SIGTERM",
+        reason: "interrupted",
+        message: "Interrupted by a node reclaim",
+      },
+    });
+    const client = new CodexAppServerClient(child, createTestLogger());
+    const terminated = new Promise<Error>((resolve) =>
+      client.setUnexpectedTerminationHandler(resolve),
+    );
+
+    child.emit("exit", null, "SIGTERM");
+
+    const error = await terminated;
+    expect(error).toBeInstanceOf(RuntimeInterruptedError);
+    expect(error.message).toBe("Interrupted by a node reclaim");
   });
 });
