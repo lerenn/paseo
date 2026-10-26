@@ -26,13 +26,13 @@ export interface StartAgentRunOptions {
   /** Called after selecting the run, before consuming its events. */
   onDispatch?: (disposition: PromptDispatchDisposition) => void;
   replaceRunning?: boolean;
-  activeTurnBehavior?: ActiveTurnBehavior;
+  activeTurnBehavior?: ActiveTurnBehavior | "skip";
   runOptions?: AgentRunOptions;
   /** Ask the provider to deny permissions blocking this steer. */
   clearPendingPermissions?: boolean;
 }
 
-export type PromptDispatchDisposition = "out_of_band" | "steered" | "turn_started";
+export type PromptDispatchDisposition = "out_of_band" | "steered" | "turn_started" | "skipped";
 
 async function steerOrReplaceActiveRun(
   agentManager: AgentRunController,
@@ -107,6 +107,8 @@ export async function startAgentRun(
     },
     "agent.session.start_stream.request",
   );
+  // A busy agent skips "skip" sends, out-of-band commands included.
+  if (skipBusyAgent(agentManager, agentId, options)) return { disposition: "skipped" };
   // Out-of-band commands (e.g. /goal pause) must run WITHOUT canceling an
   // in-flight turn — replaceAgentRun would interrupt the running turn. The
   // intercept lives at this layer so it covers every prompt entrypoint.
@@ -114,6 +116,9 @@ export async function startAgentRun(
     options?.onDispatch?.("out_of_band");
     return { disposition: "out_of_band" };
   }
+  // Decide "skip" again after the last await so the idle check and the run it allows cannot be
+  // split by another send: Node runs this synchronously through the start of the new run.
+  if (skipBusyAgent(agentManager, agentId, options)) return { disposition: "skipped" };
   try {
     return await startAgentRunInner(agentManager, agentId, prompt, logger, options);
   } catch (error) {
@@ -126,6 +131,27 @@ export async function startAgentRun(
   }
 }
 
+function skipBusyAgent(
+  agentManager: AgentRunController,
+  agentId: string,
+  options: StartAgentRunOptions | undefined,
+): boolean {
+  if (options?.activeTurnBehavior !== "skip" || !isBusyForSkip(agentManager, agentId)) return false;
+  options.onDispatch?.("skipped");
+  return true;
+}
+
+function isBusyForSkip(agentManager: AgentRunController, agentId: string): boolean {
+  const agent = agentManager.getAgent(agentId);
+  if (!agent) return false;
+  return (
+    agent.lifecycle === "running" ||
+    agent.lifecycle === "initializing" ||
+    Boolean(agent.activeForegroundTurnId) ||
+    agentManager.hasInFlightRun(agentId)
+  );
+}
+
 async function startAgentRunInner(
   agentManager: AgentRunController,
   agentId: string,
@@ -134,7 +160,11 @@ async function startAgentRunInner(
   options?: StartAgentRunOptions,
 ): Promise<{ disposition: PromptDispatchDisposition }> {
   const snapshot = agentManager.getAgent(agentId);
-  const steered = await steerOrReplaceActiveRun(agentManager, agentId, prompt, options);
+  // A skipped-if-busy send found the agent idle: start the run with no await in between.
+  const steered =
+    options?.activeTurnBehavior === "skip"
+      ? null
+      : await steerOrReplaceActiveRun(agentManager, agentId, prompt, options);
   if (steered?.disposition === "steered") {
     options?.onDispatch?.("steered");
     return steered;
@@ -216,7 +246,7 @@ export interface SendPromptToAgentParams {
   prompt: AgentPromptInput;
   source?: AgentPromptSource;
   messageId?: string;
-  activeTurnBehavior?: ActiveTurnBehavior;
+  activeTurnBehavior?: ActiveTurnBehavior | "skip";
   runOptions?: AgentRunOptions;
   /** Optional mode to set on the agent before the run starts. */
   sessionMode?: string;

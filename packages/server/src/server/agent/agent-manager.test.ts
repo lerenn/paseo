@@ -12298,3 +12298,72 @@ test("an out-of-band command racing idle cleanup waits for the resumed runtime",
   expect(h.commands).toEqual(["/maintenance"]);
   expect(h.prompts).toEqual([]);
 });
+
+describe("activeTurnBehavior skip", () => {
+  class SkipSession extends TestAgentSession {
+    readonly prompts: unknown[] = [];
+    override async startTurn(
+      prompt: Parameters<TestAgentSession["startTurn"]>[0],
+      options?: Parameters<TestAgentSession["startTurn"]>[1],
+    ): Promise<{ turnId: string }> {
+      this.prompts.push(prompt);
+      return super.startTurn(prompt, options);
+    }
+  }
+  class SkipClient implements AgentClient {
+    readonly provider = "codex" as const;
+    readonly capabilities = TEST_CAPABILITIES;
+    readonly sessions: SkipSession[] = [];
+    async isAvailable(): Promise<boolean> {
+      return true;
+    }
+    async createSession(config: AgentSessionConfig): Promise<AgentSession> {
+      const session = new SkipSession(config);
+      this.sessions.push(session);
+      return session;
+    }
+    async resumeSession(config?: Partial<AgentSessionConfig>): Promise<AgentSession> {
+      return new SkipSession({ provider: "codex", cwd: config?.cwd ?? process.cwd() });
+    }
+  }
+
+  async function setup() {
+    const workdir = mkdtempSync(join(tmpdir(), "agent-manager-skip-"));
+    const client = new SkipClient();
+    const manager = new AgentManager({
+      clients: { codex: client },
+      registry: new AgentStorage(join(workdir, "agents"), logger),
+      logger,
+      idFactory: () => "00000000-0000-4000-8000-000000000133",
+    });
+    const agent = await manager.createAgent({ provider: "codex", cwd: workdir }, undefined, {
+      workspaceId: undefined,
+    });
+    return { manager, agent, session: client.sessions[0]! };
+  }
+
+  test("delivers to an idle agent and skips a busy one without queuing", async () => {
+    const { manager, agent, session } = await setup();
+    const first = await startAgentRun(manager, agent.id, "wake", logger, {
+      activeTurnBehavior: "skip",
+    });
+    expect(first.disposition).toBe("turn_started");
+    await manager.waitForAgentRunStart(agent.id);
+    // The agent now has a turn in flight; a second skip send must not interrupt or queue.
+    const second = await startAgentRun(manager, agent.id, "again", logger, {
+      activeTurnBehavior: "skip",
+    });
+    expect(second.disposition).toBe("skipped");
+    expect(session.prompts).toEqual(["wake"]);
+  });
+
+  test("two concurrent skip sends deliver exactly one", async () => {
+    const { manager, agent, session } = await setup();
+    const results = await Promise.all([
+      startAgentRun(manager, agent.id, "one", logger, { activeTurnBehavior: "skip" }),
+      startAgentRun(manager, agent.id, "two", logger, { activeTurnBehavior: "skip" }),
+    ]);
+    expect(results.map((result) => result.disposition).sort()).toEqual(["skipped", "turn_started"]);
+    expect(session.prompts).toHaveLength(1);
+  });
+});

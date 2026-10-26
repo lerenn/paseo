@@ -3706,6 +3706,58 @@ describe("send_agent_prompt MCP tool", () => {
     },
   );
 
+  it.each([{ agentScoped: true }, { agentScoped: false }])(
+    "skips a busy agent and delivers to an idle one with behavior skip (agent-scoped=$agentScoped)",
+    async ({ agentScoped }) => {
+      const workdir = await mkdtemp(join(tmpdir(), "mcp-send-skip-"));
+      const storage = new AgentStorage(join(workdir, "agents"), logger);
+      const client = new HeldTurnAgentClient("codex", true, { steerResult: "accepted" });
+      const manager = new AgentManager({ clients: { codex: client }, registry: storage, logger });
+      try {
+        const parent = await manager.createAgent(
+          { provider: "codex", cwd: existingCwd },
+          undefined,
+          { workspaceId: "wks_parent" },
+        );
+        const child = await manager.createAgent(
+          { provider: "codex", cwd: existingCwd },
+          undefined,
+          { workspaceId: "wks_parent" },
+        );
+        const server = await createAgentMcpServer({
+          agentManager: manager,
+          agentStorage: storage,
+          callerAgentId: agentScoped ? parent.id : undefined,
+          providerSnapshotManager: createOpenCodeManager().manager,
+          logger,
+        });
+        const tool = registeredTool(server, "send_agent_prompt");
+        const delivered = await invokeToolWithParsedInput(tool, {
+          agentId: child.id,
+          prompt: "wake up",
+          notifyOnFinish: false,
+          activeTurnBehavior: "skip",
+        });
+        expect(delivered.structuredContent).toMatchObject({
+          success: true,
+          disposition: "turn_started",
+        });
+        const skipped = await invokeToolWithParsedInput(tool, {
+          agentId: child.id,
+          prompt: "again",
+          notifyOnFinish: false,
+          activeTurnBehavior: "skip",
+        });
+        expect(skipped.structuredContent).toMatchObject({ success: true, skipped: true });
+        expect(skipped.structuredContent).not.toHaveProperty("deliveryStatus");
+        expect(client.sessions[1]!.prompts).toHaveLength(1);
+        expect(client.sessions[1]!.steeredPrompts).toHaveLength(0);
+      } finally {
+        await removeAgentStateDir(manager, storage, workdir);
+      }
+    },
+  );
+
   it.each([
     { rejected: false, priorNotification: false },
     { rejected: true, priorNotification: false },

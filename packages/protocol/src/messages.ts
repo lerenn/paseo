@@ -1242,6 +1242,8 @@ const ImageAttachmentSchema = z.object({
 });
 
 export const ActiveTurnBehaviorSchema = z.enum(["interrupt", "steer"]);
+// "skip" delivers only when the agent is not running a turn and otherwise drops the message.
+export const AgentPromptActiveTurnBehaviorSchema = z.enum(["interrupt", "steer", "skip"]);
 export type ActiveTurnBehavior = z.infer<typeof ActiveTurnBehaviorSchema>;
 
 export const SendAgentMessageSchema = z.object({
@@ -3653,6 +3655,8 @@ export const ServerInfoStatusPayloadSchema = z
         // COMPAT(internalWorkspaces): added in v0.9.0; remove gate after 2027-03-17.
         internalWorkspaces: z.boolean().optional(),
         backgroundWorkspaces: z.boolean().optional(),
+        // send_agent_prompt accepts activeTurnBehavior "skip" and reports { skipped: true }.
+        activeTurnSkip: z.boolean().optional(),
         providersSnapshot: z.boolean().optional(),
         connectedHosts: z.boolean().optional(),
         hostMultiplexing: z.boolean().optional(),
