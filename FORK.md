@@ -89,7 +89,7 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   the workspace root by textual rewriting of every stream line; Git runs through `exec` with
   `purpose: "command"`; files run through `fs` verbs (polling, no watch); `destroy` runs on every
   removal path, `reconcile` gets the live workspace list, `checkCommand` names a missing binary;
-  `workspaceCwd` is on every request. The sidebar shows the runtime's icon and label; an optional `describeWorkspace` adds a per-workspace short label, tooltip and header detail (RPC `workspace.runtime.details.request`, feature `workspaceRuntimeDetails`). Verbs and
+  `workspaceCwd` is on every request. The sidebar shows the runtime's icon and label; an optional `describeWorkspace` adds a per-workspace short label, tooltip, header detail and optional `hostIcon` (a Lucide name that replaces the server icon in the sidebar's host indicator) (RPC `workspace.runtime.details.request`, feature `workspaceRuntimeDetails`). Verbs and
   names follow getpaseo/paseo#3360 (workspace runtime contract), which registers executables in
   daemon config; this layer registers plugin objects and can move onto #3360 if it merges. Not in
   the fork: terminals, scripts, uploads and per-runtime provider catalogs in the runtime.

@@ -439,6 +439,13 @@ describe("workspace runtime display details", () => {
     expect((await registry.displayOf("pod", request))?.label).toBe("image-2");
 
     expect(await registry.displayOf("gone", request)).toBeNull();
+
+    const withIcon = new WorkspaceRuntimeRegistry();
+    withIcon.register({
+      ...backend,
+      describeWorkspace: async () => ({ hostIcon: "Ship", tooltip: "pod" }),
+    } as never);
+    expect(await withIcon.displayOf("pod", request)).toEqual({ hostIcon: "Ship", tooltip: "pod" });
   });
 
   it("answers null when the runtime cannot describe the workspace", async () => {

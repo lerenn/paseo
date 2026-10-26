@@ -1,6 +1,8 @@
-import { Text, View } from "react-native";
+import { Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { Server } from "lucide-react-native";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { findLucideIcon } from "@/plugins/icons";
 import { HOST_COLORS, type HostBadgeModel, type HostColor } from "@/hosts/appearance";
 import { identityForeground } from "@/styles/identity-colors";
 import type { Theme } from "@/styles/theme";
@@ -11,7 +13,22 @@ import type { Theme } from "@/styles/theme";
  */
 export const HOST_BADGE_ICON_SIZE = 12;
 
-const ThemedServer = withUnistyles(Server);
+function HostGlyph({
+  icon,
+  size,
+  color = "",
+  style,
+}: {
+  icon?: string | null;
+  size: number;
+  color?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const Glyph = (icon ? findLucideIcon(icon) : null) ?? Server;
+  return <Glyph size={size} color={color} style={style} />;
+}
+
+const ThemedHostGlyph = withUnistyles(HostGlyph);
 
 const mutedMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
@@ -40,14 +57,25 @@ const HOST_ICON_MAPPINGS: Record<HostColor, (theme: Theme) => { color: string }>
  * length nobody chose, so the badge yields space before its neighbours rather than alongside
  * them — see `flexShrink` below.
  */
-export function HostBadge({ badge }: { badge: HostBadgeModel }) {
-  return (
+export function HostBadge({
+  badge,
+  icon,
+  tooltip,
+}: {
+  badge: HostBadgeModel;
+  /** A Lucide icon name that replaces the server glyph, such as a workspace runtime's own. */
+  icon?: string | null;
+  /** Shown on hover. */
+  tooltip?: string | null;
+}) {
+  const content = (
     <View
       style={styles.badge}
       testID={`host-badge-${badge.serverId}`}
       accessibilityLabel={badge.label}
     >
-      <ThemedServer
+      <ThemedHostGlyph
+        icon={icon}
         size={HOST_BADGE_ICON_SIZE}
         style={styles.icon}
         uniProps={HOST_ICON_MAPPINGS[badge.color]}
@@ -58,6 +86,15 @@ export function HostBadge({ badge }: { badge: HostBadgeModel }) {
         </Text>
       ) : null}
     </View>
+  );
+  if (!tooltip) return content;
+  return (
+    <Tooltip delayDuration={300}>
+      <TooltipTrigger asChild>{content}</TooltipTrigger>
+      <TooltipContent side="top" align="center" offset={8}>
+        <Text style={styles.tooltipText}>{tooltip}</Text>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -113,6 +150,7 @@ const styles = StyleSheet.create((theme) => ({
     flexShrink: 1,
     minWidth: 0,
   },
+  tooltipText: { color: theme.colors.foreground, fontSize: theme.fontSize.sm },
   labelViolet: { color: identityForeground("violet", theme.colorScheme) },
   labelSky: { color: identityForeground("sky", theme.colorScheme) },
   labelEmerald: { color: identityForeground("emerald", theme.colorScheme) },

@@ -5851,7 +5851,12 @@ export class DaemonClient {
       message: { type: "workspace.runtime.details.request", requestId, workspaceId },
       responseType: "workspace.runtime.details.response",
     });
-    return { label: response.label, tooltip: response.tooltip, detail: response.detail };
+    return {
+      label: response.label,
+      tooltip: response.tooltip,
+      detail: response.detail,
+      hostIcon: response.hostIcon,
+    };
   }
 
   async reconcileAgentSkills(): Promise<AgentSkillsStatus> {
