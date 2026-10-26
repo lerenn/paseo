@@ -1413,7 +1413,7 @@ export const SendAgentMessageRequestSchema = z.object({
   sourceAgentServerId: z.string().min(1).optional(),
   sessionMode: z.string().optional(),
   messageId: z.string().optional(), // Client-provided ID for deduplication
-  activeTurnBehavior: ActiveTurnBehaviorSchema.optional(),
+  activeTurnBehavior: AgentPromptActiveTurnBehaviorSchema.optional(),
   images: z.array(ImageAttachmentSchema).optional(),
   attachments: AgentAttachmentsSchema,
 });
@@ -5069,6 +5069,8 @@ export const SendAgentMessageResponseMessageSchema = z.object({
     agentId: z.string(),
     accepted: z.boolean(),
     deliveryStatus: z.literal("queued").optional(),
+    // activeTurnBehavior "skip" found the agent mid-turn: accepted, not delivered, not queued.
+    skipped: z.boolean().optional(),
     error: z.string().nullable(),
   }),
 });

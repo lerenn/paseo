@@ -448,7 +448,7 @@ export interface SendMessageOptions {
   sessionMode?: string;
   messageId?: string;
   /** What happens when the agent is mid-turn. The daemon interrupts the turn when omitted. */
-  activeTurnBehavior?: ActiveTurnBehavior;
+  activeTurnBehavior?: ActiveTurnBehavior | "skip";
   images?: Array<{ data: string; mimeType: string }>;
   attachments?: SendAgentMessageRequest["attachments"];
 }
@@ -3765,7 +3765,13 @@ export class DaemonClient {
     agentId: string,
     text: string,
     options: SendMessageOptions = {},
-  ): Promise<{ deliveryStatus?: "queued" }> {
+  ): Promise<{ deliveryStatus?: "queued"; skipped?: boolean }> {
+    if (
+      options.activeTurnBehavior === "skip" &&
+      this.lastServerInfoMessage?.features?.activeTurnSkip !== true
+    ) {
+      throw new Error('Update the Paseo host to send with activeTurnBehavior "skip".');
+    }
     if (
       options.sourceAgentId &&
       this.lastServerInfoMessage?.features?.agentMessageProvenance !== true
@@ -3810,14 +3816,17 @@ export class DaemonClient {
     if (!payload.accepted) {
       throw new Error(payload.error ?? "sendAgentMessage rejected");
     }
-    return payload.deliveryStatus ? { deliveryStatus: payload.deliveryStatus } : {};
+    return {
+      ...(payload.deliveryStatus ? { deliveryStatus: payload.deliveryStatus } : {}),
+      ...(payload.skipped ? { skipped: true } : {}),
+    };
   }
 
   async sendMessage(
     agentId: string,
     text: string,
     options?: SendMessageOptions,
-  ): Promise<{ deliveryStatus?: "queued" }> {
+  ): Promise<{ deliveryStatus?: "queued"; skipped?: boolean }> {
     return this.sendAgentMessage(agentId, text, options);
   }
 

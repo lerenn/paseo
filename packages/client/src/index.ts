@@ -285,6 +285,9 @@ export interface PaseoAgentTimelineRefetchOptions {
 }
 
 export type PaseoAgentSendOptions = SendMessageOptions;
+export interface PaseoAgentSendResult {
+  skipped?: boolean;
+}
 
 export interface PaseoAgentRunOptions extends PaseoAgentSendOptions {
   timeoutMs?: number;
@@ -369,7 +372,11 @@ export interface PaseoAgentHandle {
   readonly timeline: PaseoAgentTimelineHandle;
   current(): PaseoAgent | null;
   refresh(requestId?: string): Promise<PaseoAgentRefetchResult | null>;
-  send(text: string, options?: PaseoAgentSendOptions): Promise<void>;
+  /**
+   * Sends a prompt. With `activeTurnBehavior: "skip"` it is delivered only if the agent is not
+   * running a turn, and resolves `{ skipped: true }` (nothing queued) otherwise.
+   */
+  send(text: string, options?: PaseoAgentSendOptions): Promise<PaseoAgentSendResult>;
   respondToPermission(options: PaseoAgentRespondToPermissionOptions): Promise<void>;
   /** Sends a prompt and resolves when that turn finishes or needs attention. */
   run(text: string, options?: PaseoAgentRunOptions): Promise<PaseoAgentRunResult>;
@@ -982,7 +989,8 @@ function createAgentHandleFactory(
         return result;
       },
       send: async (text, options) => {
-        await daemonClient.sendAgentMessage(id, text, options);
+        const { skipped } = await daemonClient.sendAgentMessage(id, text, options);
+        return skipped ? { skipped: true } : {};
       },
       respondToPermission: async ({ requestId, response }) => {
         await daemonClient.respondToPermission(id, requestId, response);
