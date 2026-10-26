@@ -5,7 +5,11 @@ import {
   type ProviderStatusRequest,
 } from "@getpaseo/plugin/server/provider";
 import type { PluginBeforeRequests, PluginLifecycleEvents } from "@getpaseo/plugin/server";
-import { validateBeforeRequest, validateBeforeResult } from "./lifecycle/index.js";
+import {
+  isolatedBeforeHookNames,
+  validateBeforeRequest,
+  validateBeforeResult,
+} from "./lifecycle/index.js";
 import { fork } from "node:child_process";
 import { stat } from "node:fs/promises";
 import path from "node:path";
@@ -40,6 +44,8 @@ import { evaluateBundle } from "./bundle-evaluator.js";
 const CLIENT_ENTRY_FILENAMES = ["index.client.ts", "index.client.tsx"] as const;
 const SERVER_ENTRY_FILENAMES = ["index.server.ts", "index.server.tsx"] as const;
 const REQUEST_TIMEOUT_MS = 30_000;
+/** Time budget of one plugin's hook that must not delay the operation it precedes. */
+const ISOLATED_HOOK_TIMEOUT_MS = 3_000;
 const MAX_LOG_ENTRIES = 500;
 const MAX_LOG_BYTES = 256 * 1024;
 const MAX_LOG_LINE_BYTES = 16 * 1024;
@@ -559,15 +565,28 @@ export class PluginRuntime {
         continue;
       }
       try {
-        const output = await this.request(loaded, {
-          type: "hook",
-          requestId: randomUUID(),
-          kind: "before",
-          name,
-          input: request,
-        });
+        const isolated = isolatedBeforeHookNames.has(name);
+        const output = await this.request(
+          loaded,
+          {
+            type: "hook",
+            requestId: randomUUID(),
+            kind: "before",
+            name,
+            input: request,
+          },
+          isolated ? ISOLATED_HOOK_TIMEOUT_MS : REQUEST_TIMEOUT_MS,
+        );
         request = validateBeforeResult(name, request, output);
       } catch (error) {
+        if (isolatedBeforeHookNames.has(name)) {
+          this.appendLog(
+            loaded.id,
+            "stderr",
+            `Before hook ${name} skipped: ${describeError(error)}`,
+          );
+          continue;
+        }
         throw new Error(`Plugin ${loaded.id} before ${name} failed: ${describeError(error)}`, {
           cause: error,
         });
@@ -597,6 +616,7 @@ export class PluginRuntime {
   private request(
     loaded: LoadedPlugin,
     message: Extract<PluginProcessRequest, { requestId: string }>,
+    timeoutMs = REQUEST_TIMEOUT_MS,
   ): Promise<unknown> {
     const child = loaded.child;
     const pluginId = loaded.id;
@@ -609,7 +629,7 @@ export class PluginRuntime {
           void send(child, { type: "hook.cancel", requestId }).catch(() => {});
         }
         reject(new Error(`Plugin RPC timed out: ${pluginId}.${message.type}`));
-      }, REQUEST_TIMEOUT_MS);
+      }, timeoutMs);
       loaded.pending.set(requestId, { resolve, reject, timeout });
       void send(child, message).catch((error) => {
         clearTimeout(timeout);

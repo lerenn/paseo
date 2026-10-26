@@ -81,7 +81,11 @@ import {
   type PendingForegroundRun,
 } from "./agent-run-state.js";
 import { invokeRewindCapability, type RewindMode } from "./rewind/rewind.js";
-import { parseAgentMessage, projectAgentMessages } from "./agent-messages/index.js";
+import {
+  parseAgentMessage,
+  parseAgentMessages,
+  projectAgentMessages,
+} from "./agent-messages/index.js";
 import { isStaleProviderSessionError } from "./stale-provider-session-error.js";
 import { stripInternalPaseoMcpServer, withRuntimePaseoMcpServer } from "./runtime-mcp-config.js";
 import { resolveCreateAgentTitles } from "./create-agent-title.js";
@@ -1279,6 +1283,8 @@ export class AgentManager {
   ): Promise<ManagedAgent> {
     return this.trackAgentRegistrationOperation(this.createAgentInternal(config, agentId, options));
   }
+
+  private readonly promptedSessions = new WeakSet<object>();
 
   private async createAgentInternal(
     config: AgentSessionConfig,
@@ -2616,6 +2622,52 @@ export class AgentManager {
     });
   }
 
+  /**
+   * Lets plugins prepend context to a prompt on its way to the provider. The user's own text is
+   * not edited (the block is separate and marked), and what the timeline shows is unchanged. A
+   * hook that fails or is slow is skipped by the plugin runtime, so this never blocks a prompt.
+   */
+  private async applyPromptHooks(
+    agent: ActiveManagedAgent,
+    prompt: AgentPromptInput,
+  ): Promise<AgentPromptInput> {
+    if (!this.pluginLifecycle) return prompt;
+    const rawText =
+      typeof prompt === "string"
+        ? prompt
+        : prompt.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n");
+    const envelopes = parseAgentMessages(rawText);
+    const text = envelopes ? envelopes.map((message) => message.text).join("\n\n") : rawText;
+    // Slash commands are parsed by the provider from the raw text: leave them untouched.
+    if (text.trimStart().startsWith("/")) return prompt;
+    const isFirstPrompt = !this.promptedSessions.has(agent.session);
+    this.promptedSessions.add(agent.session);
+    const sourceAgentId =
+      envelopes?.flatMap((message) => (message.source ? [message.source.agentId] : []))[0] ?? null;
+    let prepend: string | undefined;
+    try {
+      const request = await this.pluginLifecycle.before("agent.prompt", {
+        agentId: agent.id,
+        labels: { ...agent.labels },
+        parentAgentId: agent.labels[PARENT_AGENT_ID_LABEL] ?? null,
+        prompt: text,
+        source: sourceAgentId ? "agent" : "user",
+        sourceAgentId,
+        isFirstPrompt,
+      });
+      prepend = request.prepend;
+    } catch (error) {
+      this.logger.warn({ err: error, agentId: agent.id }, "agent.prompt hooks failed");
+      return prompt;
+    }
+    const context = prepend?.trim();
+    if (!context) return prompt;
+    const block = `<paseo-plugin-context>\n${context}\n</paseo-plugin-context>`;
+    return typeof prompt === "string"
+      ? `${block}\n\n${prompt}`
+      : [{ type: "text", text: block }, ...prompt];
+  }
+
   private async startPendingForegroundTurn(params: {
     agent: ActiveManagedAgent;
     agentId: string;
@@ -2623,8 +2675,13 @@ export class AgentManager {
     prompt: AgentPromptInput;
     options?: AgentRunOptions;
   }): Promise<string> {
-    const { agent, agentId, pendingRun, prompt, options } = params;
+    const { agent, agentId, pendingRun, options } = params;
+    let prompt = params.prompt;
     try {
+      // Without plugin hooks this stays synchronous: turn ordering depends on it.
+      if (this.pluginLifecycle && !agent.internal) {
+        prompt = await this.applyPromptHooks(agent, prompt);
+      }
       const result = await agent.session.startTurn(prompt, options);
       if (pendingRun.settled) {
         throw new Error(`Agent ${agentId} run was canceled before its turn started`);

@@ -98,3 +98,65 @@ test("session-open hooks reject changes to session identity instead of silently 
     ),
   ).rejects.toThrow("agent.session_open hooks can only change env");
 });
+
+test("agent.prompt hooks compose prepends in order and cannot change anything else", async () => {
+  const hooks = new PluginHookHandlers(() => {});
+  hooks.before("agent.prompt", ({ request }) => ({
+    ...request,
+    prompt: "rewritten",
+    labels: { injected: "yes" },
+    isFirstPrompt: false,
+    prepend: "one",
+  }));
+  hooks.before("agent.prompt", ({ request }) => ({
+    ...request,
+    prepend: `${request.prepend}+two`,
+  }));
+  const output = await hooks.invoke(
+    "operation",
+    "before",
+    "agent.prompt",
+    {
+      agentId: "a",
+      labels: { team: "payments" },
+      parentAgentId: null,
+      prompt: "hello",
+      isFirstPrompt: true,
+      source: "user",
+      sourceAgentId: null,
+    },
+    paseo,
+  );
+  expect(output).toEqual({
+    agentId: "a",
+    labels: { team: "payments" },
+    parentAgentId: null,
+    prompt: "hello",
+    isFirstPrompt: true,
+    source: "user",
+    sourceAgentId: null,
+    prepend: "one+two",
+  });
+});
+
+test("agent.prompt rejects an oversized prepend", async () => {
+  const hooks = new PluginHookHandlers(() => {});
+  hooks.before("agent.prompt", ({ request }) => ({ ...request, prepend: "x".repeat(20_000) }));
+  await expect(
+    hooks.invoke(
+      "operation",
+      "before",
+      "agent.prompt",
+      {
+        agentId: "a",
+        labels: {},
+        parentAgentId: null,
+        prompt: "hi",
+        isFirstPrompt: true,
+        source: "user",
+        sourceAgentId: null,
+      },
+      paseo,
+    ),
+  ).rejects.toThrow("prepend exceeds");
+});

@@ -26,10 +26,33 @@ export const lifecycleEventNames = [
   "workspace.created",
   "workspace.archived",
 ] as const;
-export const beforeHookNames = ["agent.create", "agent.session_open", "workspace.create"] as const;
+export const beforeHookNames = [
+  "agent.create",
+  "agent.prompt",
+  "agent.session_open",
+  "workspace.create",
+] as const;
+
+/** Before hooks whose failure must never block the operation: a failing hook is skipped. */
+export const isolatedBeforeHookNames: ReadonlySet<string> = new Set(["agent.prompt"]);
+
+/** The most a hook may prepend to one prompt. */
+export const MAX_PROMPT_PREPEND_CHARS = 16_000;
 
 const beforeSchemas = {
   "agent.create": CreateAgentRequestMessageSchema.pick({ config: true, env: true }).strict(),
+  "agent.prompt": z
+    .object({
+      agentId: z.string(),
+      labels: z.record(z.string(), z.string()),
+      parentAgentId: z.string().nullable(),
+      prompt: z.string(),
+      source: z.enum(["user", "agent"]),
+      sourceAgentId: z.string().nullable(),
+      isFirstPrompt: z.boolean(),
+      prepend: z.string().optional(),
+    })
+    .strict(),
   "agent.session_open": z
     .object({
       agentId: z.string(),
@@ -148,6 +171,15 @@ export function validateBeforeResult<Name extends keyof PluginBeforeRequests>(
     ) {
       throw new Error("agent.session_open hooks can only change env");
     }
+  }
+  if (name === "agent.prompt") {
+    const previous = beforeSchemas["agent.prompt"].parse(input);
+    const next = beforeSchemas["agent.prompt"].parse(result);
+    if (next.prepend !== undefined && next.prepend.length > MAX_PROMPT_PREPEND_CHARS) {
+      throw new Error(`agent.prompt prepend exceeds ${MAX_PROMPT_PREPEND_CHARS} characters`);
+    }
+    // Only `prepend` is editable; everything else stays as the daemon sent it.
+    return { ...previous, prepend: next.prepend } as PluginBeforeRequests[Name];
   }
   if (name === "agent.create") {
     const previous = beforeSchemas["agent.create"].parse(input);
