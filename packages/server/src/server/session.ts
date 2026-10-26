@@ -8348,8 +8348,10 @@ export class Session {
         queued = acceptAdmission;
       });
       let deliveryStatus: "queued" | undefined;
+      let skipped = false;
       const send = async () => {
-        if (msg.sourceAgentId) {
+        // "skip" is decided at dispatch, so it bypasses the agent-message quiet-window queue.
+        if (msg.sourceAgentId && msg.activeTurnBehavior !== "skip") {
           const receipt = this.agentMessages.enqueue({
             recipientId: agentId,
             messageId: msg.messageId,
@@ -8378,10 +8380,21 @@ export class Session {
           prompt,
           messageId: msg.messageId,
           activeTurnBehavior: msg.activeTurnBehavior ?? "interrupt",
+          source: msg.sourceAgentId
+            ? {
+                kind: "agent-message",
+                agentId: msg.sourceAgentId,
+                serverId: msg.sourceAgentServerId,
+              }
+            : undefined,
           sessionMode: msg.sessionMode,
           clearPendingPermissions: true,
           logger: this.sessionLogger,
         });
+        if (result.disposition === "skipped") {
+          skipped = true;
+          return;
+        }
         if (result.disposition === "turn_started") {
           await waitForAgentRunStartWithTimeout(
             this.agentManager,
@@ -8422,6 +8435,7 @@ export class Session {
           agentId,
           accepted: true,
           ...(deliveryStatus ? { deliveryStatus } : {}),
+          ...(skipped ? { skipped: true } : {}),
           error: null,
         },
       });

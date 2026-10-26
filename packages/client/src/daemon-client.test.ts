@@ -7747,6 +7747,46 @@ test.each([false, true])(
   },
 );
 
+test.each([false, true])(
+  "activeTurnBehavior skip needs host support=%s and reports a skipped delivery",
+  async (supported) => {
+    const transport = createMockTransport();
+    const client = new DaemonClient({
+      url: "ws://test",
+      clientId: "skip-send",
+      transportFactory: () => transport.transport,
+      reconnect: { enabled: false },
+    });
+    clients.push(client);
+    const connecting = client.connect();
+    transport.triggerOpen({ features: { activeTurnSkip: supported } });
+    await connecting;
+    if (!supported) {
+      await expect(
+        client.sendAgentMessage("recipient", "wake", { activeTurnBehavior: "skip" }),
+      ).rejects.toThrow("Update the Paseo host");
+      expect(transport.sent).toHaveLength(0);
+      return;
+    }
+    const send = client.sendAgentMessage("recipient", "wake", { activeTurnBehavior: "skip" });
+    const request = parseSentFrame(transport.sent[0]);
+    expect(request).toMatchObject({ activeTurnBehavior: "skip" });
+    transport.triggerMessage(
+      wrapSessionMessage({
+        type: "send_agent_message_response",
+        payload: {
+          requestId: request.requestId,
+          agentId: "recipient",
+          accepted: true,
+          skipped: true,
+          error: null,
+        },
+      }),
+    );
+    await expect(send).resolves.toEqual({ skipped: true });
+  },
+);
+
 test("measures an outbound message in UTF-8 bytes against the daemon's message limit", async () => {
   const mock = createMockTransport();
   const client = new DaemonClient({

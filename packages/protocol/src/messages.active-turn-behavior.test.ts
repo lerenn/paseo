@@ -2,6 +2,7 @@ import {
   AgentStreamEventPayloadSchema,
   AgentTimelineEntryPayloadSchema,
   SendAgentMessageRequestSchema,
+  SendAgentMessageResponseMessageSchema,
 } from "./messages";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -26,6 +27,32 @@ describe("send_agent_message_request active-turn behavior", () => {
         text: "Keep the old behavior",
       }).activeTurnBehavior,
     ).toBeUndefined();
+  });
+});
+
+describe("send_agent_message_request skip", () => {
+  it("accepts skip and the response can report a skipped delivery", () => {
+    expect(
+      SendAgentMessageRequestSchema.parse({
+        type: "send_agent_message_request",
+        requestId: "request-3",
+        agentId: "agent-1",
+        text: "wake",
+        activeTurnBehavior: "skip",
+      }).activeTurnBehavior,
+    ).toBe("skip");
+    expect(
+      SendAgentMessageResponseMessageSchema.parse({
+        type: "send_agent_message_response",
+        payload: {
+          requestId: "request-3",
+          agentId: "agent-1",
+          accepted: true,
+          skipped: true,
+          error: null,
+        },
+      }).payload.skipped,
+    ).toBe(true);
   });
 });
 
