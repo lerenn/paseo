@@ -160,6 +160,7 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
 - **Upstream branch (one aspect, cut from upstream main):** `upstream/agent-send-skip-1-skip`.
 - **Upstream Discussion / PR:** drafts only, not posted:
   `/home/paseo/work/upstream-drafts/agent-send-skip/`.
+
 ### Plugin prompt hook
 
 - **API:** `before("agent.prompt")`: runs before a user or agent prompt reaches the provider, for
