@@ -1,4 +1,5 @@
 import type { ProviderProcessLauncher } from "../../workspace-runtime/process-launcher.js";
+import { RuntimeInterruptedError } from "../../workspace-runtime/remote-child-process.js";
 import { spawnProviderProcess } from "../../workspace-runtime/spawn-provider-process.js";
 import { validateProviderOptions } from "../provider-options.js";
 import {
@@ -3718,11 +3719,19 @@ export class CodexAppServerAgentSession implements AgentSession {
     const hasActiveRootTurn = this.activeForegroundTurnId !== null || this.currentTurnId !== null;
     this.clearPendingPermissions({ preservePlanApprovals: !hasActiveRootTurn });
     if (hasActiveRootTurn) {
-      this.emitEvent({
-        type: "turn_failed",
-        provider: CODEX_PROVIDER,
-        error: error.message,
-      });
+      if (error instanceof RuntimeInterruptedError) {
+        this.emitEvent({
+          type: "turn_canceled",
+          provider: CODEX_PROVIDER,
+          reason: "Interrupted by the runtime",
+        });
+      } else {
+        this.emitEvent({
+          type: "turn_failed",
+          provider: CODEX_PROVIDER,
+          error: error.message,
+        });
+      }
     }
     this.activeForegroundTurnId = null;
     this.activeClientMessageId = null;

@@ -102,10 +102,10 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   #37 (worktrees created and deleted on the host), #38 (a runtime unregistered by a plugin update is waited
   for up to 30 s; workspace creation reads its checkout on the host), and the runtime-exit PR (a
   mid-turn process exit the stream never reports fails the turn after 10 s; exit reason `suspended`
-  is a planned stop that shows no error).
+  is a planned stop that shows no error; `interrupted` is a platform cut that ends an open turn as canceled, with the message kept as an info item).
 - **Upstream branches (one aspect each, stacked in this order, cut from upstream main):**
   `upstream/workspace-runtimes-1-launch`, `-2-cwd`, `-3-git`, `-4-inheritance`, `-5-files`,
-  `-6-reliability`, `-7-lifecycle`, `-8-icon`, `-9-details` (on `lerenn/paseo`). Rebuild each by cherry-picking
+  `-6-reliability`, `-7-lifecycle`, `-8-icon`, `-9-details`, `-10-closed-channel`, `-11-interrupted` (on `lerenn/paseo`). Rebuild each by cherry-picking
   its fork PR commit onto the previous branch.
 - **Upstream Discussion / PRs:** one Discussion, eight PRs; drafts at
   `/home/paseo/work/upstream-drafts/workspace-runtimes/` (`discussion.md`, `pr-1-launch.md` ..

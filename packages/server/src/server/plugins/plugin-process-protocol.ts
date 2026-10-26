@@ -186,7 +186,7 @@ export type PluginProcessMessage =
       execId: string;
       code: number | null;
       signal: string | null;
-      reason: "exited" | "runtime-lost" | "suspended";
+      reason: "exited" | "runtime-lost" | "suspended" | "interrupted";
       message?: string;
     }
   | { type: "runtime.exec.failed"; execId: string; error: string }
@@ -511,7 +511,7 @@ export const PluginProcessMessageSchema: z.ZodType<PluginProcessMessage> = z.dis
         execId: z.string().min(1),
         code: z.number().nullable(),
         signal: z.string().nullable(),
-        reason: z.enum(["exited", "runtime-lost", "suspended"]),
+        reason: z.enum(["exited", "runtime-lost", "suspended", "interrupted"]),
         message: z.string().optional(),
       })
       .strict(),

@@ -1,4 +1,8 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
+import {
+  RuntimeInterruptedError,
+  runtimeExitOf,
+} from "../../../workspace-runtime/remote-child-process.js";
 import { StringDecoder } from "node:string_decoder";
 import type { Logger } from "pino";
 import { z } from "zod";
@@ -235,6 +239,11 @@ export class CodexAppServerClient {
     });
 
     child.on("exit", (code, signal) => {
+      const runtimeExit = runtimeExitOf(child);
+      if (runtimeExit?.reason === "interrupted") {
+        this.handleUnexpectedTermination(new RuntimeInterruptedError(runtimeExit.message));
+        return;
+      }
       const message =
         code === 0 && !signal
           ? "Codex app-server exited"
