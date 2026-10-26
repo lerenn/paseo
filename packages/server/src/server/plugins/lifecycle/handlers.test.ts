@@ -112,7 +112,13 @@ test("agent.create hooks see the labels and parent of a top-level agent and of a
     "operation",
     "before",
     "agent.create",
-    { config: createConfig, labels: { team: "payments" }, parentAgentId: null },
+    {
+      config: createConfig,
+      labels: { team: "payments" },
+      parentAgentId: null,
+      workspaceId: "wks_a",
+      runtimeId: "pod",
+    },
     paseo,
   );
   await hooks.invoke(
@@ -147,7 +153,13 @@ test("edits to the labels and parent of agent.create are ignored", async () => {
     "operation",
     "before",
     "agent.create",
-    { config: createConfig, labels: { team: "payments" }, parentAgentId: null },
+    {
+      config: createConfig,
+      labels: { team: "payments" },
+      parentAgentId: null,
+      workspaceId: "wks_a",
+      runtimeId: "pod",
+    },
     paseo,
   )) as { labels: Record<string, string>; parentAgentId: string | null };
   expect(output.labels).toEqual({ team: "payments" });

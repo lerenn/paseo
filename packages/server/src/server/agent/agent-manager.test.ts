@@ -8294,6 +8294,42 @@ test("clearAgentAttention on errored agent stays cleared until a new error trans
   expect(persistedAfterSecondFailure?.attentionReason).toBe("error");
 });
 
+test("agent.create hooks see the workspace and its runtime id, null for a host workspace", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-create-context-"));
+  const seen: Array<{ workspaceId: unknown; runtimeId: unknown }> = [];
+  const manager = new AgentManager({
+    clients: { codex: new TestAgentClient("codex") },
+    registry: new AgentStorage(join(workdir, "agents"), logger),
+    logger,
+    idFactory: () => "00000000-0000-4000-8000-000000000134",
+    workspaceRuntimes: {
+      registry: new WorkspaceRuntimeRegistry(),
+      getWorkspaceRuntime: async (id: string) => (id === "wks_pod" ? { id: "pod" } : null),
+      listRuntimeWorkspaces: () => [],
+    },
+    pluginLifecycle: {
+      before: (async (name: string, request: { workspaceId: unknown; runtimeId: unknown }) => {
+        if (name === "agent.create") {
+          seen.push({ workspaceId: request.workspaceId, runtimeId: request.runtimeId });
+          throw new Error("stop after capture");
+        }
+        return request;
+      }) as never,
+      emit: () => undefined,
+    },
+  });
+  for (const workspaceId of ["wks_pod", "wks_host", undefined]) {
+    await expect(
+      manager.createAgent({ provider: "codex", cwd: workdir }, undefined, { workspaceId }),
+    ).rejects.toThrow("stop after capture");
+  }
+  expect(seen).toEqual([
+    { workspaceId: "wks_pod", runtimeId: "pod" },
+    { workspaceId: "wks_host", runtimeId: null },
+    { workspaceId: null, runtimeId: null },
+  ]);
+});
+
 test("streamAgent clears pending run when startTurn fails before a turn id exists", async () => {
   const workdir = mkdtempSync(join(tmpdir(), "agent-manager-start-turn-failure-"));
   const storagePath = join(workdir, "agents");

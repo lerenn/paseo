@@ -81,6 +81,10 @@ export interface PluginBeforeRequests {
      */
     labels: Record<string, string>;
     parentAgentId: string | null;
+    /** The workspace the agent is created in, or null when it has none. Read-only. */
+    workspaceId: string | null;
+    /** The id of that workspace's runtime, or null for a workspace on the daemon host. Read-only. */
+    runtimeId: string | null;
   };
   "agent.session_open": PluginSessionOpenRequest;
   "workspace.create": Omit<WorkspaceCreateRequest, "type" | "requestId">;

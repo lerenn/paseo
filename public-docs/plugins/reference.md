@@ -979,7 +979,7 @@ type PluginTurnOutcome =
 | `agent.session_open` | `agentId`, `workspaceId`, `provider`, `cwd`, `reason`, `purpose`, `env`       | Only `env`                              |
 | `workspace.create`   | `source`, optional `title`, `firstAgentContext`                               | Entire explicit creation request        |
 
-`labels` and `parentAgentId` are read-only context: the labels the agent is created with, and the
+`labels`, `parentAgentId`, `workspaceId` and `runtimeId` are read-only context: the labels the agent is created with, the workspace it is created in (`null` if none), that workspace's runtime id (`null` for a workspace on the daemon host), and the
 agent that created it as a subagent (`null` for a top-level agent). A hook that changes them has
 the change ignored. `agent.created` and the other agent events carry the same `labels` on
 `PluginHookAgent`. Hosts advertise this as `server_info.features.pluginCreateContext`.
