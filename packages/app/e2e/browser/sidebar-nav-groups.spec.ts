@@ -12,10 +12,12 @@ async function seedGroup(
 ): Promise<void> {
   await page.addInitScript(
     ({ key, collapsed }) => {
-      if (localStorage.getItem(key)) return;
+      const settings = JSON.parse(localStorage.getItem(key) ?? "{}");
+      if (settings.sidebarNavGroups) return;
       localStorage.setItem(
         key,
         JSON.stringify({
+          ...settings,
           sidebarNavItems: [
             { key: "new-workspace", visible: true },
             { key: "search", visible: true },
