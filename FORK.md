@@ -151,7 +151,8 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
 
 ### Skip-if-busy sends
 
-- **API:** MCP `send_agent_prompt` takes `activeTurnBehavior: "skip"`: delivers only if the agent
+- **API:** MCP `send_agent_prompt` and the WebSocket `send_agent_message_request` (so the plugin SDK's
+  `paseo.agents.ref(id).send(text, { activeTurnBehavior: "skip" })`, which resolves `{ skipped: true }`) take `activeTurnBehavior: "skip"`: delivers only if the agent
   is not running a turn, otherwise returns `{ skipped: true }` with nothing queued. The check and
   the start of the run happen with no await between them in `startAgentRun`, so two concurrent
   skip sends deliver exactly one. Upstream's `tryRunOutOfBand` is async, so the check runs again
