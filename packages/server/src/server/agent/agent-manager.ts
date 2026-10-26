@@ -1330,6 +1330,8 @@ export class AgentManager {
     return this.trackAgentRegistrationOperation(this.createAgentInternal(config, agentId, options));
   }
 
+  private readonly promptedSessions = new WeakSet<object>();
+
   private async createAgentInternal(
     config: AgentSessionConfig,
     agentId: string | undefined,
@@ -2596,6 +2598,44 @@ export class AgentManager {
     });
   }
 
+  /**
+   * Lets plugins prepend context to a prompt on its way to the provider. The user's own text is
+   * not edited (the block is separate and marked), and what the timeline shows is unchanged. A
+   * hook that fails or is slow is skipped by the plugin runtime, so this never blocks a prompt.
+   */
+  private async applyPromptHooks(
+    agent: ActiveManagedAgent,
+    prompt: AgentPromptInput,
+  ): Promise<AgentPromptInput> {
+    if (!this.pluginLifecycle || agent.internal) return prompt;
+    const firstPrompt = !this.promptedSessions.has(agent.session);
+    this.promptedSessions.add(agent.session);
+    const text =
+      typeof prompt === "string"
+        ? prompt
+        : prompt.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n");
+    let prepend: string | undefined;
+    try {
+      const request = await this.pluginLifecycle.before("agent.prompt", {
+        agentId: agent.id,
+        labels: { ...agent.labels },
+        parentAgentId: agent.labels[PARENT_AGENT_ID_LABEL] ?? null,
+        prompt: text,
+        firstPrompt,
+      });
+      prepend = request.prepend;
+    } catch (error) {
+      this.logger.warn({ err: error, agentId: agent.id }, "agent.prompt hooks failed");
+      return prompt;
+    }
+    const context = prepend?.trim();
+    if (!context) return prompt;
+    const block = `<paseo-plugin-context>\n${context}\n</paseo-plugin-context>`;
+    return typeof prompt === "string"
+      ? `${block}\n\n${prompt}`
+      : [{ type: "text", text: block }, ...prompt];
+  }
+
   private async startPendingForegroundTurn(params: {
     agent: ActiveManagedAgent;
     agentId: string;
@@ -2603,8 +2643,10 @@ export class AgentManager {
     prompt: AgentPromptInput;
     options?: AgentRunOptions;
   }): Promise<string> {
-    const { agent, agentId, pendingRun, prompt, options } = params;
+    const { agent, agentId, pendingRun, options } = params;
+    let prompt = params.prompt;
     try {
+      prompt = await this.applyPromptHooks(agent, prompt);
       const result = await agent.session.startTurn(prompt, options);
       if (pendingRun.settled) {
         throw new Error(`Agent ${agentId} run was canceled before its turn started`);

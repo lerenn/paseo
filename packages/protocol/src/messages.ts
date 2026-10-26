@@ -3674,6 +3674,8 @@ export const ServerInfoStatusPayloadSchema = z
         pluginCreateContext: z.boolean().optional(),
         // send_agent_prompt accepts activeTurnBehavior "skip" and reports { skipped: true }.
         activeTurnSkip: z.boolean().optional(),
+        // Plugins can hook before("agent.prompt") and prepend context to a prompt.
+        pluginPromptHook: z.boolean().optional(),
         providersSnapshot: z.boolean().optional(),
         connectedHosts: z.boolean().optional(),
         hostMultiplexing: z.boolean().optional(),

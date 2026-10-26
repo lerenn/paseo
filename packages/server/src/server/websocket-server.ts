@@ -1958,6 +1958,7 @@ export class VoiceAssistantWebSocketServer {
         pluginCreateOptions: true,
         pluginCreateContext: true,
         activeTurnSkip: true,
+        pluginPromptHook: true,
         workspaceRuntimes: true,
         workspaceRuntimeDetails: true,
         // COMPAT(directorySync): added in v0.3.x, remove gate after 2027-02-12.

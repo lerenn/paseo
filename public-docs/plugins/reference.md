@@ -972,16 +972,27 @@ type PluginTurnOutcome =
 
 ### Before hooks
 
-| Name                 | Request fields                                                                | Editable                                |
-| -------------------- | ----------------------------------------------------------------------------- | --------------------------------------- |
-| `agent.create`       | `config`, optional `env`, optional `pluginOptions`, `labels`, `parentAgentId` | Public agent config except `cwd`; `env` |
-| `agent.session_open` | `agentId`, `workspaceId`, `provider`, `cwd`, `reason`, `purpose`, `env`       | Only `env`                              |
-| `workspace.create`   | `source`, optional `title`, `firstAgentContext`                               | Entire explicit creation request        |
+| Name                 | Request fields                                                                    | Editable                                |
+| -------------------- | --------------------------------------------------------------------------------- | --------------------------------------- |
+| `agent.create`       | `config`, optional `env`, optional `pluginOptions`, `labels`, `parentAgentId`     | Public agent config except `cwd`; `env` |
+| `agent.prompt`       | `agentId`, `labels`, `parentAgentId`, `prompt`, `firstPrompt`, optional `prepend` | Only `prepend`                          |
+| `agent.session_open` | `agentId`, `workspaceId`, `provider`, `cwd`, `reason`, `purpose`, `env`           | Only `env`                              |
+| `workspace.create`   | `source`, optional `title`, `firstAgentContext`                                   | Entire explicit creation request        |
 
 `labels` and `parentAgentId` are read-only context: the labels the agent is created with, and the
 agent that created it as a subagent (`null` for a top-level agent). A hook that changes them has
 the change ignored. `agent.created` and the other agent events carry the same `labels` on
 `PluginHookAgent`. Hosts advertise this as `server_info.features.pluginCreateContext`.
+
+**`agent.prompt`** runs before a user or agent prompt reaches the provider, for every provider. Set
+`prepend` to add context in front of the prompt: Paseo wraps it in a separate
+`<paseo-plugin-context>` block and leaves the user's text alone, and the timeline still shows only
+what was sent. `prompt` is the text of the prompt (images and attachments are not included);
+`firstPrompt` is true for the first prompt of a provider session, and a resumed session counts as a
+new one. Hooks of several plugins run in plugin-ID order and later ones see the earlier `prepend`.
+Unlike other before hooks, a failing or slow hook (3 s per plugin) is skipped and the prompt is
+still delivered; `prepend` is capped at 16,000 characters. Hosts advertise this as
+`server_info.features.pluginPromptHook`.
 
 **`agent.create.config`** uses `AgentSessionConfig`:
 
