@@ -5052,6 +5052,18 @@ export class AgentManager {
       return;
     }
 
+    // A new turn supersedes an unacknowledged failure: the agent recovered, so its error must not
+    // outlive the next successful turn (a background agent may never be opened to clear it).
+    if (
+      agent.attention.requiresAttention &&
+      agent.attention.attentionReason === "error" &&
+      previousStatus !== "running" &&
+      currentStatus === "running"
+    ) {
+      agent.attention = { requiresAttention: false };
+      return;
+    }
+
     // Skip if already requires attention
     if (agent.attention.requiresAttention) {
       return;
