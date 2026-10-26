@@ -13,6 +13,16 @@ import type { Theme } from "@/styles/theme";
  */
 export const HOST_BADGE_ICON_SIZE = 12;
 
+/** Lucide names are PascalCase; a plugin may send the kebab-case name from the Lucide site. */
+function toLucideName(name: string): string {
+  return name.includes("-")
+    ? name
+        .split("-")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join("")
+    : name;
+}
+
 function HostGlyph({
   icon,
   size,
@@ -24,7 +34,7 @@ function HostGlyph({
   color?: string;
   style?: StyleProp<ViewStyle>;
 }) {
-  const Glyph = (icon ? findLucideIcon(icon) : null) ?? Server;
+  const Glyph = (icon ? findLucideIcon(toLucideName(icon)) : null) ?? Server;
   return <Glyph size={size} color={color} style={style} />;
 }
 

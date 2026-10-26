@@ -86,6 +86,10 @@ export interface PluginBeforeRequests {
      */
     labels: Record<string, string>;
     parentAgentId: string | null;
+    /** The workspace the agent is created in, or null when it has none. Read-only. */
+    workspaceId: string | null;
+    /** The id of that workspace's runtime, or null for a workspace on the daemon host. Read-only. */
+    runtimeId: string | null;
   };
   /**
    * Runs before a user or agent prompt is delivered to the provider, for every provider. Return the

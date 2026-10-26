@@ -140,7 +140,7 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
 ### Plugin agent-create context
 
 - **API:** `before("agent.create")` requests carry read-only `labels` and `parentAgentId` (null for a
-  top-level agent); `PluginHookAgent` carries `labels`. A hook that edits them is ignored. Daemons
+  top-level agent); `PluginHookAgent` carries `labels`. The request also carries read-only `workspaceId` and `runtimeId` (null for a host workspace). A hook that edits them is ignored. Daemons
   advertise `server_info.features.pluginCreateContext`. Reference:
   `public-docs/plugins/reference.md`, "Before hooks". First consumer: the Assistant mailbox.
 - **Fork PRs:** see the PR that introduced this entry.
