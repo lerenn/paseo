@@ -69,6 +69,14 @@ export interface StreamedTextProps extends Omit<TextProps, "children"> {
 /** Plain assistant text with host-owned streaming pacing and typography. */
 export declare const StreamedText: ComponentType<StreamedTextProps>;
 
+export interface AgentChatProps {
+  agentId: string;
+  /** The agent's workspace. Defaults to the one the agent belongs to. */
+  workspaceId?: string;
+}
+/** The host's agent conversation: stream and composer, for any agent on the plugin's host. */
+export declare const AgentChat: ComponentType<AgentChatProps>;
+
 export interface AgentStatusIndicatorProps {
   agentId: string;
   /** Width and height of the box the glyph sits in, in pixels. Defaults to 14. */

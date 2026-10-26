@@ -49,7 +49,7 @@ export const AgentTracks = memo(function AgentTracks({
   onArchiveFinished: () => void;
   hasPluginComposerPills: boolean;
 }): ReactElement | null {
-  const { tabId } = usePaneContext();
+  const { tabId, openSubagentTarget: openSubagentInHost } = usePaneContext();
   const hasWorkspaceDiffStat = useWorkspaceHasDiffStat(serverId, workspaceId);
   const isCompact = useIsCompactFormFactor();
   const openInSidePane = useSettings((settings) => settings.openInSidePane);
@@ -61,6 +61,10 @@ export const AgentTracks = memo(function AgentTracks({
   const detachSubagent = useDetachSubagent();
   const openSubagentTarget = useCallback(
     (target: WorkspaceTabTarget) => {
+      if (openSubagentInHost) {
+        openSubagentInHost(target);
+        return;
+      }
       openPreferredWorkspaceTarget({
         workspaceKey,
         target,
@@ -69,7 +73,7 @@ export const AgentTracks = memo(function AgentTracks({
         parentTabId: tabId,
       });
     },
-    [openInSidePane, tabId, workspaceKey],
+    [openInSidePane, openSubagentInHost, tabId, workspaceKey],
   );
   const handleOpenSubagent = useCallback(
     ({ serverId: targetServerId, agentId: subagentId }: AgentAddress) => {
@@ -77,15 +81,15 @@ export const AgentTracks = memo(function AgentTracks({
       const agent = session?.agents.get(subagentId) ?? session?.agentDetails.get(subagentId);
       // A subagent in another workspace lives in that workspace's tabs.
       if (
-        targetServerId !== serverId ||
-        (agent?.workspaceId && agent.workspaceId !== workspaceId)
+        !openSubagentInHost &&
+        (targetServerId !== serverId || (agent?.workspaceId && agent.workspaceId !== workspaceId))
       ) {
         navigateToAgent({ serverId: targetServerId, agentId: subagentId });
         return;
       }
       openSubagentTarget({ kind: "agent", agentId: subagentId });
     },
-    [openSubagentTarget, serverId, workspaceId],
+    [openSubagentInHost, openSubagentTarget, serverId, workspaceId],
   );
   const handleOpenProviderSubagent = useCallback(
     (parentAgentId: string, subagentId: string) => {

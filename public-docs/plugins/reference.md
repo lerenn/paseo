@@ -1240,6 +1240,27 @@ The component adds no page padding or scroll container. Use a surrounding layout
 scroll view when needed. Fetching content and showing loading or error states belong
 to your plugin.
 
+### Agent chat
+
+`AgentChat` from `@getpaseo/plugin/client/ui` renders the host's conversation, stream and composer,
+for any agent on the plugin's host. Use it to show an agent you created in a panel. Subagents the
+conversation lists (the composer's subagent rows and "working" pill) open in place, with a Back
+button to return; tabs and splits do not exist inside it.
+
+```tsx
+import { AgentChat } from "@getpaseo/plugin/client/ui";
+
+<AgentChat agentId={agentId} />;
+```
+
+| Prop          | Meaning                                                   |
+| ------------- | --------------------------------------------------------- |
+| `agentId`     | The agent to show.                                        |
+| `workspaceId` | Optional. Defaults to the workspace the agent belongs to. |
+
+It renders an unavailable message until the agent is known to the client. Background workspaces work.
+Tabs, splits, and Open in side pane do not exist here, so those actions do nothing.
+
 ### Agent status indicator
 
 `AgentStatusIndicator` from `@getpaseo/plugin/client/ui` draws an agent's live status the way the
