@@ -100,16 +100,20 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   #30 (`474f56076`, lifecycle), #25 (`7b730b08e`, sidebar icon). The app dock title-bar fix is #24
   (`b0a12c5ca`, see App dock). Follow-ups: #32/#33 (registry and project reads on the host),
   #37 (worktrees created and deleted on the host), #38 (a runtime unregistered by a plugin update is waited
-  for up to 30 s; workspace creation reads its checkout on the host), and the runtime-exit PR (a
+  for up to 30 s; workspace creation reads its checkout on the host), #39 (a
   mid-turn process exit the stream never reports fails the turn after 10 s; exit reason `suspended`
-  is a planned stop that shows no error; `interrupted` is a platform cut that ends an open turn as canceled, with the message kept as an info item).
+  is a planned stop that shows no error), #40 (`c54b6daa4`, per-workspace display details), #41
+  (`02e1adea4`, closed-channel fix in the runtime host), #50 (`e2b15374e`, `hostIcon`), #51
+  (`a42fcfb03`, workspace and runtime ids in `agent.create`) and #52 (`08208702b`, `interrupted`:
+  a platform cut that ends an open turn as canceled, with the message kept as an info item).
 - **Upstream branches (one aspect each, stacked in this order, cut from upstream main):**
   `upstream/workspace-runtimes-1-launch`, `-2-cwd`, `-3-git`, `-4-inheritance`, `-5-files`,
-  `-6-reliability`, `-7-lifecycle`, `-8-icon`, `-9-details`, `-10-closed-channel`, `-11-interrupted` (on `lerenn/paseo`). Rebuild each by cherry-picking
-  its fork PR commit onto the previous branch.
-- **Upstream Discussion / PRs:** one Discussion, eight PRs; drafts at
+  `-6-reliability`, `-7-lifecycle`, `-8-icon`, `-9-details`, `-10-closed-channel`, `-11-interrupted`, `-12-create-context` (on `lerenn/paseo`). Rebuild each
+  by cherry-picking its fork PR commit onto the previous branch; `-9-details` also carries the
+  `hostIcon` part of #50 and `-12` the labels/parent commit of `upstream/plugin-create-context-1-hooks`.
+- **Upstream Discussion / PRs:** one Discussion, twelve PRs; drafts at
   `/home/paseo/work/upstream-drafts/workspace-runtimes/` (`discussion.md`, `pr-1-launch.md` ..
-  `pr-8-icon.md`), not posted (ask Louis).
+  `pr-12-create-context.md`), not posted (ask Louis).
 - **Status:** in fork.
 
 ### Agent status indicator
@@ -131,7 +135,7 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   row's meta line (workspace scope) and in the agent list. Stacks, three visible. Reference:
   `public-docs/plugins/reference.md`, "Agent badges". First consumer: the Paseo Factory plugin.
   The agent tab header does not show badges yet.
-- **Fork PRs:** #36.
+- **Fork PRs:** #36, #50 (`e2b15374e`, icons follow the theme foreground).
 - **Upstream branch (one aspect, cut from upstream main):** `upstream/plugin-ui-1-agent-badges`
   (objective: plugin UI components, with `upstream/plugin-ui-0-agent-status-indicator`).
 - **Upstream Discussion / PR:** drafts only, not posted: `/home/paseo/work/upstream-drafts/plugin-ui/`.
@@ -143,7 +147,7 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   top-level agent); `PluginHookAgent` carries `labels`. The request also carries read-only `workspaceId` and `runtimeId` (null for a host workspace). A hook that edits them is ignored. Daemons
   advertise `server_info.features.pluginCreateContext`. Reference:
   `public-docs/plugins/reference.md`, "Before hooks". First consumer: the Assistant mailbox.
-- **Fork PRs:** see the PR that introduced this entry.
+- **Fork PRs:** #41 (`02e1adea4`), #51 (`a42fcfb03`, adds `workspaceId` and `runtimeId`).
 - **Upstream branch (one aspect, cut from upstream main):** `upstream/plugin-create-context-1-hooks`.
 - **Upstream Discussion / PR:** drafts only, not posted:
   `/home/paseo/work/upstream-drafts/plugin-create-context/`.
@@ -158,8 +162,10 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   skip sends deliver exactly one. Upstream's `tryRunOutOfBand` is async, so the check runs again
   after it; any new await before the run starts needs the same. It bypasses the agent-message quiet window. Daemons advertise
   `server_info.features.activeTurnSkip`. First consumers: the Assistant and Agents Mail.
-- **Fork PRs:** #48 (`5cd7e25b9`), recheck after the out-of-band await in #49.
-- **Upstream branch (one aspect, cut from upstream main):** `upstream/agent-send-skip-1-skip`.
+- **Fork PRs:** #48 (`5cd7e25b9`, MCP; recheck after the out-of-band await in #49), #53
+  (`969d37637`, WebSocket and SDK).
+- **Upstream branches (cut from upstream main, stacked):** `upstream/agent-send-skip-1-mcp`,
+  `upstream/agent-send-skip-2-websocket`.
 - **Upstream Discussion / PR:** drafts only, not posted:
   `/home/paseo/work/upstream-drafts/agent-send-skip/`.
 
@@ -171,7 +177,7 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   the timeline shows only what was sent. Plugins compose in ID order; failures and slow hooks (3 s)
   are skipped, never blocking the prompt. Daemons advertise `server_info.features.pluginPromptHook`.
   First consumer: Agents Mail.
-- **Fork PRs:** see the PR that introduced this entry.
+- **Fork PRs:** #47 (`14a94d03d`).
 - **Upstream branch (one aspect, cut from upstream main):** `upstream/plugin-prompt-hook-1-hook`.
 - **Upstream Discussion / PR:** drafts only, not posted:
   `/home/paseo/work/upstream-drafts/plugin-prompt-hook/`.
