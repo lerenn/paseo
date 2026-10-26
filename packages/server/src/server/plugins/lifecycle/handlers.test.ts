@@ -175,7 +175,7 @@ test("agent.prompt hooks compose prepends in order and cannot change anything el
     ...request,
     prompt: "rewritten",
     labels: { injected: "yes" },
-    firstPrompt: false,
+    isFirstPrompt: false,
     prepend: "one",
   }));
   hooks.before("agent.prompt", ({ request }) => ({
@@ -191,7 +191,9 @@ test("agent.prompt hooks compose prepends in order and cannot change anything el
       labels: { team: "payments" },
       parentAgentId: null,
       prompt: "hello",
-      firstPrompt: true,
+      isFirstPrompt: true,
+      source: "user",
+      sourceAgentId: null,
     },
     paseo,
   );
@@ -200,7 +202,9 @@ test("agent.prompt hooks compose prepends in order and cannot change anything el
     labels: { team: "payments" },
     parentAgentId: null,
     prompt: "hello",
-    firstPrompt: true,
+    isFirstPrompt: true,
+    source: "user",
+    sourceAgentId: null,
     prepend: "one+two",
   });
 });
@@ -213,7 +217,15 @@ test("agent.prompt rejects an oversized prepend", async () => {
       "operation",
       "before",
       "agent.prompt",
-      { agentId: "a", labels: {}, parentAgentId: null, prompt: "hi", firstPrompt: true },
+      {
+        agentId: "a",
+        labels: {},
+        parentAgentId: null,
+        prompt: "hi",
+        isFirstPrompt: true,
+        source: "user",
+        sourceAgentId: null,
+      },
       paseo,
     ),
   ).rejects.toThrow("prepend exceeds");

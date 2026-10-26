@@ -163,7 +163,7 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
 ### Plugin prompt hook
 
 - **API:** `before("agent.prompt")`: runs before a user or agent prompt reaches the provider, for
-  every provider, with `agentId`, `labels`, `parentAgentId`, `prompt` and `firstPrompt`. A hook
+  every provider, with `agentId`, `labels`, `parentAgentId`, `prompt`, `source`, `sourceAgentId` and `isFirstPrompt` (slash commands are left alone). A hook
   sets `prepend` to add a separate `<paseo-plugin-context>` block; the user's text is untouched and
   the timeline shows only what was sent. Plugins compose in ID order; failures and slow hooks (3 s)
   are skipped, never blocking the prompt. Daemons advertise `server_info.features.pluginPromptHook`.

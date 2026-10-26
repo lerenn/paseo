@@ -57,7 +57,9 @@ const beforeSchemas = {
       labels: z.record(z.string(), z.string()),
       parentAgentId: z.string().nullable(),
       prompt: z.string(),
-      firstPrompt: z.boolean(),
+      source: z.enum(["user", "agent"]),
+      sourceAgentId: z.string().nullable(),
+      isFirstPrompt: z.boolean(),
       prepend: z.string().optional(),
     })
     .strict(),

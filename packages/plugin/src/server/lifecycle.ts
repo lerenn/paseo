@@ -99,10 +99,16 @@ export interface PluginBeforeRequests {
     agentId: string;
     labels: Record<string, string>;
     parentAgentId: string | null;
-    /** The prompt's text; image and attachment blocks are not included. */
+    /**
+     * The prompt's text, unwrapped from the agent-message envelope; image and attachment blocks are
+     * not included. Slash commands never reach the hook.
+     */
     prompt: string;
+    /** Who sent it: the user, or another agent (`sourceAgentId` names it). */
+    source: "user" | "agent";
+    sourceAgentId: string | null;
     /** First prompt delivered to this provider session (a resumed session counts as new). */
-    firstPrompt: boolean;
+    isFirstPrompt: boolean;
     prepend?: string;
   };
   "agent.session_open": PluginSessionOpenRequest;

@@ -79,7 +79,11 @@ import {
   type PendingForegroundRun,
 } from "./agent-run-state.js";
 import { invokeRewindCapability, type RewindMode } from "./rewind/rewind.js";
-import { parseAgentMessage, projectAgentMessages } from "./agent-messages/index.js";
+import {
+  parseAgentMessage,
+  parseAgentMessages,
+  projectAgentMessages,
+} from "./agent-messages/index.js";
 import { isStaleProviderSessionError } from "./stale-provider-session-error.js";
 import { stripInternalPaseoMcpServer, withRuntimePaseoMcpServer } from "./runtime-mcp-config.js";
 import { resolveCreateAgentTitles } from "./create-agent-title.js";
@@ -2608,12 +2612,18 @@ export class AgentManager {
     prompt: AgentPromptInput,
   ): Promise<AgentPromptInput> {
     if (!this.pluginLifecycle) return prompt;
-    const firstPrompt = !this.promptedSessions.has(agent.session);
-    this.promptedSessions.add(agent.session);
-    const text =
+    const rawText =
       typeof prompt === "string"
         ? prompt
         : prompt.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n");
+    const envelopes = parseAgentMessages(rawText);
+    const text = envelopes ? envelopes.map((message) => message.text).join("\n\n") : rawText;
+    // Slash commands are parsed by the provider from the raw text: leave them untouched.
+    if (text.trimStart().startsWith("/")) return prompt;
+    const isFirstPrompt = !this.promptedSessions.has(agent.session);
+    this.promptedSessions.add(agent.session);
+    const sourceAgentId =
+      envelopes?.flatMap((message) => (message.source ? [message.source.agentId] : []))[0] ?? null;
     let prepend: string | undefined;
     try {
       const request = await this.pluginLifecycle.before("agent.prompt", {
@@ -2621,7 +2631,9 @@ export class AgentManager {
         labels: { ...agent.labels },
         parentAgentId: agent.labels[PARENT_AGENT_ID_LABEL] ?? null,
         prompt: text,
-        firstPrompt,
+        source: sourceAgentId ? "agent" : "user",
+        sourceAgentId,
+        isFirstPrompt,
       });
       prepend = request.prepend;
     } catch (error) {
