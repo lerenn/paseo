@@ -2607,7 +2607,7 @@ export class AgentManager {
     agent: ActiveManagedAgent,
     prompt: AgentPromptInput,
   ): Promise<AgentPromptInput> {
-    if (!this.pluginLifecycle || agent.internal) return prompt;
+    if (!this.pluginLifecycle) return prompt;
     const firstPrompt = !this.promptedSessions.has(agent.session);
     this.promptedSessions.add(agent.session);
     const text =
@@ -2646,7 +2646,10 @@ export class AgentManager {
     const { agent, agentId, pendingRun, options } = params;
     let prompt = params.prompt;
     try {
-      prompt = await this.applyPromptHooks(agent, prompt);
+      // Without plugin hooks this stays synchronous: turn ordering depends on it.
+      if (this.pluginLifecycle && !agent.internal) {
+        prompt = await this.applyPromptHooks(agent, prompt);
+      }
       const result = await agent.session.startTurn(prompt, options);
       if (pendingRun.settled) {
         throw new Error(`Agent ${agentId} run was canceled before its turn started`);
