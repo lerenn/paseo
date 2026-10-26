@@ -2142,7 +2142,8 @@ function createToolCatalog(
     "list_agents",
     {
       title: "List agents",
-      description: "List recent agents as compact metadata.",
+      description:
+        'List recent agents as compact metadata. An agent caller sees agents under its own directory unless it passes cwd (for example "/" for all); background agents need includeBackground.',
       inputSchema: {
         includeBackground: z.boolean().optional().default(false),
         includeArchived: z.boolean().optional().default(false),

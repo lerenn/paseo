@@ -8320,6 +8320,66 @@ test("clearAgentAttention on errored agent stays cleared until a new error trans
   expect(persistedAfterSecondFailure?.attentionReason).toBe("error");
 });
 
+test("a new turn clears an unacknowledged error and finishing it marks the agent finished", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-error-recovery-"));
+  const storage = new AgentStorage(join(workdir, "agents"), logger);
+
+  class FlakySession extends TestAgentSession {
+    private attempt = 0;
+
+    override async startTurn(
+      prompt: Parameters<TestAgentSession["startTurn"]>[0],
+      options?: Parameters<TestAgentSession["startTurn"]>[1],
+    ): Promise<{ turnId: string }> {
+      this.attempt += 1;
+      if (this.attempt > 1) return super.startTurn(prompt, options);
+      const turnId = "fail-turn-1";
+      setTimeout(() => {
+        this.pushEvent({ type: "turn_started", provider: this.provider, turnId });
+        this.pushEvent({ type: "turn_failed", provider: this.provider, error: "boom-1", turnId });
+      }, 0);
+      return { turnId };
+    }
+  }
+  class FlakyClient implements AgentClient {
+    readonly provider = "codex" as const;
+    readonly capabilities = TEST_CAPABILITIES;
+    async isAvailable(): Promise<boolean> {
+      return true;
+    }
+    async createSession(config: AgentSessionConfig): Promise<AgentSession> {
+      return new FlakySession(config);
+    }
+    async resumeSession(config?: Partial<AgentSessionConfig>): Promise<AgentSession> {
+      return new FlakySession({ provider: "codex", cwd: config?.cwd ?? process.cwd() });
+    }
+  }
+  const manager = new AgentManager({
+    clients: { codex: new FlakyClient() },
+    registry: storage,
+    logger,
+    idFactory: () => "00000000-0000-4000-8000-000000000131",
+  });
+  const agent = await manager.createAgent(
+    { provider: "codex", cwd: workdir, title: "Recovery" },
+    undefined,
+    { workspaceId: undefined },
+  );
+
+  await expect(manager.runAgent(agent.id, "fail once")).rejects.toThrow("boom-1");
+  await manager.flush();
+  expect(manager.getAgent(agent.id)?.attention).toMatchObject({ attentionReason: "error" });
+
+  await manager.runAgent(agent.id, "now succeed");
+  await manager.flush();
+
+  expect(manager.getAgent(agent.id)?.attention).toMatchObject({
+    requiresAttention: true,
+    attentionReason: "finished",
+  });
+  expect((await storage.get(agent.id))?.attentionReason).toBe("finished");
+});
+
 test("streamAgent clears pending run when startTurn fails before a turn id exists", async () => {
   const workdir = mkdtempSync(join(tmpdir(), "agent-manager-start-turn-failure-"));
   const storagePath = join(workdir, "agents");
