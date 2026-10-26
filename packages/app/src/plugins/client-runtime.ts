@@ -12,7 +12,6 @@ import type { PluginClientRuntime } from "./evaluate";
 import { createPluginNavigation } from "./navigation";
 import { pluginButtonStore } from "./buttons";
 import { pluginAgentBadgeStore } from "./badges";
-import { useAppDockStore, type AppDockPanel } from "@/stores/app-dock-store";
 import type { InstalledPlugin } from "./types";
 
 export function createPluginClientRuntime(
@@ -41,27 +40,7 @@ export function createPluginClientRuntime(
     openPanel(panelId, options) {
       openClientPanel({ installation, state, panelId, options });
     },
-    openAppPanel(panelId) {
-      useAppDockStore.getState().show(requireAppPanel(installation, panelId));
-    },
-    toggleAppPanel(panelId) {
-      useAppDockStore.getState().toggle(requireAppPanel(installation, panelId));
-    },
-    closeAppPanel() {
-      useAppDockStore
-        .getState()
-        .closeIf(
-          (panel) => panel.serverId === installation.serverId && panel.pluginId === installation.id,
-        );
-    },
   };
-}
-
-function requireAppPanel(installation: InstalledPlugin, panelId: string): AppDockPanel {
-  if (!installation.appPanels.some((panel) => panel.id === panelId)) {
-    throw new Error(`App panel is unavailable: ${panelId}`);
-  }
-  return { serverId: installation.serverId, pluginId: installation.id, panelId };
 }
 
 function openClientPanel(input: {

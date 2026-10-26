@@ -396,10 +396,7 @@ runtime so plugin code cannot mutate normalized app state or a memoized selectio
 `plugin` workspace-tab target, so reload, disable, removal, and restoration resolve through the
 current installed-plugin catalog. A missing contribution renders unavailable inside the tab.
 Panels declare `locations: ["workspace", "explorer"]` to opt into Explorer hosting; omission means
-workspace only. App panels (`addAppPanel`) are a separate contribution: they have no workspace, are
-shown by the app dock (`components/app-dock.tsx`, state in `stores/app-dock-store.ts`, mounted in
-`app/_layout.tsx` beside the content so it shrinks it), and persist one open panel for the whole app
-rather than per workspace. `AgentChat` (`plugins/react-native/agent-chat.tsx`) reuses the agent panel under a synthetic
+workspace only. `AgentChat` (`plugins/react-native/agent-chat.tsx`) reuses the agent panel under a synthetic
 `PaneContext`, which is why it needs no workspace tab. Location controls hosting, not context. An agent panel target keeps its `agentId`
 when moved between hosts. Explorer configuration can create workspace-context panels and remove
 existing agent-context instances, but it cannot create an agent panel without an agent-aware command.

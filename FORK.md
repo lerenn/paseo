@@ -44,25 +44,21 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
   `/home/paseo/work/upstream-drafts/create-options/`, not posted. Ask Louis.
 - **Status:** in fork.
 
-### App dock and AgentChat
+### AgentChat
 
-- **API:** `client.addAppPanel({ id, title, icon, Component })` adds a tab to the app dock, a
-  right-hand panel at the far right of the window that belongs to the app, not a workspace (open
-  state, width, maximized and selected tab are stored once). `client.openAppPanel(id)`,
-  `toggleAppPanel(id)` and `closeAppPanel()` drive it, e.g. from `addHeaderButton`.
-  `AgentChat({ agentId, workspaceId? })` from `@getpaseo/plugin/client/ui` embeds the host agent
-  conversation (real composer) for any agent. Subagents it lists open in place with a Back button (the pane context's
-  `openSubagentTarget`, since the dock has no workspace tabs). The dock header sits in the window-chrome safe area
-  (`WindowChromeRegion` / `WindowChromeSafeArea`), so the desktop window controls never overlap its
-  buttons. Reference: `public-docs/plugins/reference.md`,
-  sections "App panels" and "Agent chat".
-- **Fork PRs:** #10 (`8ff47622d`). First consumer: `lerenn/paseo-overseer`.
-- **Upstream branches (one aspect each, cut from upstream main):** `upstream/app-dock-1-dock`;
-  `upstream/app-dock-2-agent-chat` (on 1); `upstream/app-dock-3-window-controls` (on 1, the fix from
-  fork PR #24).
-- **Upstream Discussion / PRs:** one Discussion, three PRs; drafts at
-  `/home/paseo/work/upstream-drafts/app-dock/` (older drafts in `/home/paseo/overseer-drafts/`),
-  not posted. Ask Louis.
+- **API:** `AgentChat({ agentId, workspaceId? })` from `@getpaseo/plugin/client/ui` embeds the host
+  agent conversation (real composer) for any agent, in any plugin panel. Subagents it lists open in
+  place with a Back button (the pane context's `openSubagentTarget`, since there are no workspace
+  tabs there). Reference: `public-docs/plugins/reference.md`, section "Agent chat".
+- **Fork PRs:** #10 (`8ff47622d`, with the since-removed app dock). First consumer:
+  `lerenn/paseo-assistant`.
+- **Removed:** the app dock (`addAppPanel`, `openAppPanel`, `toggleAppPanel`, `closeAppPanel`) was
+  taken out of the fork; the Assistant moved to a sidebar entry that opens a full screen. Its
+  upstream branches `upstream/app-dock-1-dock` and `-3-window-controls` and its drafts are dropped.
+- **Upstream branch (one aspect, cut from upstream main):** `upstream/agent-chat-1-agent-chat`
+  (standalone, re-cut from `upstream/app-dock-2-agent-chat` without the dock).
+- **Upstream Discussion / PR:** drafts only, not posted:
+  `/home/paseo/work/upstream-drafts/agent-chat/`. Ask Louis.
 - **Status:** in fork.
 
 ### Sidebar groups

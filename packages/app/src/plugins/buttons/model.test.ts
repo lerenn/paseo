@@ -24,7 +24,6 @@ function installation(): InstalledPlugin {
     legacySidebarItems: [],
     filePanels: [],
     workspacePanels: [],
-    appPanels: [],
     commandCenterItems: [],
     clientSlashCommands: [],
     createOptions: [],

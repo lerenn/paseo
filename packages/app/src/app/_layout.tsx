@@ -37,7 +37,6 @@ import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog"
 import { ChangelogHost } from "@/changelog";
 import { AppDiagnosticHost } from "@/components/app-diagnostic-host";
 import { AppearanceStyleBoundary } from "@/components/appearance-style-boundary";
-import { AppDock } from "@/components/app-dock";
 import { LeftSidebar } from "@/components/left-sidebar";
 import { WindowSidebarMenuToggle } from "@/components/headers/sidebar-menu-toggle";
 import { DesktopWindowControls } from "@/components/desktop/window-controls";
@@ -114,11 +113,9 @@ import { flushDraftPersistStorage } from "@/stores/draft-store";
 import { getNextThemePreference, ICON_STROKE_WIDTH } from "@/styles/theme";
 import { useSessionStore } from "@/stores/session-store";
 import { WorkspaceLayoutModePublisher } from "@/workspace-tabs/layout-mode-publisher";
-import { useAppDockStore } from "@/stores/app-dock-store";
 import { installWebScrollbarStyles } from "@/styles/install-web-scrollbar-styles";
 import type { HostProfile } from "@/types/host-connection";
 import {
-  resolveContentWindowChromeCorners,
   useHasWindowChromeObstruction,
   WindowChromeProvider,
   WindowChromeRegion,
@@ -424,8 +421,6 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
     }),
   });
   const hasTopLeftWindowControls = useHasWindowChromeObstruction("top-left");
-  // A wide dock sits at the right edge and owns the window's right-hand controls, not the content.
-  const appDockBesideContent = useAppDockStore((state) => state.open && state.panel !== null);
   const appChromeLayout = resolveDesktopAppChromeLayout({
     desktopSidebarRendered: desktopSidebarVisible,
     hasTopLeftWindowControls,
@@ -456,19 +451,11 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
       ) : null}
       <WorkspaceExplorerOpenGesture enabled={chromeEnabled && isCompactLayout}>
         <WindowChromeRegion
-          corners={
-            isCompactLayout && chromeEnabled
-              ? "both"
-              : resolveContentWindowChromeCorners(
-                  appChromeLayout.contentCorners,
-                  appDockBesideContent,
-                )
-          }
+          corners={isCompactLayout && chromeEnabled ? "both" : appChromeLayout.contentCorners}
         >
           <View style={flexStyle}>{children}</View>
         </WindowChromeRegion>
       </WorkspaceExplorerOpenGesture>
-      <AppDock placement="beside-content" />
     </View>
   );
 
@@ -477,7 +464,6 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
   const surface = (
     <View style={layoutStyles.surfaceFill}>
       {workspaceChrome}
-      <AppDock placement="over-content" />
       <AppearanceStyleBoundary>
         {!isCompactLayout && appChromeLayout.sidebarToggleOwner === "window" ? (
           <WindowChromeRegion corners="top-left">

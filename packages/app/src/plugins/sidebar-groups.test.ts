@@ -35,7 +35,6 @@ function installed(
     legacySidebarItems,
     filePanels: [],
     workspacePanels: [],
-    appPanels: [],
     commandCenterItems: [],
     clientSlashCommands: [],
     createOptions: [],

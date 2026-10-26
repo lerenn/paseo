@@ -25,7 +25,6 @@ import {
   type PluginTimelineRendererContribution,
   type PluginTimelineTransformerContribution,
   type PluginButtonRegistration,
-  type PluginAppPanelContribution,
 } from "@getpaseo/plugin/client";
 import type {
   EvaluatedPlugin,
@@ -114,9 +113,6 @@ export type PluginClientRuntime = Pick<
   | "openScreen"
   | "openSurface"
   | "openPanel"
-  | "openAppPanel"
-  | "toggleAppPanel"
-  | "closeAppPanel"
   | "addComposerPill"
   | "addHeaderButton"
   | "addAgentBadge"
@@ -139,7 +135,6 @@ export function runPluginClientBundle(
     legacySidebarItems: [],
     filePanels: [],
     workspacePanels: [],
-    appPanels: [],
     commandCenterItems: [],
     clientSlashCommands: [],
     createOptions: [],
@@ -149,7 +144,6 @@ export function runPluginClientBundle(
     timelineTransformers: [],
     timelineRenderers: [],
   };
-  const appPanelIds = new Set<string>();
   const surfaceIds = new Set<string>();
   const settingsScreenIds = new Set<string>();
   const sidebarItemIds: Record<PluginSidebarSection, Set<string>> = {
@@ -371,20 +365,6 @@ export function runPluginClientBundle(
         throw new Error(`Workspace panel ${input.id} has invalid context`);
       }
       return registerPanel({ ...input, context: "workspace" });
-    },
-    addAppPanel(contribution: PluginAppPanelContribution<PluginText>) {
-      const normalizedId = requireId(contribution.id, "app panel id");
-      if (appPanelIds.has(normalizedId)) throw new Error(`Duplicate app panel: ${normalizedId}`);
-      const title = normalizePluginText(contribution.title);
-      if (!title) throw new Error(`App panel ${normalizedId} has no title`);
-      const icon = parsePluginIcon(`App panel ${normalizedId}`, contribution.icon);
-      if (typeof contribution.Component !== "function") {
-        throw new Error(`App panel ${normalizedId} is not a component`);
-      }
-      appPanelIds.add(normalizedId);
-      return register(collector.appPanels, { ...contribution, id: normalizedId, title, icon }, () =>
-        appPanelIds.delete(normalizedId),
-      );
     },
     addCommandCenterItem(contribution: PluginCommandCenterItemContribution) {
       const normalizedId = requireId(contribution.id, "Command Center item id");
@@ -693,7 +673,6 @@ export function runPluginClientBundle(
     legacySidebarItems: collector.legacySidebarItems,
     filePanels: collector.filePanels,
     workspacePanels: collector.workspacePanels as EvaluatedPlugin["workspacePanels"],
-    appPanels: collector.appPanels,
     commandCenterItems: collector.commandCenterItems,
     clientSlashCommands: collector.clientSlashCommands,
     createOptions: collector.createOptions,

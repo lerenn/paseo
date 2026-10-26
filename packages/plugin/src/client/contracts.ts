@@ -125,16 +125,6 @@ export interface PluginTab {
   setState(state: JsonValue): void;
 }
 
-/** Props of a panel in the app dock. The dock belongs to no workspace, so there is no `workspaceId`. */
-export interface PluginAppPanelProps extends PluginNavigableHostProps {}
-
-export interface PluginAppPanelContribution<Text extends PluginText = string> {
-  id: string;
-  title: Text;
-  icon: PluginIcon;
-  Component: ComponentType<PluginAppPanelProps>;
-}
-
 export interface PluginPanelProps<Params> extends PluginNavigableHostProps {
   workspaceId: string;
   readonly params: Readonly<Params>;
@@ -199,17 +189,6 @@ export interface PluginClientContext extends PluginCommandCapabilities, PluginCl
   addSidebarFooterItem(contribution: PluginSidebarItemContribution<PluginText>): PluginCleanup;
   addAgentPanel(contribution: PluginAgentPanelContribution<PluginText>): PluginCleanup;
   addWorkspacePanel(contribution: PluginWorkspacePanelContribution<PluginText>): PluginCleanup;
-  /**
-   * Add a panel to the app dock: a right-hand side panel that belongs to the app, not to a
-   * workspace. Its open state, width and selected panel survive workspace switches.
-   */
-  addAppPanel(contribution: PluginAppPanelContribution<PluginText>): PluginCleanup;
-  /** Shows the dock on this plugin's app panel, opening it if closed. */
-  openAppPanel(id: string): void;
-  /** Closes the dock if it shows this plugin's panel, otherwise shows the panel. */
-  toggleAppPanel(id: string): void;
-  /** Closes the dock if it shows one of this plugin's panels. */
-  closeAppPanel(): void;
   addCommandCenterItem(
     contribution: PluginCommandCenterItemContribution<PluginText>,
   ): PluginCleanup;

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   intersectWindowChromeCorners,
-  resolveContentWindowChromeCorners,
   resolveHasOwnedWindowChromeObstruction,
   resolveWindowChromeObstruction,
   resolveWindowChromeSafeArea,
@@ -89,17 +88,7 @@ describe("window chrome", () => {
   });
 });
 
-describe("content corners beside an app dock", () => {
-  it("gives the right-hand corner to the dock and keeps the left one", () => {
-    expect(resolveContentWindowChromeCorners("both", true)).toBe("top-left");
-    expect(resolveContentWindowChromeCorners("top-right", true)).toBe("none");
-    expect(resolveContentWindowChromeCorners("top-left", true)).toBe("top-left");
-  });
-
-  it("leaves the corners alone without a dock", () => {
-    expect(resolveContentWindowChromeCorners("both", false)).toBe("both");
-  });
-
+describe("window chrome safe area", () => {
   it("pads a dock header by the right-hand controls on Windows and Linux only", () => {
     const owned = (mode: "custom-windows" | "custom-linux" | "native-mac" | null) =>
       resolveWindowChromeSafeArea({

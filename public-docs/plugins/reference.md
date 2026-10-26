@@ -2048,32 +2048,6 @@ Agent snapshot fields:
 
 Paseo owns tab focus, splitting, closing, persistence, query state, the API/RPC providers, and the render error boundary. A restored tab whose plugin, panel, context, workspace, or agent is unavailable stays open with an unavailable message instead of crashing the workspace.
 
-### App panels
-
-`addAppPanel` adds a panel to the **app dock**, a right-hand side panel that belongs to the app, not
-to a workspace. Open state, width, and the selected panel are stored once, so the dock does not
-change when the user switches workspace. On wide layouts it sits at the far right and shrinks the
-content, Explorer included; on compact layouts it covers the screen with a Close button.
-
-```tsx
-client.addAppPanel({ id: "inbox", title: "Inbox", icon: "Inbox", Component: InboxPanel });
-
-// From any callback, for example a header button's onPress:
-client.toggleAppPanel("inbox");
-```
-
-| Field       | Required | Meaning                                                    |
-| ----------- | -------- | ---------------------------------------------------------- |
-| `id`        | Yes      | Plugin-local panel ID.                                     |
-| `title`     | Yes      | Dock header title.                                         |
-| `icon`      | Yes      | Lucide name, `{ svg }`, or component. See [Icons](#icons). |
-| `Component` | Yes      | Receives `PluginAppPanelProps`: `theme`, `host`, `layout`. |
-
-An app panel has no `workspaceId`; read what you need with `usePaseo()` or `useWorkspace`.
-`client.openAppPanel(id)` shows the panel, `client.toggleAppPanel(id)` closes the dock when it already
-shows the panel, and `client.closeAppPanel()` closes it when it shows one of your panels. They throw
-for an unknown panel ID. The dock shows one panel at a time.
-
 ## File panels
 
 Register a component that renders a file as the body of its file tab. Your component receives a
