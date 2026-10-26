@@ -1908,6 +1908,13 @@ export const ar: TranslationResources = {
     backdrop: "خلفية القائمة",
   },
   subagents: {
+    parent: {
+      backToParent: "العودة إلى الوكيل الأصلي",
+      backTo: "العودة إلى {{label}}",
+      parent: "الأصل",
+      parentAgent: "الوكيل الأصلي",
+      openParent: "فتح الوكيل الأصلي",
+    },
     title: "الوكلاء الفرعيون",
     pillLabelOne: "وكيل فرعي واحد",
     pillLabelMany: "{{count}} وكلاء فرعيين",
@@ -2007,6 +2014,12 @@ export const ar: TranslationResources = {
     subAgentActivity: "نشاط الوكيل الفرعي",
     input: "مدخل",
     output: "الإخراج",
+  },
+  turnSummary: {
+    messages: {
+      one: "كتب {{count}} رسالة",
+      other: "كتب {{count}} رسائل",
+    },
   },
   toolCallGroup: {
     editedFiles: {
@@ -2312,12 +2325,13 @@ export const ar: TranslationResources = {
         label: "عرض التفكير دائماً",
         description: "إظهار تفكير الوكيل وخطوات الاستدلال بشكل كامل بشكل افتراضي",
       },
-      toolCallDetail: {
-        label: "عرض استدعاءات الأدوات",
-        description: "كيفية ظهور استدعاءات الأدوات في المخطط الزمني",
+      chatDisplay: {
+        label: "عرض المحادثة",
+        description: "مقدار عمل الوكيل الذي تعرضه المحادثة",
         options: {
-          overview: "ملخص",
-          detailed: "التفاصيل الكاملة",
+          full: "كامل",
+          collapseToolCalls: "طيّ استدعاءات الأدوات",
+          collapseTurns: "طيّ الأدوار",
         },
       },
       language: {
