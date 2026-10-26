@@ -1,4 +1,5 @@
 import type { ProviderProcessLauncher } from "../../../workspace-runtime/process-launcher.js";
+import { runtimeExitOf } from "../../../workspace-runtime/remote-child-process.js";
 import { validateProviderOptions } from "../../provider-options.js";
 import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -4001,6 +4002,14 @@ class ClaudeAgentSession implements AgentSession {
       "Claude runtime exited unexpectedly",
     );
     this.failRunningRuntimeTasks();
+    if (runtimeExitOf(child)?.reason === "interrupted") {
+      // The platform cut the process. Drop the dead handles and end an open turn as canceled, not
+      // failed.
+      this.query = null;
+      this.input = null;
+      this.cancelOpenTurnAfterRuntimeInterruption();
+      return;
+    }
     if (this.activeForegroundTurnId || this.autonomousTurn) {
       // The pump is about to throw. It waits for stderr to flush and reports the
       // real cause; reporting here first would replace that with a bare exit code
@@ -4016,6 +4025,21 @@ class ClaudeAgentSession implements AgentSession {
         `Claude stopped unexpectedly (${signal ? `signal ${signal}` : `exit code ${code ?? "unknown"}`}). Any background shells, monitors or other work it had running were terminated with it.`,
       ),
     ]);
+  }
+
+  private cancelOpenTurnAfterRuntimeInterruption(): void {
+    const canceled = {
+      type: "turn_canceled" as const,
+      provider: "claude" as const,
+      reason: "Interrupted by the runtime",
+    };
+    this.rejectAllPendingPermissions(new Error("Permission request canceled"));
+    this.flushPendingToolCalls();
+    if (this.activeForegroundTurnId) {
+      this.finishForegroundTurn(canceled);
+    } else if (this.autonomousTurn) {
+      this.dispatchEvents([canceled]);
+    }
   }
 
   private failRunningRuntimeTasks(): void {

@@ -489,6 +489,10 @@ the runtime unchanged. Check `server_info.features.workspaceRuntimes` first; the
 `exec` returns `{ stdin, stdout, stderr, exit, signal }`. `exit` resolves with
 `{ code, signal, reason, message? }`. Use `reason: "runtime-lost"` when the sandbox went away rather
 than the process finishing: Paseo reconciles the runtime and the next input relaunches into it.
+Use `reason: "interrupted"` when the platform cut the process (a node reclaim, a
+spot eviction) rather than the agent failing: an idle agent shows no error, a turn open at that moment
+ends as canceled, never as failed, the agent returns to idle with no error state, and `message` is
+kept in the timeline as an info item (Claude, Codex and ACP providers).
 `context.notice(message, level?)` shows progress or a problem in the agent's timeline.
 
 Every workspace-scoped request carries `workspaceCwd`, the workspace's directory on the daemon

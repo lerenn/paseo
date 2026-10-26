@@ -1,4 +1,5 @@
 import { ACPProviderOptionsSchema } from "./acp-options.js";
+import { runtimeExitOf } from "../../workspace-runtime/remote-child-process.js";
 import { type ChildProcess, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
@@ -2919,6 +2920,16 @@ export class ACPAgentSession implements AgentSession, ACPClient {
     const spawnError = rejectOnSpawnError(child, stderrChunks);
     child.once("exit", (code, signal) => {
       if (this.closed || this.historyRuntimeReleased) {
+        return;
+      }
+      if (this.activeForegroundTurnId && runtimeExitOf(child)?.reason === "interrupted") {
+        this.synthesizeCanceledToolCalls();
+        this.finishTurn({
+          type: "turn_canceled",
+          provider: this.provider,
+          reason: "Interrupted by the runtime",
+          turnId: this.activeForegroundTurnId,
+        });
         return;
       }
       if (this.activeForegroundTurnId) {

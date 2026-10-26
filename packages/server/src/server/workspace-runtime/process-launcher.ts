@@ -1,6 +1,7 @@
 import type { ChildProcess } from "node:child_process";
 import type { JsonValue } from "@getpaseo/protocol/agent-types";
 import type {
+  WorkspaceRuntimeExit,
   WorkspaceRuntimeOptions,
   WorkspaceRuntimeProcessPurpose,
 } from "@getpaseo/plugin/server";
@@ -46,6 +47,8 @@ export interface RuntimeProcessLauncherOptions {
   /** The agent's final MCP servers, read when the process starts. */
   mcpServers?: () => Record<string, JsonValue> | undefined;
   onNotice?: (notice: RuntimeNotice) => void;
+  /** Called with every process exit, before the provider sees it. */
+  onExit?: (exit: WorkspaceRuntimeExit) => void;
   /**
    * Every live workspace of this runtime, for `reconcile` after a lost sandbox. Without it the
    * launcher does not reconcile: a runtime told about too few workspaces would delete live ones.
@@ -215,6 +218,7 @@ export function createRuntimeProcessLauncher(
               if (exit.reason === "runtime-lost" && live) {
                 void backend.reconcile({ workspaces: live }).catch(() => undefined);
               }
+              options.onExit?.(exit);
               target.onExit(exit);
             },
             onFailed(error) {

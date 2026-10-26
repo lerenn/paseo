@@ -5485,6 +5485,20 @@ export class AgentManager {
       workspaceRoot: selected.root,
       liveWorkspaces: () => this.workspaceRuntimes?.listRuntimeWorkspaces(selected.id) ?? [],
       mcpServers: input.getMcpServers,
+      onExit: (exit) => {
+        // The platform cut the process: keep the runtime's message in the timeline. The providers
+        // end an open turn as canceled themselves.
+        if (exit.reason !== "interrupted" || !this.getAgent(agentId)) return;
+        this.recordAndDispatchTimelineItem(
+          agentId,
+          {
+            type: "notification",
+            level: "info",
+            message: exit.message?.trim() || "The runtime interrupted this agent's process.",
+          },
+          input.client.provider,
+        );
+      },
       onNotice: (notice) => {
         if (!this.getAgent(agentId)) return;
         this.recordAndDispatchTimelineItem(

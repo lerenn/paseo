@@ -35,7 +35,13 @@ interface Harness {
 
 /** A real plugin worker and a real backend, joined by an in-memory channel. */
 function createHarness(
-  options: { failExec?: string; mapTo?: string; missing?: string[]; live?: boolean } = {},
+  options: {
+    failExec?: string;
+    mapTo?: string;
+    missing?: string[];
+    live?: boolean;
+    onExit?: (exit: WorkspaceRuntimeExit) => void;
+  } = {},
 ): Harness {
   const calls: string[] = [];
   const prepared: WorkspaceRuntimePrepareRequest[] = [];
@@ -131,6 +137,7 @@ function createHarness(
       : {}),
     mcpServers: () => ({ tools: { type: "stdio", command: "mcp-tools" } }),
     onNotice: (notice) => notices.push(notice),
+    onExit: options.onExit,
   });
   return {
     backend,
@@ -425,6 +432,37 @@ describe("workspace runtime display details", () => {
       },
     } as never);
     expect(await registry.displayOf("pod", { workspaceId: "w1" })).toBeNull();
+  });
+});
+
+describe("interrupted runtime exits", () => {
+  it("tells the launcher's owner before the provider sees the exit, with the runtime's message", async () => {
+    const order: string[] = [];
+    const seen: WorkspaceRuntimeExit[] = [];
+    const harness = createHarness({
+      onExit: (exit) => {
+        order.push("owner");
+        seen.push(exit);
+      },
+    });
+    const child = harness.launch();
+    child.once("exit", () => order.push("provider"));
+    await new Promise<void>((resolve) => child.once("spawn", () => resolve()));
+    harness.finishLast({
+      code: null,
+      signal: "SIGTERM",
+      reason: "interrupted",
+      message: "Interrupted by a node reclaim",
+    });
+    await new Promise<void>((resolve) => child.once("close", () => resolve()));
+    expect(order).toEqual(["owner", "provider"]);
+    expect(seen[0]).toMatchObject({
+      reason: "interrupted",
+      message: "Interrupted by a node reclaim",
+    });
+    expect((child as unknown as { runtimeExit: WorkspaceRuntimeExit }).runtimeExit.reason).toBe(
+      "interrupted",
+    );
   });
 });
 

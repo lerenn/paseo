@@ -14,6 +14,22 @@ export interface RemoteChildProcess extends ChildProcess {
   readonly runtimeExit: WorkspaceRuntimeExit | null;
 }
 
+/** The runtime's account of why a provider process ended, when it ran in a runtime. */
+export function runtimeExitOf(child: ChildProcess): WorkspaceRuntimeExit | null {
+  return (child as Partial<RemoteChildProcess>).runtimeExit ?? null;
+}
+
+/**
+ * The platform cut the process (a node reclaim, a spot eviction): not a failure of the agent. A
+ * provider ends an open turn as canceled when it sees this, never as failed.
+ */
+export class RuntimeInterruptedError extends Error {
+  constructor(message?: string) {
+    super(message?.trim() || "The runtime interrupted this agent's process");
+    this.name = "RuntimeInterruptedError";
+  }
+}
+
 /**
  * A ChildProcess whose process runs inside a workspace runtime. Providers spawn synchronously,
  * so this returns at once: stdin is buffered, and `start` runs in the background. A start that
