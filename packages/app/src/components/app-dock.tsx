@@ -1,10 +1,10 @@
-import { Maximize2, Minimize2, X } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import { Gesture } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StyleSheet, withUnistyles } from "react-native-unistyles";
+import { useTranslation } from "react-i18next";
+import { StyleSheet } from "react-native-unistyles";
 import { scheduleOnRN } from "react-native-worklets";
 import { SidebarResizeHandle } from "@/components/sidebar-resize-handle";
 import {
@@ -13,11 +13,10 @@ import {
 } from "@/components/sidebar-resize-handle-layout";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { Button } from "@/components/ui/button";
-import { ToolbarButton } from "@/components/ui/pane-content-toolbar";
+import { WindowControl, useWindowControlsPresentation } from "@/components/desktop/window-controls";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { AppPluginPanel } from "@/plugins/app-panels/panel";
 import { useInstalledPlugins } from "@/plugins/registry";
-import type { Theme } from "@/styles/theme";
 import { WindowChromeRegion, WindowChromeSafeArea } from "@/utils/desktop-window";
 import {
   APP_DOCK_MIN_WIDTH,
@@ -34,11 +33,6 @@ function resolveAppDockWidth(input: { requestedWidth: number; viewportWidth: num
   const room = Math.max(APP_DOCK_MIN_WIDTH, input.viewportWidth - MIN_CONTENT_WIDTH);
   return Math.max(APP_DOCK_MIN_WIDTH, Math.min(room, input.requestedWidth));
 }
-
-const mutedIcon = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
-const ThemedX = withUnistyles(X, mutedIcon);
-const ThemedMaximize = withUnistyles(Maximize2, mutedIcon);
-const ThemedMinimize = withUnistyles(Minimize2, mutedIcon);
 
 /**
  * The app dock: a plugin panel docked to the far right that belongs to the app, not a workspace.
@@ -98,7 +92,12 @@ function DockHeader({ panel, compact }: { panel: DockPanel; compact: boolean }) 
   const close = useAppDockStore((state) => state.close);
   const maximized = useAppDockStore((state) => state.maximized);
   const toggleMaximized = useAppDockStore((state) => state.toggleMaximized);
-  const MaximizeIcon = maximized ? ThemedMinimize : ThemedMaximize;
+  const { t } = useTranslation();
+  const presentation = useWindowControlsPresentation();
+  const controlsStyle = useMemo(
+    () => [styles.controls, { height: presentation.controlHeight }],
+    [presentation.controlHeight],
+  );
   return (
     <WindowChromeSafeArea placement="inline" style={styles.headerFrame}>
       <TitlebarDragRegion />
@@ -112,18 +111,25 @@ function DockHeader({ panel, compact }: { panel: DockPanel; compact: boolean }) 
             />
           ))}
         </View>
-        {compact ? null : (
-          <ToolbarButton
-            label={maximized ? "Restore" : "Maximize"}
-            onPress={toggleMaximized}
-            testID="app-dock-maximize"
-          >
-            <MaximizeIcon size={16} />
-          </ToolbarButton>
-        )}
-        <ToolbarButton label="Close" onPress={close} testID="app-dock-close">
-          <ThemedX size={16} />
-        </ToolbarButton>
+        {/* The same buttons as the desktop window controls beside them. */}
+        <View style={controlsStyle}>
+          {compact ? null : (
+            <WindowControl
+              kind={maximized ? "restore" : "maximize"}
+              label={t(
+                maximized ? "desktop.windowControls.restore" : "desktop.windowControls.maximize",
+              )}
+              onPress={toggleMaximized}
+              presentation={presentation}
+            />
+          )}
+          <WindowControl
+            kind="close"
+            label={t("desktop.windowControls.close")}
+            onPress={close}
+            presentation={presentation}
+          />
+        </View>
       </View>
     </WindowChromeSafeArea>
   );
@@ -256,9 +262,10 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: theme.spacing[3],
+    paddingLeft: theme.spacing[3],
     paddingVertical: theme.spacing[2],
   },
+  controls: { flexDirection: "row", alignSelf: "center", flexShrink: 0 },
   tabs: { flex: 1, flexDirection: "row", gap: theme.spacing[1], minWidth: 0 },
   body: { flex: 1 },
 }));

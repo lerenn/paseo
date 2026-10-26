@@ -15,7 +15,7 @@ import {
 import { useCustomDesktopWindowControls } from "@/utils/desktop-window";
 import type { Theme } from "@/styles/theme";
 
-type WindowControlKind = "minimize" | "maximize" | "restore" | "close";
+export type WindowControlKind = "minimize" | "maximize" | "restore" | "close";
 
 function WindowControlGlyph({
   kind,
@@ -79,7 +79,7 @@ const ThemedWindowControlGlyph = withUnistyles(WindowControlGlyph);
 const mutedGlyphMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 const whiteGlyphMapping = () => ({ color: "#ffffff" });
 
-function WindowControl({
+export function WindowControl({
   kind,
   label,
   onPress,
@@ -130,6 +130,15 @@ function WindowControl({
       {glyph}
     </Pressable>
   );
+}
+
+/**
+ * The presentation of the desktop window controls, for surfaces that draw the same buttons
+ * beside them. Falls back to the Windows look where the window has no custom controls.
+ */
+export function useWindowControlsPresentation(): DesktopWindowControlsPresentation {
+  const { mode } = useCustomDesktopWindowControls();
+  return getDesktopWindowControlsPresentation(mode ?? "custom-windows");
 }
 
 export function DesktopWindowControls() {
