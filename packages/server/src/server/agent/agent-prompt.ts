@@ -15,6 +15,7 @@ export type AgentRunController = Pick<
   | "getAgent"
   | "tryRunOutOfBand"
   | "hasInFlightRun"
+  | "reloadStalePluginSession"
   | "replaceAgentRun"
   | "steerOrReplaceActiveTurn"
   | "streamAgent"
@@ -120,6 +121,7 @@ export async function startAgentRun(
   // split by another send: Node runs this synchronously through the start of the new run.
   if (skipBusyAgent(agentManager, agentId, options)) return { disposition: "skipped" };
   try {
+    await agentManager.reloadStalePluginSession(agentId);
     return await startAgentRunInner(agentManager, agentId, prompt, logger, options);
   } catch (error) {
     if (!isStaleProviderSessionError(error)) throw error;

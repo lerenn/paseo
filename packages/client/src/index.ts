@@ -373,6 +373,11 @@ export interface PaseoAgentHandle {
   current(): PaseoAgent | null;
   refresh(requestId?: string): Promise<PaseoAgentRefetchResult | null>;
   /**
+   * Reopens the provider session with current configuration, rerunning session-open hooks.
+   * Interrupts a running turn and returns the refreshed snapshot.
+   */
+  reload(options?: { requestId?: string }): Promise<PaseoAgentRefetchResult | null>;
+  /**
    * Sends a prompt. With `activeTurnBehavior: "skip"` it is delivered only if the agent is not
    * running a turn, and resolves `{ skipped: true }` (nothing queued) otherwise.
    */
@@ -985,6 +990,12 @@ function createAgentHandleFactory(
       current: () => current,
       refresh: async (requestId) => {
         const result = await daemonClient.fetchAgent({ agentId: id, requestId });
+        current = result?.agent ?? null;
+        return result;
+      },
+      reload: async (options) => {
+        await daemonClient.refreshAgent(id, options?.requestId);
+        const result = await daemonClient.fetchAgent({ agentId: id });
         current = result?.agent ?? null;
         return result;
       },
