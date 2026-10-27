@@ -22,7 +22,7 @@ import { Archive, ChevronRight } from "lucide-react-native";
 import { useProviderIcon } from "@/components/provider-icons";
 import { navigateToAgent } from "@/utils/navigate-to-agent";
 import { useArchiveAgent } from "@/hooks/use-archive-agent";
-import { HighlightedText } from "@/components/ui/highlighted-text";
+import { HighlightedText, type HighlightedTextProps } from "@/components/ui/highlighted-text";
 import { StatusBadge, type StatusBadgeVariant } from "@/components/ui/status-badge";
 import { findHighlightRanges } from "@/components/ui/highlighted-text-segments";
 
@@ -163,6 +163,61 @@ function SessionRowTrailingAttention({
   );
 }
 
+/** Project, branch, time and host on one line; an empty piece takes no slot and no dot. */
+function MobileSessionMeta({
+  agent,
+  projectName,
+  branch,
+  projectRanges,
+  branchRanges,
+  showHost,
+}: {
+  agent: AggregatedAgent;
+  projectName: string;
+  branch: string;
+  projectRanges: HighlightedTextProps["ranges"];
+  branchRanges: HighlightedTextProps["ranges"];
+  showHost: boolean;
+}) {
+  return (
+    <View style={styles.rowMetaRow}>
+      {projectName ? (
+        <>
+          <HighlightedText
+            text={projectName}
+            ranges={projectRanges}
+            style={styles.sessionMetaText}
+            numberOfLines={1}
+            testID={`agent-row-project-${agent.serverId}-${agent.id}`}
+          />
+          <Text style={styles.sessionMetaSeparator}>·</Text>
+        </>
+      ) : null}
+      {branch ? (
+        <>
+          <HighlightedText
+            text={branch}
+            ranges={branchRanges}
+            style={styles.sessionMetaText}
+            numberOfLines={1}
+            testID={`agent-row-branch-${agent.serverId}-${agent.id}`}
+          />
+          <Text style={styles.sessionMetaSeparator}>·</Text>
+        </>
+      ) : null}
+      <AgentActivityTime date={agent.lastActivityAt} isMobile />
+      {showHost && agent.serverLabel ? (
+        <>
+          <Text style={styles.sessionMetaSeparator}>·</Text>
+          <Text style={styles.sessionMetaText} numberOfLines={1}>
+            {agent.serverLabel}
+          </Text>
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 function SessionRow({
   agent,
   search,
@@ -270,41 +325,14 @@ function SessionRow({
         </View>
         {isMobile ? agentTitle : null}
         {isMobile ? (
-          <View style={styles.rowMetaRow}>
-            {projectName ? (
-              <>
-                <HighlightedText
-                  text={projectName}
-                  ranges={ranges.project}
-                  style={styles.sessionMetaText}
-                  numberOfLines={1}
-                  testID={`agent-row-project-${agent.serverId}-${agent.id}`}
-                />
-                <Text style={styles.sessionMetaSeparator}>·</Text>
-              </>
-            ) : null}
-            {branch ? (
-              <>
-                <HighlightedText
-                  text={branch}
-                  ranges={ranges.branch}
-                  style={styles.sessionMetaText}
-                  numberOfLines={1}
-                  testID={`agent-row-branch-${agent.serverId}-${agent.id}`}
-                />
-                <Text style={styles.sessionMetaSeparator}>·</Text>
-              </>
-            ) : null}
-            <AgentActivityTime date={agent.lastActivityAt} isMobile />
-            {showHostColumn && agent.serverLabel ? (
-              <>
-                <Text style={styles.sessionMetaSeparator}>·</Text>
-                <Text style={styles.sessionMetaText} numberOfLines={1}>
-                  {agent.serverLabel}
-                </Text>
-              </>
-            ) : null}
-          </View>
+          <MobileSessionMeta
+            agent={agent}
+            projectName={projectName}
+            branch={branch}
+            projectRanges={ranges.project}
+            branchRanges={ranges.branch}
+            showHost={showHostColumn}
+          />
         ) : null}
       </View>
       {!isMobile ? (
