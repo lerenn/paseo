@@ -189,6 +189,19 @@ describe("hidden runtime badge", () => {
   });
 });
 
+describe("selectMetaRowItems blank names", () => {
+  it("takes no slot for a whitespace-only branch or project name", () => {
+    const visible = { ...DEFAULT_SIDEBAR_ROW_ITEMS, branch: true, project: true };
+    expect(kinds(select({ visible, currentBranch: "  ", projectName: "\t" }))).toEqual([
+      "host",
+      "changeRequest",
+      "checks",
+      "services",
+      "labels",
+    ]);
+  });
+});
+
 describe("isRuntimeBadgeHidden", () => {
   it("hides only when the host icon is shown and the runtime has no visible label", () => {
     expect(isRuntimeBadgeHidden({ hostIcon: "<svg/>" }, true)).toBe(true);

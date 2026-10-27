@@ -103,3 +103,15 @@ export function resolveAgentBadges(
   }
   return resolved;
 }
+
+/**
+ * Drops badges that would draw nothing: no text and an icon the host cannot render. A row decides
+ * whether it has badges from this list, so an invisible badge must not reserve a slot (and the
+ * separator in front of it).
+ */
+export function dropEmptyBadges(
+  badges: readonly ResolvedAgentBadge[],
+  isIconRenderable: (icon: ResolvedAgentBadge["icon"]) => boolean,
+): ResolvedAgentBadge[] {
+  return badges.filter((badge) => badge.text !== null || isIconRenderable(badge.icon));
+}

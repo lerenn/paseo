@@ -134,7 +134,7 @@ export function PluginIconView({ icon, size, color }: PluginIconViewProps): Reac
   return createElement(pluginIconComponent(icon), { size, color });
 }
 
-function isRenderable(icon: PluginIcon): boolean {
+export function isRenderable(icon: PluginIcon): boolean {
   if (typeof icon === "string") return findLucideIcon(icon) !== null;
   if (isSvgIcon(icon)) return findSvgIconProblem(icon.svg) === null;
   return isComponent(icon);

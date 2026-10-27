@@ -96,7 +96,8 @@ export function WorkspaceMetaRow({
     hasHostBadge: hostBadge !== null,
     runtimeId,
     runtimeBadgeHidden: !serverId || isRuntimeBadgeHidden(runtimeDetails, hostBadge !== null),
-    hasAgentBadges,
+    // AgentBadges draws nothing without both ids, so the item must not claim a slot either.
+    hasAgentBadges: hasAgentBadges && Boolean(serverId) && Boolean(workspaceId),
     prHint,
     serviceSummary,
     labels,

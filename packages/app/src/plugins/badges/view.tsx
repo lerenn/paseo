@@ -5,8 +5,8 @@ import type { PluginBadgeAgent } from "@getpaseo/plugin/client";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSessionStore } from "@/stores/session-store";
 import type { Theme } from "@/styles/theme";
-import { PluginIconView } from "../icons";
-import { resolveAgentBadges, type ResolvedAgentBadge } from "./model";
+import { isRenderable, PluginIconView } from "../icons";
+import { dropEmptyBadges, resolveAgentBadges, type ResolvedAgentBadge } from "./model";
 import { pluginAgentBadgeStore } from "./store";
 
 const BADGE_ICON_SIZE = 12;
@@ -56,7 +56,10 @@ export function useAgentBadges(input: {
   const agents = useBadgeAgents(input);
   const surface = input.agentId ? "agent" : "workspace-row";
   return useMemo(
-    () => (registered.length === 0 ? [] : resolveAgentBadges(registered, agents, surface)),
+    () =>
+      registered.length === 0
+        ? []
+        : dropEmptyBadges(resolveAgentBadges(registered, agents, surface), isRenderable),
     [registered, agents, surface],
   );
 }
