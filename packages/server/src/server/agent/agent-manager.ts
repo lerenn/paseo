@@ -80,6 +80,10 @@ import {
 } from "./agent-run-state.js";
 import { invokeRewindCapability, type RewindMode } from "./rewind/rewind.js";
 import { parseAgentMessage, projectAgentMessages } from "./agent-messages/index.js";
+import {
+  ForegroundTurnActiveError,
+  isForegroundTurnActiveError,
+} from "./foreground-turn-active-error.js";
 import { isStaleProviderSessionError } from "./stale-provider-session-error.js";
 import { stripInternalPaseoMcpServer, withRuntimePaseoMcpServer } from "./runtime-mcp-config.js";
 import { resolveCreateAgentTitles } from "./create-agent-title.js";
@@ -2539,6 +2543,38 @@ export class AgentManager {
     });
   }
 
+  // The provider can still hold a turn the daemon already cleared (late cancel). Queue behind
+  // it instead of failing: retry until it ends, then force-end it once the budget is spent.
+  private async startTurnWhenProviderIdle(
+    agent: ActiveManagedAgent,
+    pendingRun: PendingForegroundRun,
+    prompt: AgentPromptInput,
+    options?: AgentRunOptions,
+  ): Promise<{ turnId: string }> {
+    const budgetMs = this.rescueTimeouts.interruptSessionMs;
+    const retryMs = Math.max(5, Math.min(250, Math.floor(budgetMs / 10)));
+    const deadline = Date.now() + budgetMs;
+    let forced = false;
+    for (;;) {
+      if (Date.now() >= deadline) {
+        if (forced) throw new ForegroundTurnActiveError();
+        forced = true;
+        this.logger.warn(
+          { agentId: agent.id },
+          "Provider still holds a foreground turn the daemon cleared, interrupting it",
+        );
+        await this.interruptSession(agent.session, agent.id);
+      }
+      await new Promise((done) => setTimeout(done, retryMs));
+      if (pendingRun.settled) throw new ForegroundTurnActiveError();
+      try {
+        return await agent.session.startTurn(prompt, options);
+      } catch (error) {
+        if (!isForegroundTurnActiveError(error)) throw error;
+      }
+    }
+  }
+
   private async startPendingForegroundTurn(params: {
     agent: ActiveManagedAgent;
     agentId: string;
@@ -2548,8 +2584,17 @@ export class AgentManager {
   }): Promise<string> {
     const { agent, agentId, pendingRun, prompt, options } = params;
     try {
-      const result = await agent.session.startTurn(prompt, options);
+      let result: { turnId: string };
+      try {
+        result = await agent.session.startTurn(prompt, options);
+      } catch (startError) {
+        if (!isForegroundTurnActiveError(startError) || pendingRun.settled) throw startError;
+        result = await this.startTurnWhenProviderIdle(agent, pendingRun, prompt, options);
+      }
       if (pendingRun.settled) {
+        // The run was cleared (cancel timeout) while the provider was starting this turn.
+        // Daemon state no longer tracks it, so end it before the provider session is orphaned.
+        await this.interruptSession(agent.session, agentId);
         throw new Error(`Agent ${agentId} run was canceled before its turn started`);
       }
       return result.turnId;

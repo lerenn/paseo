@@ -24,6 +24,7 @@ import { toAgentPayload } from "./agent-projections.js";
 import { projectTimelineRows } from "./timeline-projection.js";
 import { getOpenAgentTabLabel, PARENT_AGENT_ID_LABEL } from "@getpaseo/protocol/agent-labels";
 import { startAgentRun } from "./agent-prompt.js";
+import { ForegroundTurnActiveError } from "./foreground-turn-active-error.js";
 import { StaleProviderSessionError } from "./stale-provider-session-error.js";
 import { ensureAgentLoaded, ensureUnarchivedAgentLoaded } from "./agent-loading.js";
 import type { StoredAgentRecord } from "./agent-storage.js";
@@ -4045,6 +4046,121 @@ test("a replacement prompt recovers when the retired session fails to start", as
     const result = await manager.waitForAgentEvent(created.id);
     expect(result.status).toBe("idle");
     expect(replacement.resumeOverrides).toHaveLength(1);
+  } finally {
+    await manager.closeAgent(created.id).catch(() => undefined);
+    await manager.flush().catch(() => undefined);
+    await storage.flush().catch(() => undefined);
+    rmSync(workdir, { recursive: true, force: true });
+  }
+});
+
+test("a start that races a cleared turn queues behind the provider turn instead of failing", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-provider-held-"));
+  const storage = new AgentStorage(join(workdir, "agents"), logger);
+
+  class HeldTurnSession extends TestAgentSession {
+    held = true;
+    starts = 0;
+
+    override async startTurn(): Promise<{ turnId: string }> {
+      if (this.held) throw new ForegroundTurnActiveError();
+      this.starts += 1;
+      return super.startTurn();
+    }
+  }
+
+  let session: HeldTurnSession | null = null;
+  class HeldTurnClient extends TestAgentClient {
+    override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
+      session = new HeldTurnSession(config);
+      return session;
+    }
+  }
+
+  const manager = new AgentManager({
+    clients: { codex: new HeldTurnClient() },
+    registry: storage,
+    logger,
+    rescueTimeouts: { interruptSessionMs: 2_000 },
+  });
+  const created = await manager.createAgent({ provider: "codex", cwd: workdir }, undefined, {
+    workspaceId: undefined,
+  });
+
+  try {
+    const stream = manager.streamAgent(created.id, "queued message");
+    const drained = drainAsyncGenerator(stream);
+    // The provider turn ends shortly after the first rejected start.
+    setTimeout(() => {
+      (session as HeldTurnSession | null)!.held = false;
+    }, 50);
+    await drained;
+    expect((session as HeldTurnSession | null)!.starts).toBe(1);
+    expect(manager.getAgent(created.id)).toMatchObject({
+      lifecycle: "idle",
+      activeForegroundTurnId: null,
+    });
+  } finally {
+    await manager.closeAgent(created.id).catch(() => undefined);
+    await manager.flush().catch(() => undefined);
+    await storage.flush().catch(() => undefined);
+    rmSync(workdir, { recursive: true, force: true });
+  }
+});
+
+test("a cancel timeout while the provider is still starting ends the late turn", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-late-start-"));
+  const storage = new AgentStorage(join(workdir, "agents"), logger);
+
+  class LateStartSession extends TestAgentSession {
+    releaseStart: (() => void) | null = null;
+    interrupts = 0;
+
+    override async startTurn(): Promise<{ turnId: string }> {
+      await new Promise<void>((resolve) => {
+        this.releaseStart = resolve;
+      });
+      return { turnId: "late-turn" };
+    }
+
+    override async interrupt(): Promise<void> {
+      this.interrupts += 1;
+    }
+  }
+
+  let session: LateStartSession | null = null;
+  class LateStartClient extends TestAgentClient {
+    override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
+      session = new LateStartSession(config);
+      return session;
+    }
+  }
+
+  const manager = new AgentManager({
+    clients: { codex: new LateStartClient() },
+    registry: storage,
+    logger,
+    rescueTimeouts: { interruptSessionMs: 20 },
+  });
+  const created = await manager.createAgent({ provider: "codex", cwd: workdir }, undefined, {
+    workspaceId: undefined,
+  });
+
+  try {
+    const drained = drainAsyncGenerator(manager.streamAgent(created.id, "first")).catch(
+      () => undefined,
+    );
+    await vi.waitFor(() => expect((session as LateStartSession | null)?.releaseStart).toBeTruthy());
+
+    await manager.cancelAgentRun(created.id);
+    const interruptsAfterCancel = (session as LateStartSession | null)!.interrupts;
+
+    (session as LateStartSession | null)!.releaseStart!();
+    await drained;
+
+    // The turn that started after the daemon cleared its state is ended, not orphaned.
+    expect((session as LateStartSession | null)!.interrupts).toBeGreaterThan(interruptsAfterCancel);
+    expect(manager.getAgent(created.id)?.activeForegroundTurnId ?? null).toBeNull();
   } finally {
     await manager.closeAgent(created.id).catch(() => undefined);
     await manager.flush().catch(() => undefined);

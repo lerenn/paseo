@@ -1,3 +1,4 @@
+import { ForegroundTurnActiveError } from "../../foreground-turn-active-error.js";
 import { validateProviderOptions } from "../../provider-options.js";
 import type { ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -2468,7 +2469,7 @@ class ClaudeAgentSession implements AgentSession {
       throw new Error("Claude session is closed");
     }
     if (this.activeForegroundTurnId) {
-      throw new Error("A foreground turn is already active");
+      throw new ForegroundTurnActiveError();
     }
 
     const slashCommand = this.resolveSlashCommandInvocation(prompt);

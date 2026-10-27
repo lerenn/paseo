@@ -1,3 +1,4 @@
+import { ForegroundTurnActiveError } from "../foreground-turn-active-error.js";
 import { ACPProviderOptionsSchema } from "./acp-options.js";
 import { type ChildProcess, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -1967,7 +1968,7 @@ export class ACPAgentSession implements AgentSession, ACPClient {
       throw new Error(`${this.provider} session is not initialized`);
     }
     if (this.activeForegroundTurnId) {
-      throw new Error("A foreground turn is already active");
+      throw new ForegroundTurnActiveError();
     }
 
     this.deliverTranslatedEvents(this.flushPendingUserMessage());
