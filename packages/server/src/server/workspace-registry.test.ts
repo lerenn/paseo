@@ -567,6 +567,35 @@ describe("workspace registries", () => {
     });
   });
 
+  test("persists the archive reason with the workspace archive", async () => {
+    await workspaceRegistry.initialize();
+    await workspaceRegistry.upsert(
+      createPersistedWorkspaceRecord({
+        workspaceId: "workspace-reason",
+        projectId: "project-one",
+        cwd: "/tmp/repo",
+        kind: "local_checkout",
+        displayName: "main",
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      }),
+    );
+
+    await workspaceRegistry.archive("workspace-reason", "2026-03-02T00:00:00.000Z", {
+      archiveReason: "auto-archived: idle 2d",
+    });
+
+    const reloaded = new FileBackedWorkspaceRegistry(
+      path.join(tmpDir, "projects", "workspaces.json"),
+      logger,
+    );
+    await reloaded.initialize();
+    expect(await reloaded.get("workspace-reason")).toMatchObject({
+      archivedAt: "2026-03-02T00:00:00.000Z",
+      archiveReason: "auto-archived: idle 2d",
+    });
+  });
+
   test("composes concurrent workspace field updates without losing either change", async () => {
     await workspaceRegistry.initialize();
     await workspaceRegistry.upsert(

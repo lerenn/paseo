@@ -2706,6 +2706,10 @@ export const ArchiveWorkspaceRequestSchema = z.object({
   type: z.literal("archive_workspace_request"),
   workspaceId: z.string(),
   requestId: z.string(),
+  // Why the workspace is archived; kept on the record. Needs server_info.features.workspaceArchiveGuard.
+  reason: z.string().optional(),
+  // Refuse (archive nothing) while an agent of the workspace has an open turn or a pending permission.
+  ifIdle: z.boolean().optional(),
 });
 
 // Create a new workspace record. Unlike open_project, this never deduplicates by
@@ -3701,6 +3705,8 @@ export const ServerInfoStatusPayloadSchema = z
         pluginCreateContext: z.boolean().optional(),
         // send_agent_prompt accepts activeTurnBehavior "skip" and reports { skipped: true }.
         activeTurnSkip: z.boolean().optional(),
+        // archive_workspace_request accepts reason and ifIdle; a daemon without it would ignore both and archive.
+        workspaceArchiveGuard: z.boolean().optional(),
         // Plugins can hook before("agent.prompt") and prepend context to a prompt.
         pluginPromptHook: z.boolean().optional(),
         providersSnapshot: z.boolean().optional(),

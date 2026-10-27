@@ -170,6 +170,22 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
 - **Upstream Discussion / PR:** drafts only, not posted:
   `/home/paseo/work/upstream-drafts/agent-send-skip/`.
 
+### Workspace archive reason and idle guard
+
+- **API:** `paseo workspace archive <id> --reason <text> --if-idle`, and the WebSocket
+  `archive_workspace_request` fields `reason` and `ifIdle` (client:
+  `archiveWorkspace(id, requestId?, { reason, ifIdle })`). `reason` is kept on the workspace record
+  (`archiveReason`, through `WorkspaceArchiveContext`). `ifIdle` makes the daemon refuse, archiving
+  nothing, while an agent of the workspace has an open turn, runs, or waits on a permission; it
+  checks before stopping anything and again, with no await, right before the workspace is marked as
+  archiving. The CLI exits with `WORKSPACE_NOT_IDLE`. Daemons advertise
+  `server_info.features.workspaceArchiveGuard`; the client refuses to send either field without it,
+  because an older daemon would drop them and archive anyway. First consumer: the Kubernetes Runtime's
+  auto-archive.
+- **Fork PRs:** the PR that added this entry.
+- **Upstream branch / Discussion:** not cut yet (ask Louis).
+- **Status:** in fork.
+
 ### Plugin prompt hook
 
 - **API:** `before("agent.prompt")`: runs before a user or agent prompt reaches the provider, for

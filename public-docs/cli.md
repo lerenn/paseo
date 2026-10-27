@@ -209,6 +209,7 @@ paseo run --workspace <workspace-id> "implement authentication"
 paseo workspace rename <workspace-id> "Auth rework"
 paseo workspace rename <workspace-id> --reset   # back to the branch or directory name
 paseo workspace archive <workspace-id>
+paseo workspace archive <workspace-id> --reason "idle 2 days" --if-idle   # keep a reason; refuse while an agent is working
 ```
 
 Add `--forge <name>` to PR checkout when Paseo cannot infer the forge from the source checkout. See [Git worktrees](/docs/worktrees) for setup hooks and services.

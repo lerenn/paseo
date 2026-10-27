@@ -67,7 +67,12 @@ export function createWorkspaceCommand(): Command {
     workspace
       .command("archive")
       .description("Archive a workspace and everything it owns")
-      .argument("<workspace-id>", "Workspace id"),
+      .argument("<workspace-id>", "Workspace id")
+      .option("--reason <text>", "Why the workspace is archived (kept on the workspace record)")
+      .option(
+        "--if-idle",
+        "Refuse (archive nothing) while an agent of the workspace has an open turn or a pending permission",
+      ),
   ).action(withOutput(runArchiveCommand));
 
   return workspace;

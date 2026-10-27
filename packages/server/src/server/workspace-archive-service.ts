@@ -45,7 +45,7 @@ export interface ArchiveDependencies {
   // break a same-cwd tie in favor of the worktree-kind record when archiving by
   // path (no explicit workspaceId).
   listActiveWorkspaces: () => Promise<ActiveWorkspaceRef[]>;
-  archiveWorkspaceRecord: (workspaceId: string) => Promise<void>;
+  archiveWorkspaceRecord: (workspaceId: string, context?: WorkspaceArchiveContext) => Promise<void>;
   emitWorkspaceUpdatesForWorkspaceIds: (workspaceIds: Iterable<string>) => Promise<void>;
   markWorkspaceArchiving: (workspaceIds: Iterable<string>, archivingAt: string) => void;
   clearWorkspaceArchiving: (workspaceIds: Iterable<string>) => void;
@@ -74,6 +74,52 @@ export interface ArchiveResult {
 export interface ArchiveByScopeRequest {
   scope: ArchiveScope;
   requestId: string;
+  /** Why the workspace is archived; recorded on the workspace. */
+  reason?: string;
+  /** Archive nothing while an agent of the workspace has an open turn or a pending permission. */
+  ifIdle?: boolean;
+}
+
+/** An `ifIdle` archive was refused: an agent of the workspace is working or waits on a permission. */
+export class WorkspaceBusyError extends Error {
+  constructor(
+    workspaceId: string,
+    readonly agentIds: string[],
+  ) {
+    super(
+      `Workspace ${workspaceId} is not idle: agent ${agentIds.join(", ")} has an open turn or a pending permission`,
+    );
+    this.name = "WorkspaceBusyError";
+  }
+}
+
+// Agents of the workspace (live, including internal ones) with a turn open or a permission pending.
+// Synchronous on purpose: callers check it with no await before the state they act on can change.
+function busyAgentIds(
+  dependencies: Pick<ArchiveDependencies, "agentManager">,
+  workspaceId: string,
+): string[] {
+  return dependencies.agentManager
+    .listAgents({ includeInternal: true })
+    .filter(
+      (agent) =>
+        agent.workspaceId === workspaceId &&
+        (agent.activeTurnId !== null ||
+          agent.activeForegroundTurnId !== null ||
+          agent.lifecycle === "running" ||
+          agent.pendingPermissions.size > 0),
+    )
+    .map((agent) => agent.id);
+}
+
+function assertIdle(
+  dependencies: Pick<ArchiveDependencies, "agentManager">,
+  workspaceIds: string[],
+): void {
+  for (const workspaceId of workspaceIds) {
+    const busy = busyAgentIds(dependencies, workspaceId);
+    if (busy.length > 0) throw new WorkspaceBusyError(workspaceId, busy);
+  }
 }
 
 export async function requireActiveWorkspaceForArchive(
@@ -134,7 +180,11 @@ async function archiveByScopeWithPriority(
   const target = await resolveArchiveTarget(dependencies, request.scope);
   const targetWorkspaceIds = target.workspaceIds;
 
+  // Checked before anything is stopped, and again once the setups are stopped (an await), right before
+  // the workspace is marked as archiving: a turn that started in between still refuses the archive.
+  if (request.ifIdle) assertIdle(dependencies, targetWorkspaceIds);
   await stopWorkspaceSetups(dependencies, target.setupWorkspaceIds, request.requestId);
+  if (request.ifIdle) assertIdle(dependencies, targetWorkspaceIds);
 
   if (targetWorkspaceIds.length > 0) {
     dependencies.markWorkspaceArchiving(targetWorkspaceIds, new Date().toISOString());
@@ -151,6 +201,7 @@ async function archiveByScopeWithPriority(
       dependencies,
       targetWorkspaceIds,
       request.requestId,
+      request.reason ? { archiveReason: request.reason } : undefined,
     );
 
     if (target.backing?.mainRepoRoot) {
@@ -318,6 +369,7 @@ async function archiveTargetRecords(
   dependencies: ArchiveDependencies,
   targetWorkspaceIds: string[],
   requestId: string,
+  context?: WorkspaceArchiveContext,
 ): Promise<{ archivedAgents: Set<string>; archivedWorkspaceIds: string[] }> {
   const archivedAgents = new Set<string>();
   const archivedWorkspaceIds: string[] = [];
@@ -325,7 +377,9 @@ async function archiveTargetRecords(
   const results = await Promise.allSettled(
     targetWorkspaceIds.map(async (workspaceId) => {
       const agents = await archiveWorkspaceContents(dependencies, workspaceId);
-      await dependencies.archiveWorkspaceRecord(workspaceId);
+      await (context
+        ? dependencies.archiveWorkspaceRecord(workspaceId, context)
+        : dependencies.archiveWorkspaceRecord(workspaceId));
       return { workspaceId, agents };
     }),
   );

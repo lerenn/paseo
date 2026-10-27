@@ -95,6 +95,12 @@ const PersistedWorkspaceRecordSchema = z.object({
     .nullable()
     .optional()
     .transform((value) => value ?? null),
+  // Why the workspace was archived, when the archive request said (`paseo workspace archive --reason`).
+  archiveReason: z
+    .string()
+    .nullable()
+    .optional()
+    .transform((value) => value ?? null),
   pinnedAt: z
     .string()
     .nullable()
@@ -127,6 +133,8 @@ export interface WorkspaceMutationContext {
 
 export interface WorkspaceArchiveContext {
   autoArchivedChangeRequestUrl?: string;
+  /** Why the workspace was archived (the archive request's `reason`). */
+  archiveReason?: string;
 }
 
 export interface ProjectMutation {
@@ -572,6 +580,7 @@ export class FileBackedWorkspaceRegistry
           ...(context?.autoArchivedChangeRequestUrl
             ? { autoArchivedChangeRequestUrl: context.autoArchivedChangeRequestUrl }
             : {}),
+          ...(context?.archiveReason ? { archiveReason: context.archiveReason } : {}),
         },
       ];
     });
@@ -681,6 +690,7 @@ export function createPersistedWorkspaceRecord(input: {
   updatedAt: string;
   archivedAt?: string | null;
   autoArchivedChangeRequestUrl?: string | null;
+  archiveReason?: string | null;
   pinnedAt?: string | null;
   labels?: string[];
   runtime?: PersistedWorkspaceRecord["runtime"];

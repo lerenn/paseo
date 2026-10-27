@@ -19,7 +19,12 @@ const workspaceArchiveSchema: OutputSchema<WorkspaceArchiveResult> = {
 
 export async function runArchiveCommand(
   workspaceId: string,
-  options: { host?: string; daemonTarget: import("../../utils/daemon-target.js").DaemonTarget },
+  options: {
+    host?: string;
+    daemonTarget: import("../../utils/daemon-target.js").DaemonTarget;
+    reason?: string;
+    ifIdle?: boolean;
+  },
   _command: Command,
 ): Promise<SingleResult<WorkspaceArchiveResult>> {
   const host = getDaemonHost({ target: options.daemonTarget });
@@ -31,8 +36,22 @@ export async function runArchiveCommand(
     } satisfies CommandError;
   });
   try {
-    const payload = await client.archiveWorkspace(workspaceId);
+    const reason = options.reason?.trim();
+    if (options.reason !== undefined && !reason) {
+      throw {
+        code: "INVALID_OPTIONS",
+        message: "--reason needs a non-empty text",
+      } satisfies CommandError;
+    }
+    const payload = await client.archiveWorkspace(workspaceId, undefined, {
+      ...(reason ? { reason } : {}),
+      ...(options.ifIdle ? { ifIdle: true } : {}),
+    });
     if (payload.error) {
+      // The daemon refused an --if-idle archive: nothing was archived.
+      if (options.ifIdle && /is not idle/.test(payload.error)) {
+        throw { code: "WORKSPACE_NOT_IDLE", message: payload.error } satisfies CommandError;
+      }
       throw new Error(payload.error);
     }
     if (!payload.archivedAt) {
