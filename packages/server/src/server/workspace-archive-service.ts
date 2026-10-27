@@ -82,7 +82,10 @@ export interface ArchiveByScopeRequest {
 
 /** An `ifIdle` archive was refused: an agent of the workspace is working or waits on a permission. */
 export class WorkspaceBusyError extends Error {
-  constructor(workspaceId: string, readonly agentIds: string[]) {
+  constructor(
+    workspaceId: string,
+    readonly agentIds: string[],
+  ) {
     super(
       `Workspace ${workspaceId} is not idle: agent ${agentIds.join(", ")} has an open turn or a pending permission`,
     );
@@ -374,7 +377,9 @@ async function archiveTargetRecords(
   const results = await Promise.allSettled(
     targetWorkspaceIds.map(async (workspaceId) => {
       const agents = await archiveWorkspaceContents(dependencies, workspaceId);
-      await dependencies.archiveWorkspaceRecord(workspaceId, context);
+      await (context
+        ? dependencies.archiveWorkspaceRecord(workspaceId, context)
+        : dependencies.archiveWorkspaceRecord(workspaceId));
       return { workspaceId, agents };
     }),
   );

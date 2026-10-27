@@ -3024,7 +3024,9 @@ export class DaemonClient {
       (options.reason || options.ifIdle) &&
       this.lastServerInfoMessage?.features?.workspaceArchiveGuard !== true
     ) {
-      throw new Error("Update the Paseo host to archive a workspace with a reason or only if idle.");
+      throw new Error(
+        "Update the Paseo host to archive a workspace with a reason or only if idle.",
+      );
     }
     return this.sendCorrelatedSessionRequest({
       requestId,

@@ -894,7 +894,9 @@ describe("archiveByScope reason and ifIdle", () => {
   function depsWithAgents(agents: Partial<ManagedAgent>[]) {
     const deps = createArchiveDeps({
       paseoHome: "/tmp/paseo-home-unused",
-      activeWorkspaces: [{ workspaceId: "ws-1", cwd: "/tmp/not-a-worktree", kind: "local_checkout" }],
+      activeWorkspaces: [
+        { workspaceId: "ws-1", cwd: "/tmp/not-a-worktree", kind: "local_checkout" },
+      ],
     });
     deps.agentManager.listAgents = () => agents as ManagedAgent[];
     const archivedWith: unknown[] = [];
@@ -925,11 +927,14 @@ describe("archiveByScope reason and ifIdle", () => {
   test("archives without a context when no reason is given", async () => {
     const { deps, archivedWith } = depsWithAgents([]);
     await archiveByScope(deps, request);
-    expect(archivedWith).toEqual([undefined]);
+    expect(archivedWith).toEqual([undefined]); // the plain call shape is kept
   });
 
   test("ifIdle archives a workspace whose agents are idle or belong to another workspace", async () => {
-    const { deps } = depsWithAgents([agent({}), agent({ id: "other", workspaceId: "ws-2", activeTurnId: "turn" })]);
+    const { deps } = depsWithAgents([
+      agent({}),
+      agent({ id: "other", workspaceId: "ws-2", activeTurnId: "turn" }),
+    ]);
     const result = await archiveByScope(deps, { ...request, ifIdle: true });
     expect(result.archivedWorkspaceIds).toEqual(["ws-1"]);
   });
@@ -938,10 +943,15 @@ describe("archiveByScope reason and ifIdle", () => {
     ["an open turn", { activeTurnId: "turn-1" }],
     ["an open foreground turn", { activeForegroundTurnId: "turn-1" }],
     ["a running agent", { lifecycle: "running" as const }],
-    ["a pending permission", { pendingPermissions: new Map([["p", {}]]) as ManagedAgent["pendingPermissions"] }],
+    [
+      "a pending permission",
+      { pendingPermissions: new Map([["p", {}]]) as ManagedAgent["pendingPermissions"] },
+    ],
   ])("ifIdle refuses and archives nothing with %s", async (_name, over) => {
     const { deps, archivedWith } = depsWithAgents([agent(over)]);
-    await expect(archiveByScope(deps, { ...request, ifIdle: true })).rejects.toBeInstanceOf(WorkspaceBusyError);
+    await expect(archiveByScope(deps, { ...request, ifIdle: true })).rejects.toBeInstanceOf(
+      WorkspaceBusyError,
+    );
     expect(archivedWith).toEqual([]);
     expect(deps.markWorkspaceArchiving).not.toHaveBeenCalled();
     expect(deps.killTerminalsForWorkspace).not.toHaveBeenCalled();

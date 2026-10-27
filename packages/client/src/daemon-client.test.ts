@@ -7803,12 +7803,12 @@ test.each([false, true])(
     await connecting;
     if (!supported) {
       // an old host would drop both fields and archive without the check
-      await expect(
-        client.archiveWorkspace("wks_1", undefined, { ifIdle: true }),
-      ).rejects.toThrow("Update the Paseo host");
-      await expect(
-        client.archiveWorkspace("wks_1", undefined, { reason: "idle" }),
-      ).rejects.toThrow("Update the Paseo host");
+      await expect(client.archiveWorkspace("wks_1", undefined, { ifIdle: true })).rejects.toThrow(
+        "Update the Paseo host",
+      );
+      await expect(client.archiveWorkspace("wks_1", undefined, { reason: "idle" })).rejects.toThrow(
+        "Update the Paseo host",
+      );
       expect(transport.sent).toHaveLength(0);
       return;
     }
