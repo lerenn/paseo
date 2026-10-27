@@ -7787,6 +7787,78 @@ test.each([false, true])(
   },
 );
 
+test.each([false, true])(
+  "archiveWorkspace with a reason or ifIdle needs host support=%s",
+  async (supported) => {
+    const transport = createMockTransport();
+    const client = new DaemonClient({
+      url: "ws://test",
+      clientId: "archive-guard",
+      transportFactory: () => transport.transport,
+      reconnect: { enabled: false },
+    });
+    clients.push(client);
+    const connecting = client.connect();
+    transport.triggerOpen({ features: { workspaceArchiveGuard: supported } });
+    await connecting;
+    if (!supported) {
+      // an old host would drop both fields and archive without the check
+      await expect(
+        client.archiveWorkspace("wks_1", undefined, { ifIdle: true }),
+      ).rejects.toThrow("Update the Paseo host");
+      await expect(
+        client.archiveWorkspace("wks_1", undefined, { reason: "idle" }),
+      ).rejects.toThrow("Update the Paseo host");
+      expect(transport.sent).toHaveLength(0);
+      return;
+    }
+    const archive = client.archiveWorkspace("wks_1", undefined, {
+      reason: "auto-archived: idle 2d",
+      ifIdle: true,
+    });
+    const request = parseSentFrame(transport.sent[0]);
+    expect(request).toMatchObject({
+      type: "archive_workspace_request",
+      workspaceId: "wks_1",
+      reason: "auto-archived: idle 2d",
+      ifIdle: true,
+    });
+    transport.triggerMessage(
+      wrapSessionMessage({
+        type: "archive_workspace_response",
+        payload: {
+          requestId: request.requestId,
+          workspaceId: "wks_1",
+          archivedAt: null,
+          error: "Workspace wks_1 is not idle: agent a1 has an open turn or a pending permission",
+        },
+      }),
+    );
+    await expect(archive).resolves.toMatchObject({ archivedAt: null });
+  },
+);
+
+test("archiveWorkspace without options sends the plain request to any host", async () => {
+  const transport = createMockTransport();
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "archive-plain",
+    transportFactory: () => transport.transport,
+    reconnect: { enabled: false },
+  });
+  clients.push(client);
+  const connecting = client.connect();
+  transport.triggerOpen();
+  await connecting;
+  void client.archiveWorkspace("wks_1").catch(() => undefined);
+  const request = parseSentFrame(transport.sent[0]);
+  expect(request).toEqual({
+    type: "archive_workspace_request",
+    workspaceId: "wks_1",
+    requestId: expect.any(String),
+  });
+});
+
 test("measures an outbound message in UTF-8 bytes against the daemon's message limit", async () => {
   const mock = createMockTransport();
   const client = new DaemonClient({

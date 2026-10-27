@@ -163,6 +163,7 @@ import {
   type PersistedWorkspaceRecord,
   type ProjectMutation,
   type ProjectRegistry,
+  type WorkspaceArchiveContext,
   type WorkspaceMutation,
   type WorkspaceRegistry,
 } from "./workspace-registry.js";
@@ -264,7 +265,11 @@ import {
   handleWorkspaceSetupStatusRequest as handleWorkspaceSetupStatusRequestMessage,
   handleWorkspaceSetupRunRequest as handleWorkspaceSetupRunRequestMessage,
 } from "./worktree-session.js";
-import { archiveByScope, type ActiveWorkspaceRef } from "./workspace-archive-service.js";
+import {
+  archiveByScope,
+  WorkspaceBusyError,
+  type ActiveWorkspaceRef,
+} from "./workspace-archive-service.js";
 import { WorkspaceSetupRuntime } from "./workspace-setup-runtime.js";
 import { SessionAuthorization, type DaemonPermission } from "./authorization/index.js";
 
@@ -6083,12 +6088,17 @@ export class Session {
       }));
   }
 
-  private async archiveWorkspaceRecord(workspaceId: string, archivedAt?: string): Promise<void> {
+  private async archiveWorkspaceRecord(
+    workspaceId: string,
+    archivedAt?: string,
+    context?: WorkspaceArchiveContext,
+  ): Promise<void> {
     const archiveTimestamp = archivedAt ?? new Date().toISOString();
     const existingWorkspace = await archivePersistedWorkspaceRecord({
       workspaceId,
       archivedAt: archiveTimestamp,
       workspaceRegistry: this.workspaceRegistry,
+      context,
     });
     if (!existingWorkspace) {
       this.workspaceGitObserver.removeForWorkspaceId(workspaceId);
@@ -7594,7 +7604,8 @@ export class Session {
           findWorkspaceIdForCwd: (cwd) => this.findWorkspaceIdForCwd(cwd),
           getWorkspace: (workspaceId) => this.workspaceRegistry.get(workspaceId),
           listActiveWorkspaces: () => this.listActiveWorkspaceRefs(),
-          archiveWorkspaceRecord: (workspaceId) => this.archiveWorkspaceRecord(workspaceId),
+          archiveWorkspaceRecord: (workspaceId, context) =>
+            this.archiveWorkspaceRecord(workspaceId, undefined, context),
           emitWorkspaceUpdatesForWorkspaceIds: (workspaceIds) =>
             this.emitWorkspaceUpdatesForWorkspaceIds(workspaceIds),
           markWorkspaceArchiving: (workspaceIds, archivingAt) =>
@@ -7610,6 +7621,8 @@ export class Session {
         {
           scope: { kind: "workspace", workspaceId: existing.workspaceId },
           requestId: request.requestId,
+          ...(request.reason ? { reason: request.reason } : {}),
+          ...(request.ifIdle ? { ifIdle: true } : {}),
         },
       );
 
@@ -7626,10 +7639,17 @@ export class Session {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to archive workspace";
-      this.sessionLogger.error(
-        { err: error, workspaceId: request.workspaceId },
-        "Failed to archive workspace",
-      );
+      if (error instanceof WorkspaceBusyError) {
+        this.sessionLogger.info(
+          { workspaceId: request.workspaceId, agentIds: error.agentIds },
+          "Workspace archive refused: not idle",
+        );
+      } else {
+        this.sessionLogger.error(
+          { err: error, workspaceId: request.workspaceId },
+          "Failed to archive workspace",
+        );
+      }
       this.emit({
         type: "archive_workspace_response",
         payload: {

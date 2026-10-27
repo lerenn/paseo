@@ -3017,12 +3017,22 @@ export class DaemonClient {
   async archiveWorkspace(
     workspaceId: string,
     requestId?: string,
+    options: { reason?: string; ifIdle?: boolean } = {},
   ): Promise<ArchiveWorkspacePayload> {
+    // A daemon without the feature drops both fields and archives unconditionally: refuse here instead.
+    if (
+      (options.reason || options.ifIdle) &&
+      this.lastServerInfoMessage?.features?.workspaceArchiveGuard !== true
+    ) {
+      throw new Error("Update the Paseo host to archive a workspace with a reason or only if idle.");
+    }
     return this.sendCorrelatedSessionRequest({
       requestId,
       message: {
         type: "archive_workspace_request",
         workspaceId,
+        ...(options.reason ? { reason: options.reason } : {}),
+        ...(options.ifIdle ? { ifIdle: true } : {}),
       },
       responseType: "archive_workspace_response",
     });

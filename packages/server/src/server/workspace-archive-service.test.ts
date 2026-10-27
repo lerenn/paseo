@@ -17,6 +17,7 @@ import {
   type ArchiveDependencies,
   type ArchiveResult,
   resolveWorkspaceIdAtPath,
+  WorkspaceBusyError,
 } from "./workspace-archive-service.js";
 import { WorkspaceAutomationBlockedError } from "./workspace-automation-gate.js";
 
@@ -886,5 +887,81 @@ describe("resolveWorkspaceIdAtPath", () => {
     );
 
     expect(result).toBe("ws-nested");
+  });
+});
+
+describe("archiveByScope reason and ifIdle", () => {
+  function depsWithAgents(agents: Partial<ManagedAgent>[]) {
+    const deps = createArchiveDeps({
+      paseoHome: "/tmp/paseo-home-unused",
+      activeWorkspaces: [{ workspaceId: "ws-1", cwd: "/tmp/not-a-worktree", kind: "local_checkout" }],
+    });
+    deps.agentManager.listAgents = () => agents as ManagedAgent[];
+    const archivedWith: unknown[] = [];
+    const archive = deps.archiveWorkspaceRecord;
+    deps.archiveWorkspaceRecord = async (workspaceId, context) => {
+      archivedWith.push(context);
+      await archive(workspaceId, context);
+    };
+    return { deps, archivedWith };
+  }
+  const request = { scope: { kind: "workspace", workspaceId: "ws-1" } as const, requestId: "req" };
+  const agent = (over: Partial<ManagedAgent>): Partial<ManagedAgent> => ({
+    id: "agent-1",
+    workspaceId: "ws-1",
+    lifecycle: "idle",
+    activeTurnId: null,
+    activeForegroundTurnId: null,
+    pendingPermissions: new Map(),
+    ...over,
+  });
+
+  test("passes the reason to the archived record", async () => {
+    const { deps, archivedWith } = depsWithAgents([]);
+    await archiveByScope(deps, { ...request, reason: "auto-archived: idle 2d" });
+    expect(archivedWith).toEqual([{ archiveReason: "auto-archived: idle 2d" }]);
+  });
+
+  test("archives without a context when no reason is given", async () => {
+    const { deps, archivedWith } = depsWithAgents([]);
+    await archiveByScope(deps, request);
+    expect(archivedWith).toEqual([undefined]);
+  });
+
+  test("ifIdle archives a workspace whose agents are idle or belong to another workspace", async () => {
+    const { deps } = depsWithAgents([agent({}), agent({ id: "other", workspaceId: "ws-2", activeTurnId: "turn" })]);
+    const result = await archiveByScope(deps, { ...request, ifIdle: true });
+    expect(result.archivedWorkspaceIds).toEqual(["ws-1"]);
+  });
+
+  test.each([
+    ["an open turn", { activeTurnId: "turn-1" }],
+    ["an open foreground turn", { activeForegroundTurnId: "turn-1" }],
+    ["a running agent", { lifecycle: "running" as const }],
+    ["a pending permission", { pendingPermissions: new Map([["p", {}]]) as ManagedAgent["pendingPermissions"] }],
+  ])("ifIdle refuses and archives nothing with %s", async (_name, over) => {
+    const { deps, archivedWith } = depsWithAgents([agent(over)]);
+    await expect(archiveByScope(deps, { ...request, ifIdle: true })).rejects.toBeInstanceOf(WorkspaceBusyError);
+    expect(archivedWith).toEqual([]);
+    expect(deps.markWorkspaceArchiving).not.toHaveBeenCalled();
+    expect(deps.killTerminalsForWorkspace).not.toHaveBeenCalled();
+    expect(deps.archivedAgentIds).toEqual([]);
+  });
+
+  test("ifIdle checks again after the setups are stopped: a turn that started meanwhile refuses", async () => {
+    const agents = [agent({})];
+    const { deps, archivedWith } = depsWithAgents(agents);
+    deps.stopWorkspaceSetup = async () => {
+      agents[0]!.activeTurnId = "turn-started-meanwhile";
+    };
+    await expect(archiveByScope(deps, { ...request, ifIdle: true })).rejects.toThrow(/is not idle/);
+    expect(archivedWith).toEqual([]);
+    expect(deps.markWorkspaceArchiving).not.toHaveBeenCalled();
+  });
+
+  test("without ifIdle a busy workspace is archived as before", async () => {
+    const { deps } = depsWithAgents([agent({ activeTurnId: "turn-1" })]);
+    const result = await archiveByScope(deps, request);
+    expect(result.archivedWorkspaceIds).toEqual(["ws-1"]);
   });
 });

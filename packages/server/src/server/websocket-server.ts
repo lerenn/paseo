@@ -1959,6 +1959,7 @@ export class VoiceAssistantWebSocketServer {
         pluginCreateOptions: true,
         pluginCreateContext: true,
         activeTurnSkip: true,
+        workspaceArchiveGuard: true,
         pluginPromptHook: true,
         workspaceRuntimes: true,
         workspaceRuntimeDetails: true,
