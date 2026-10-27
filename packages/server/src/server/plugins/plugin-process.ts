@@ -1,4 +1,5 @@
 import { createPluginRuntimeHost } from "./plugin-runtime-host.js";
+import { PluginAgentTools } from "./agent-tools.js";
 import { PluginHookHandlers } from "./lifecycle/index.js";
 import { evaluateBundle } from "./bundle-evaluator.js";
 import {
@@ -60,9 +61,10 @@ export function createPluginWorker(options: {
     handler: RpcHandler;
   }
 
+  const agentTools = new PluginAgentTools();
   const hooks = new PluginHookHandlers(() => {
     send({ type: "hooks.changed", hooks: hooks.catalog() });
-  });
+  }, agentTools);
   const handlers = new Map<string, RegisteredRpc>();
   const providers = new Map<string, ProviderRegistration>();
   const usageSources = new Map<string, UsageSourceRegistration>();
@@ -336,6 +338,7 @@ export function createPluginWorker(options: {
       .catch((error) => console.error("Plugin API cleanup failed", error));
     hooks.close();
     runtimeHost.close();
+    agentTools.close();
     for (const pending of pendingProviderConnections.values()) pending.tombstoned = true;
     const currentCleanup = cleanup;
     cleanup = null;
@@ -396,26 +399,62 @@ export function createPluginWorker(options: {
     }
   }
 
+  function handleToolMessage(
+    message: PluginProcessRequest,
+  ): message is Extract<
+    PluginProcessRequest,
+    { type: "tool.call" | "tool.cancel" | "tools.detach" }
+  > {
+    if (message.type === "tools.detach") {
+      agentTools.detach(message.agentId);
+      return true;
+    }
+    if (message.type === "tool.cancel") {
+      agentTools.cancel(message.requestId);
+      return true;
+    }
+    if (message.type === "tool.call") {
+      if (!paseo) {
+        send({ type: "error", requestId: message.requestId, error: "Plugin API unavailable" });
+        return true;
+      }
+      void agentTools
+        .call(message.requestId, message.agent, message.name, message.input, paseo)
+        .then((output) =>
+          send({
+            type: "result",
+            requestId: message.requestId,
+            output: jsonTransportValue(output),
+          }),
+        )
+        .catch((error) =>
+          send({ type: "error", requestId: message.requestId, error: describeError(error) }),
+        );
+      return true;
+    }
+    return false;
+  }
+
+  function rejectInvalidMessage(rawMessage: unknown, error: string): void {
+    const value = rawMessage as { connectionId?: unknown; acceptanceId?: unknown } | null;
+    if (value && typeof value.connectionId === "string" && typeof value.acceptanceId === "string") {
+      send({
+        type: "provider.rejected",
+        connectionId: value.connectionId,
+        acceptanceId: value.acceptanceId,
+        error: `Invalid provider input: ${error}`,
+      });
+      void closeProviderConnection(value.connectionId);
+      return;
+    }
+    send({ type: "fatal", error: `Invalid plugin process request: ${error}` });
+    void shutdown();
+  }
+
   function handleMessage(rawMessage: unknown): void {
     const parsed = PluginProcessRequestSchema.safeParse(rawMessage);
     if (!parsed.success) {
-      const value = rawMessage as { connectionId?: unknown; acceptanceId?: unknown } | null;
-      if (
-        value &&
-        typeof value.connectionId === "string" &&
-        typeof value.acceptanceId === "string"
-      ) {
-        send({
-          type: "provider.rejected",
-          connectionId: value.connectionId,
-          acceptanceId: value.acceptanceId,
-          error: `Invalid provider input: ${parsed.error.message}`,
-        });
-        void closeProviderConnection(value.connectionId);
-        return;
-      }
-      send({ type: "fatal", error: `Invalid plugin process request: ${parsed.error.message}` });
-      void shutdown();
+      rejectInvalidMessage(rawMessage, parsed.error.message);
       return;
     }
     const message = parsed.data;
@@ -445,6 +484,7 @@ export function createPluginWorker(options: {
     ) {
       return;
     }
+    if (handleToolMessage(message)) return;
     if (message.type === "provider.status") {
       void (async () => {
         const provider = providers.get(message.providerId);

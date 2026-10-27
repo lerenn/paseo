@@ -15,6 +15,7 @@ export type AgentRunController = Pick<
   | "getAgent"
   | "tryRunOutOfBand"
   | "hasInFlightRun"
+  | "reloadStalePluginSession"
   | "replaceAgentRun"
   | "steerOrReplaceActiveTurn"
   | "streamAgent"
@@ -116,10 +117,8 @@ export async function startAgentRun(
     options?.onDispatch?.("out_of_band");
     return { disposition: "out_of_band" };
   }
-  // Decide "skip" again after the last await so the idle check and the run it allows cannot be
-  // split by another send: Node runs this synchronously through the start of the new run.
-  if (skipBusyAgent(agentManager, agentId, options)) return { disposition: "skipped" };
   try {
+    await agentManager.reloadStalePluginSession(agentId);
     return await startAgentRunInner(agentManager, agentId, prompt, logger, options);
   } catch (error) {
     if (!isStaleProviderSessionError(error)) throw error;
@@ -159,8 +158,11 @@ async function startAgentRunInner(
   logger: Logger,
   options?: StartAgentRunOptions,
 ): Promise<{ disposition: PromptDispatchDisposition }> {
+  // Decide "skip" again here, after every await on the way in, so the idle check and the run it
+  // allows cannot be split by another send: Node runs this synchronously through the start of the
+  // new run.
+  if (skipBusyAgent(agentManager, agentId, options)) return { disposition: "skipped" };
   const snapshot = agentManager.getAgent(agentId);
-  // A skipped-if-busy send found the agent idle: start the run with no await in between.
   const steered =
     options?.activeTurnBehavior === "skip"
       ? null

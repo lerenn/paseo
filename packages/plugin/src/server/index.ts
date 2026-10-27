@@ -49,3 +49,6 @@ export type {
   WorkspaceRuntimeStatus,
   WorkspaceRuntimeWorkspaceRequest,
 } from "./workspace-runtime.js";
+
+export { defineAgentTool } from "./agent-tools.js";
+export type { AgentToolDefinition, AgentToolResult, AgentToolContext } from "./agent-tools.js";
