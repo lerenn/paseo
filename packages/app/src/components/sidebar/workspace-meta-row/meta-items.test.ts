@@ -3,6 +3,7 @@ import type { WorkspaceLabelDefinition } from "@getpaseo/protocol/workspace-labe
 import type { PrHint } from "@/git/pr-hint";
 import { DEFAULT_SIDEBAR_CHECKS_DISPLAY } from "@/components/sidebar/display-preferences/checks-display";
 import { DEFAULT_SIDEBAR_ROW_ITEMS } from "@/components/sidebar/display-preferences/row-items";
+import { isRuntimeBadgeHidden } from "@/workspace-runtimes/badge-visibility";
 import { selectMetaRowItems } from "./meta-items";
 import type { WorkspaceServiceSummary } from "./service-summary";
 
@@ -144,7 +145,65 @@ describe("selectMetaRowItems", () => {
   });
 });
 
+describe("hidden runtime badge", () => {
+  const bare = {
+    currentBranch: null,
+    projectName: null,
+    prHint: null,
+    serviceSummary: null,
+    labels: [],
+  };
+
+  it("leaves no empty slot in first position", () => {
+    const items = select({
+      ...bare,
+      hasHostBadge: false,
+      runtimeId: "pod",
+      runtimeBadgeHidden: true,
+      hasAgentBadges: true,
+    });
+    expect(kinds(items)).toEqual(["agentBadges"]);
+  });
+
+  it("leaves no empty slot in the middle", () => {
+    const items = select({
+      ...bare,
+      serviceSummary: SERVICE,
+      hasHostBadge: false,
+      runtimeId: "pod",
+      runtimeBadgeHidden: true,
+      hasAgentBadges: true,
+    });
+    expect(kinds(items)).toEqual(["agentBadges", "services"]);
+  });
+
+  it("leaves no empty slot in last position", () => {
+    const items = select({
+      ...bare,
+      serviceSummary: SERVICE,
+      hasHostBadge: false,
+      runtimeId: "pod",
+      runtimeBadgeHidden: true,
+    });
+    expect(kinds(items)).toEqual(["services"]);
+  });
+});
+
+describe("isRuntimeBadgeHidden", () => {
+  it("hides only when the host icon is shown and the runtime has no visible label", () => {
+    expect(isRuntimeBadgeHidden({ hostIcon: "<svg/>" }, true)).toBe(true);
+    expect(isRuntimeBadgeHidden({ hostIcon: "<svg/>", label: "  " }, true)).toBe(true);
+    expect(isRuntimeBadgeHidden({ hostIcon: "<svg/>", label: "pod" }, true)).toBe(false);
+    expect(isRuntimeBadgeHidden({ hostIcon: "<svg/>" }, false)).toBe(false);
+    expect(isRuntimeBadgeHidden(null, true)).toBe(false);
+  });
+});
+
 describe("runtime item", () => {
+  it("takes no slot when its badge would draw nothing, so no separator is left beside it", () => {
+    expect(kinds(select({ runtimeId: "pod", runtimeBadgeHidden: true }))).not.toContain("runtime");
+  });
+
   it("follows the host and shows even when no host badge does", () => {
     expect(kinds(select({ runtimeId: "pod" }))).toContain("runtime");
     const items = select({ runtimeId: "pod" });

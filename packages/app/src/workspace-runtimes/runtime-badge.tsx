@@ -5,6 +5,7 @@ import { SvgIcon } from "@/components/provider-icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { densityIconSize } from "@/styles/density";
 import type { Theme } from "@/styles/theme";
+import { isRuntimeBadgeHidden } from "./badge-visibility";
 import { useWorkspaceRuntimeBadge, useWorkspaceRuntimeDetails } from "./use-workspace-runtime";
 
 function RuntimeGlyphBase({
@@ -64,8 +65,8 @@ export function RuntimeBadge({
   const badge = useWorkspaceRuntimeBadge(serverId, runtimeId);
   const details = useWorkspaceRuntimeDetails(serverId, workspaceId, runtimeId);
   if (!badge) return null;
-  if (hostIconShown && details?.hostIcon && !details.label) return null;
-  const shortLabel = details?.label;
+  if (isRuntimeBadgeHidden(details, hostIconShown)) return null;
+  const shortLabel = details?.label?.trim() || undefined;
   const tooltip = details?.tooltip ?? badge.label;
   return (
     <Tooltip delayDuration={300}>
