@@ -1,3 +1,4 @@
+import { ForegroundTurnActiveError } from "../foreground-turn-active-error.js";
 import { validateProviderOptions } from "../provider-options.js";
 import {
   createOpencodeClient,
@@ -3866,7 +3867,7 @@ class OpenCodeAgentSession implements AgentSession {
       throw new Error("OpenCode session is closed");
     }
     if (this.turnState.status === "running") {
-      throw new Error("A foreground turn is already active");
+      throw new ForegroundTurnActiveError();
     }
     await this.reconnectIfServerExited();
     try {

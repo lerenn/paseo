@@ -207,6 +207,14 @@ Cmd/Ctrl is held`).
 - **Fork:** not carried on fork `main`; the branch exists on the fork only for the upstream PR.
 - **Status:** posted.
 
+### Cancel timeout turn state
+
+- **Change:** providers throw a typed `ForegroundTurnActiveError`; a start that hits it queues
+  behind the provider turn (one forced interrupt after `interruptSessionMs`), and a late
+  `startTurn` is interrupted when its run was already cleared by a cancel timeout.
+- **Upstream PR:** none yet.
+- **Status:** in fork.
+
 ### Fork-only infrastructure (never goes upstream)
 
 - `ci(docker): publish fork main builds to GHCR` (#1) and `ci: pin CI jobs to ubuntu-24.04` (#3).
