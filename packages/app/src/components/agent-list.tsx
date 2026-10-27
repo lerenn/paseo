@@ -271,22 +271,30 @@ function SessionRow({
         {isMobile ? agentTitle : null}
         {isMobile ? (
           <View style={styles.rowMetaRow}>
-            <HighlightedText
-              text={projectName}
-              ranges={ranges.project}
-              style={styles.sessionMetaText}
-              numberOfLines={1}
-              testID={`agent-row-project-${agent.serverId}-${agent.id}`}
-            />
-            <Text style={styles.sessionMetaSeparator}>·</Text>
-            <HighlightedText
-              text={branch}
-              ranges={ranges.branch}
-              style={styles.sessionMetaText}
-              numberOfLines={1}
-              testID={`agent-row-branch-${agent.serverId}-${agent.id}`}
-            />
-            <Text style={styles.sessionMetaSeparator}>·</Text>
+            {projectName ? (
+              <>
+                <HighlightedText
+                  text={projectName}
+                  ranges={ranges.project}
+                  style={styles.sessionMetaText}
+                  numberOfLines={1}
+                  testID={`agent-row-project-${agent.serverId}-${agent.id}`}
+                />
+                <Text style={styles.sessionMetaSeparator}>·</Text>
+              </>
+            ) : null}
+            {branch ? (
+              <>
+                <HighlightedText
+                  text={branch}
+                  ranges={ranges.branch}
+                  style={styles.sessionMetaText}
+                  numberOfLines={1}
+                  testID={`agent-row-branch-${agent.serverId}-${agent.id}`}
+                />
+                <Text style={styles.sessionMetaSeparator}>·</Text>
+              </>
+            ) : null}
             <AgentActivityTime date={agent.lastActivityAt} isMobile />
             {showHostColumn && agent.serverLabel ? (
               <>

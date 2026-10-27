@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   agentMatchesLabels,
+  dropEmptyBadges,
   resolveAgentBadges,
   validateAgentBadge,
   type RegisteredAgentBadge,
@@ -95,5 +96,22 @@ describe("badge validation", () => {
     expect(() =>
       validateAgentBadge({ ...valid, render: { icon: "Factory", text: "x" as never } }),
     ).toThrow("text must be a function");
+  });
+});
+
+describe("dropEmptyBadges", () => {
+  const resolved = (key: string, text: string | null) => ({
+    key,
+    icon: key,
+    text,
+    tooltip: null,
+  });
+
+  it("keeps a badge with text or a renderable icon and drops one that draws nothing", () => {
+    const badges = [resolved("a", null), resolved("b", "label"), resolved("c", null)];
+    expect(dropEmptyBadges(badges, (icon) => icon === "c").map((entry) => entry.key)).toEqual([
+      "b",
+      "c",
+    ]);
   });
 });
