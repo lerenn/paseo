@@ -108,6 +108,7 @@ function seedFixture(siblingCount = SIBLING_COUNT): {
       updatedAt: CREATED_AT,
       archivedAt: null,
       autoArchivedChangeRequestUrl: null,
+      archiveReason: null,
       pinnedAt: null,
     });
   }
