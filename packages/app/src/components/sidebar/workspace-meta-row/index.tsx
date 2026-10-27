@@ -12,6 +12,7 @@ import { HostBadge, HOST_BADGE_ICON_SIZE } from "@/hosts/host-badge";
 import { AgentBadges } from "@/plugins/badges";
 import { useAgentBadges } from "@/plugins/badges/view";
 import { RuntimeBadge } from "@/workspace-runtimes/runtime-badge";
+import { isRuntimeBadgeHidden } from "@/workspace-runtimes/badge-visibility";
 import { useWorkspaceRuntimeDetails } from "@/workspace-runtimes/use-workspace-runtime";
 import { WorkspaceLabelChip, WORKSPACE_LABEL_CHIP_INSET } from "@/workspace-labels/chip";
 import type { PrHint } from "@/git/pr-hint";
@@ -88,11 +89,13 @@ export function WorkspaceMetaRow({
   const { rowItems, checksDisplay } = useSidebarMetaPreferences();
   const hasAgentBadges =
     useAgentBadges({ serverId: serverId ?? "", workspaceId: workspaceId ?? "" }).length > 0;
+  const runtimeDetails = useWorkspaceRuntimeDetails(serverId ?? "", workspaceId, runtimeId);
   const items = selectMetaRowItems({
     currentBranch,
     projectName,
     hasHostBadge: hostBadge !== null,
     runtimeId,
+    runtimeBadgeHidden: !serverId || isRuntimeBadgeHidden(runtimeDetails, hostBadge !== null),
     hasAgentBadges,
     prHint,
     serviceSummary,

@@ -41,6 +41,8 @@ export function selectMetaRowItems(input: {
   projectName: string | null;
   hasHostBadge: boolean;
   runtimeId?: string | null;
+  /** The runtime badge would draw nothing (see `isRuntimeBadgeHidden`), so it takes no slot. */
+  runtimeBadgeHidden?: boolean;
   hasAgentBadges?: boolean;
   prHint: PrHint | null;
   serviceSummary: WorkspaceServiceSummary | null;
@@ -53,6 +55,7 @@ export function selectMetaRowItems(input: {
     projectName,
     hasHostBadge,
     runtimeId,
+    runtimeBadgeHidden,
     hasAgentBadges,
     prHint,
     serviceSummary,
@@ -72,7 +75,7 @@ export function selectMetaRowItems(input: {
     items.push({ kind: "host" });
   }
   // Where the agents run is a fact about the workspace, not a preference: it always shows.
-  if (runtimeId) {
+  if (runtimeId && !runtimeBadgeHidden) {
     items.push({ kind: "runtime", runtimeId });
   }
   // Plugin badges for the workspace's agents (for example which system an agent belongs to).
