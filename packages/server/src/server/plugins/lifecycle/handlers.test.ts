@@ -220,7 +220,10 @@ test("agent.prompt hooks compose prepends in order and cannot change anything el
 
 test("agent.prompt rejects an oversized prepend", async () => {
   const hooks = new PluginHookHandlers(() => {});
-  hooks.addHook("agent.prompt.before", async ({ request }) => ({ ...request, prepend: "x".repeat(20_000) }));
+  hooks.addHook("agent.prompt.before", async ({ request }) => ({
+    ...request,
+    prepend: "x".repeat(20_000),
+  }));
   await expect(
     hooks.invoke(
       "operation",

@@ -8717,7 +8717,9 @@ describe("agent.prompt hook", () => {
 
   test("prepends a marked block, keeps the user's text and reports the first prompt once", async () => {
     const { manager, agent, session, requests } = await setup(async (name, request) =>
-      name === "agent.prompt.before" ? { ...(request as object), prepend: "Remember: be brief" } : request,
+      name === "agent.prompt.before"
+        ? { ...(request as object), prepend: "Remember: be brief" }
+        : request,
     );
     await manager.runAgent(agent.id, "hello");
     await manager.runAgent(agent.id, "again");

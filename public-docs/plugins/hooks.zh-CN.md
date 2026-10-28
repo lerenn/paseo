@@ -24,7 +24,7 @@ export default function contribute(server: PluginServerContext) {
 
 名称遵循 `subject.operation.position`：主体、操作、`before` 或 `after`。名称标识生命周期中的位置；Paseo 是否等待由每个钩子决定，见下表。`workspace` 包括所有工作区，`worktree` 仅包括 git worktree。
 
-- 等待型钩子结束后 Paseo 才继续。抛出错误、返回无效数据或超过 30 秒会让操作失败，错误包含 `Plugin <id> <hook> failed: …`。修改请求的钩子收到 `{ request }`，可以返回完整的替换请求或 `undefined`。
+- 等待型钩子结束后 Paseo 才继续。抛出错误、返回无效数据或超过 30 秒会让操作失败，错误包含 `Plugin <id> <hook> failed: …`；`agent.prompt.before` 例外，会被跳过。修改请求的钩子收到 `{ request }`，可以返回完整的替换请求或 `undefined`。
 - 通知收到事件对象，返回 `Promise<void>`。Paseo 不等待；错误会记录在插件名下，原操作继续。`agent.turn.before` 和 `agent.permission.before` 分别在轮次开始或权限进入待处理状态时发出通知。
 
 所有处理函数都必须为异步函数。轮次完成包括成功、失败和取消，请查看 `outcome`。权限完成包括所有处理结果，请查看 `resolution`。
@@ -53,9 +53,10 @@ Paseo 只观察返回的 Promise，因此独立任务没有错误报告，也没
 | `workspace.create.after`  | 否   | `{ workspace }`                        |                                           |
 | `workspace.archive.after` | 否   | `{ workspace }`                        |                                           |
 | `worktree.create.after`   | 是   | `{ worktree }`                         | worktree 中的文件；抛出错误中止创建       |
-| `agent.create.before`     | 是   | `{ request: { config, env? } }`        | 除 `cwd` 外的已保存配置；`env`            |
+| `agent.create.before`     | 是   | `{ request: { config, env?, … } }`     | 除 `cwd` 外的已保存配置；`env`            |
 | `agent.create.after`      | 否   | `{ agent }`                            |                                           |
 | `agent.open.before`       | 是   | `{ request }`                          | 仅用于启动的 `env`、`tools`、`mcpServers` |
+| `agent.prompt.before`     | 是   | `{ request }`                          | 仅 `prepend`                              |
 | `agent.close.after`       | 否   | `{ agent }`                            |                                           |
 | `agent.archive.after`     | 否   | `{ agent, archivedAt }`                |                                           |
 | `agent.turn.before`       | 否   | `{ agent, turnId }`                    |                                           |
@@ -73,6 +74,7 @@ interface PluginHookAgent {
   provider: string;
   cwd: string;
   title: string | null;
+  labels: Record<string, string>;
 }
 
 interface PluginHookWorkspace {
@@ -158,7 +160,9 @@ server.addHook("worktree.create.after", async ({ worktree }) => {
 
 ## agent.create.before {#agentcreatebefore}
 
-收到 `{ request: { config, env? } }`。配置修改会保存，即使插件以后被停用或移除；`env` 只用于首次启动，不会保存。不能修改 `config.cwd`。抛出错误、无效返回或超时会让创建失败。
+收到 `{ request: { config, env?, pluginOptions?, labels, parentAgentId, workspaceId, runtimeId } }`。配置修改会保存，即使插件以后被停用或移除；`env` 只用于首次启动，不会保存。不能修改 `config.cwd`。抛出错误、无效返回或超时会让创建失败。
+
+`pluginOptions` 是用户在插件提供的创建选项中选择的值，先按插件 id、再按选项 id 分组。`labels`、`parentAgentId`、`workspaceId` 和 `runtimeId` 是只读上下文：Agent 创建时的标签、以子 Agent 方式创建它的 Agent（顶层 Agent 为 `null`）、它所在的工作区（没有则为 `null`），以及该工作区的运行时 id（在守护进程主机上的工作区为 `null`）。钩子对它们的修改会被忽略。`agent.create.after` 及其他 Agent 钩子在 `PluginHookAgent` 上带有相同的 `labels`。主机通过 `server_info.features.pluginCreateContext` 声明支持。
 
 **`agent.create.before.config`** 使用 `AgentSessionConfig`：
 
@@ -401,6 +405,21 @@ Paseo 通过 Agent 工具传输提供附加的工具，按 Provider 的支持情
 如果自动重新打开失败，触发它的提示词会返回该错误。参阅
 [完整 agent-tools 示例](https://github.com/getpaseo/paseo/tree/main/plugin-examples/agent-tools)。
 
+## agent.prompt.before {#agentpromptbefore}
+
+在用户或 Agent 的提示送达提供方之前运行，适用于所有提供方。收到 `{ request }`，包含 `agentId`、`labels`、`parentAgentId`、`prompt`、`source`、`sourceAgentId`、`isFirstPrompt` 以及可选的 `prepend`。设置 `prepend` 可在提示前加入上下文：Paseo 会把它放进单独的 `<paseo-plugin-context>` 块，不改动用户的文本，时间线仍只显示实际发送的内容。只有 `prepend` 可以修改。
+
+`prompt` 是提示的文本，不包含图片和附件。`source` 为 `"user"` 或 `"agent"`；来自 Agent 时，`sourceAgentId` 标明发送方，提示已从 Agent 消息信封中取出。斜杠命令不会到达此钩子。`isFirstPrompt` 在提供方会话的第一条提示时为 true，恢复的会话算作新会话。多个插件的钩子按插件 ID 顺序运行，后面的钩子能看到前面设置的 `prepend`。
+
+失败或过慢（每个插件 3 秒）的钩子会被跳过，提示照常送达。`prepend` 最长 16,000 个字符。主机通过 `server_info.features.pluginPromptHook` 声明支持。
+
+```ts
+server.addHook("agent.prompt.before", async ({ request }) => {
+  if (!request.isFirstPrompt) return request;
+  return { ...request, prepend: "Follow the repository's CONTRIBUTING.md." };
+});
+```
+
 ## agent.close.after {#agentcloseafter}
 
 运行中的 Agent 实例关闭后触发，收到 `{ agent }`。
@@ -592,6 +611,7 @@ Creation request
 | `server.before("agent.create", handler)`           | `server.addHook("agent.create.before", asyncHandler)`     |
 | `server.on("agent.created", handler)`              | `server.addHook("agent.create.after", asyncHandler)`      |
 | `server.before("agent.session_open", handler)`     | `server.addHook("agent.open.before", asyncHandler)`       |
+| `server.before("agent.prompt", handler)`           | `server.addHook("agent.prompt.before", asyncHandler)`     |
 | `server.on("agent.closed", handler)`               | `server.addHook("agent.close.after", asyncHandler)`       |
 | `server.on("agent.archived", handler)`             | `server.addHook("agent.archive.after", asyncHandler)`     |
 | `server.on("agent.turn_started", handler)`         | `server.addHook("agent.turn.before", asyncHandler)`       |
