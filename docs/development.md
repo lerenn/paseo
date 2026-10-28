@@ -60,6 +60,10 @@ PASEO_DEV_SEED_HOME=/path/to/home npm run dev # seed from a different source hom
 PASEO_DEV_RESET_HOME=1 npm run dev            # clear and reseed the derived worktree home
 ```
 
+### PASEO_GIT_TIMEOUT_MS
+
+Default timeout for git commands run by the daemon, in milliseconds. Positive integer; unset or invalid values use `90000`. Raise it on contended hosts where git commands time out. Callers that pass an explicit `timeout` keep it.
+
 ### Daemon endpoints
 
 - Stable daemon launched by the desktop app: `localhost:6767`.

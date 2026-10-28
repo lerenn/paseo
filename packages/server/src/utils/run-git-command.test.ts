@@ -507,7 +507,7 @@ describe("runGitCommand", () => {
         command: "git",
         args: ["status", "--short"],
         cwd: process.cwd(),
-        timeout: 30_000,
+        timeout: 90_000,
         maxOutputBytes: 20 * 1024 * 1024,
         acceptExitCodes: [0, 1],
         envOverlayKeys: ["GIT_OPTIONAL_LOCKS"],
