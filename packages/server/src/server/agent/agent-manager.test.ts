@@ -7929,7 +7929,7 @@ test("workspace ownership does not turn an ordinary agent into a disposable help
   expect(manager.listAgents().map((agent) => agent.id)).toEqual([agentId]);
   expect(await storage.get(agentId)).not.toBeNull();
   // Workspace ownership preserves ordinary agent lifecycle hooks.
-  expect(beforeHookCalls).toContain("agent.create");
+  expect(beforeHookCalls).toContain("agent.create.before");
 });
 
 test("agent.create hooks receive the plugin options chosen on the create composer", async () => {
@@ -7943,7 +7943,7 @@ test("agent.create hooks receive the plugin options chosen on the create compose
     pluginLifecycle: {
       emit: () => {},
       before: async (name, request) => {
-        if (name === "agent.create")
+        if (name === "agent.create.before")
           seen.push((request as { pluginOptions?: unknown }).pluginOptions);
         return request;
       },
@@ -8641,7 +8641,7 @@ test("agent.create hooks see the workspace and its runtime id, null for a host w
     },
     pluginLifecycle: {
       before: (async (name: string, request: { workspaceId: unknown; runtimeId: unknown }) => {
-        if (name === "agent.create") {
+        if (name === "agent.create.before") {
           seen.push({ workspaceId: request.workspaceId, runtimeId: request.runtimeId });
           throw new Error("stop after capture");
         }
@@ -8701,7 +8701,7 @@ describe("agent.prompt hook", () => {
       idFactory: () => "00000000-0000-4000-8000-000000000132",
       pluginLifecycle: {
         before: (async (name: string, request: never) => {
-          if (name === "agent.prompt") requests.push(request);
+          if (name === "agent.prompt.before") requests.push(request);
           return before(name, request);
         }) as never,
         emit: () => undefined,
@@ -8717,7 +8717,7 @@ describe("agent.prompt hook", () => {
 
   test("prepends a marked block, keeps the user's text and reports the first prompt once", async () => {
     const { manager, agent, session, requests } = await setup(async (name, request) =>
-      name === "agent.prompt" ? { ...(request as object), prepend: "Remember: be brief" } : request,
+      name === "agent.prompt.before" ? { ...(request as object), prepend: "Remember: be brief" } : request,
     );
     await manager.runAgent(agent.id, "hello");
     await manager.runAgent(agent.id, "again");
@@ -8740,7 +8740,7 @@ describe("agent.prompt hook", () => {
 
   test("a failing hook never blocks the prompt", async () => {
     const { manager, agent, session } = await setup(async (name, request) => {
-      if (name === "agent.prompt") throw new Error("hook exploded");
+      if (name === "agent.prompt.before") throw new Error("hook exploded");
       return request;
     });
     await manager.runAgent(agent.id, "hello");
@@ -8749,7 +8749,7 @@ describe("agent.prompt hook", () => {
 
   test("agent messages are unwrapped for the hook and slash commands are left alone", async () => {
     const { manager, agent, session, requests } = await setup(async (name, request) =>
-      name === "agent.prompt" ? { ...(request as object), prepend: "ctx" } : request,
+      name === "agent.prompt.before" ? { ...(request as object), prepend: "ctx" } : request,
     );
     await manager.runAgent(
       agent.id,
@@ -8763,7 +8763,7 @@ describe("agent.prompt hook", () => {
 
   test("structured prompts get the block as a leading text part", async () => {
     const { manager, agent, session } = await setup(async (name, request) =>
-      name === "agent.prompt" ? { ...(request as object), prepend: "ctx" } : request,
+      name === "agent.prompt.before" ? { ...(request as object), prepend: "ctx" } : request,
     );
     await manager.runAgent(agent.id, [{ type: "text", text: "see image" }]);
     expect(session.prompts).toEqual([
@@ -12498,15 +12498,15 @@ test.each([
     const session = client.sessions[0]!;
     session.pushEvent({ type: "turn_started", provider: "codex", turnId: "hook-turn" });
     await expect
-      .poll(() => events.filter(({ name }) => name === "agent.turn_started").length)
+      .poll(() => events.filter(({ name }) => name === "agent.turn.before").length)
       .toBe(1);
     expect(timelineStore.itemReads).toBe(readsBeforeDispatch);
     session.pushEvent(terminalEvent);
     await expect
-      .poll(() => events.filter(({ name }) => name === "agent.turn_ended"))
+      .poll(() => events.filter(({ name }) => name === "agent.turn.after"))
       .toEqual([
         {
-          name: "agent.turn_ended",
+          name: "agent.turn.after",
           event: {
             agent: {
               id: agent.id,
