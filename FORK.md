@@ -242,7 +242,10 @@ Cmd/Ctrl is held`).
 4. Resolve conflicts. The usual hot spots are `packages/app/src/plugins/types.ts`,
    `packages/app/src/plugins/evaluate.ts`, `docs/plugins.md`, the public plugin reference and
    hooks pages, and `packages/server/src/server/plugins/runtime.ts`. Upstream fakes of
-   `PluginClientRuntime` in new app tests need the fork's `add*` methods.
+   `PluginClientRuntime` in new app tests need the fork's `add*` methods. The fork's plugin
+   code pulls more app modules into browser tests than upstream's do, so every icon those modules
+   import must be exported by `packages/app/test-stubs/lucide-react-native.ts`. A missing one makes
+   Vite's dependency scan fail and the browser tests reload mid-run (`app-tests` fails in CI only).
 5. `npm run build:server && npm run typecheck`, then `npm run lint`.
 6. Run the touched suites only, for example
    `npx vitest run packages/app/src/plugins packages/website/src --bail=1`. Do not run the full suite
