@@ -149,6 +149,15 @@ export function toAgentPayload(
     labels: agent.labels,
     archivedAt: options?.archivedAt ?? null,
     ...(agent.internal ? { internal: true } : {}),
+    ...(agent.suspension
+      ? {
+          suspension: {
+            reason: agent.suspension.reason,
+            since: agent.suspension.since.toISOString(),
+            ...(agent.suspension.message ? { message: agent.suspension.message } : {}),
+          },
+        }
+      : {}),
   };
 
   const usage = sanitizeUsage(agent.lastUsage);
@@ -284,6 +293,7 @@ export function toAgentListItemPayload(agent: AgentSnapshotPayload): AgentListIt
     attentionTimestamp: agent.attentionTimestamp ?? null,
     labels: agent.labels,
     ...(agent.providerUnavailable ? { providerUnavailable: true } : {}),
+    ...(agent.suspension ? { suspension: agent.suspension } : {}),
   };
 }
 

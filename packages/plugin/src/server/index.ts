@@ -52,7 +52,11 @@ export type {
   WorkspaceRuntimeProcess,
   WorkspaceRuntimeReconcileRequest,
   WorkspaceRuntimeProcessPurpose,
+  WorkspaceRuntimeHandle,
   WorkspaceRuntimeRegistration,
+  WorkspaceRuntimeResumedReport,
+  WorkspaceRuntimeSuspendedReport,
+  WorkspaceRuntimeSuspendReason,
   WorkspaceRuntimeStatus,
   WorkspaceRuntimeWorkspaceRequest,
 } from "./workspace-runtime.js";

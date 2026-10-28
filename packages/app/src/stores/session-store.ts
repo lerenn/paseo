@@ -34,6 +34,7 @@ import type {
   AgentPersistenceHandle,
 } from "@getpaseo/protocol/agent-types";
 import type {
+  AgentSuspension,
   ServerInfoStatusPayload,
   ProjectPlacementPayload,
   ServerCapabilities,
@@ -96,6 +97,8 @@ export interface Agent {
   requiresAttention?: boolean;
   attentionReason?: "finished" | "error" | "permission" | null;
   attentionTimestamp?: Date | null;
+  /** The workspace runtime stopped the process on purpose; the agent is idle and wakes on input. */
+  suspension?: AgentSuspension;
   archivedAt?: Date | null;
   parentAgentId: string | null;
   labels: Record<string, string>;
@@ -1900,6 +1903,7 @@ export const useSessionStore = create<SessionStore>()(
             requiresAttention: agent.requiresAttention ?? false,
             attentionReason: agent.attentionReason ?? null,
             attentionTimestamp: agent.attentionTimestamp ?? null,
+            suspension: agent.suspension,
             createdAt: agent.createdAt,
             labels: agent.labels,
           });

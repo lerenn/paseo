@@ -36,6 +36,18 @@ export function deriveEffectiveWorkspaceStatus(input: {
   return { status: input.workspace.status, enteredAt: input.workspace.statusEnteredAt };
 }
 
+/** An idle workspace whose root agent's runtime suspended it: the sidebar shows a pause icon. */
+export function isWorkspaceSuspended(input: {
+  workspaceId: string;
+  status: EffectiveWorkspaceStatus["status"];
+  workspaceAgentActivity?: ReadonlyMap<string, WorkspaceAgentActivity>;
+}): boolean {
+  return (
+    input.status === "done" &&
+    input.workspaceAgentActivity?.get(input.workspaceId)?.suspended === true
+  );
+}
+
 function getPendingInitialAgentCreateStartedAt(input: {
   serverId: string;
   workspaceId: string;

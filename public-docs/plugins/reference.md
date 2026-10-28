@@ -495,6 +495,18 @@ for these reasons. Use `reason: "interrupted"` when the platform cut the process
 spot eviction) rather than the agent failing: an idle agent shows no error, a turn open at that moment
 ends as canceled, never as failed, the agent returns to idle with no error state, and `message` is
 kept in the timeline as an info item (Claude, Codex and ACP providers).
+
+`registerWorkspaceRuntime` returns a handle for planned stops. Call
+`handle.reportSuspended({ workspaceId, agentId?, reason, message? })` before you stop a process on
+purpose, with `reason` one of `idle`, `quota-eviction`, `manual` or `node-removal` (omit `agentId`
+to cover every agent of the workspace). Paseo then shows the agent as suspended (reason and time,
+a pause icon in the sidebar), adds `message` to its timeline as an info item, and ends the exit
+that follows as `suspended` (`idle`, `manual`) or `interrupted` (`quota-eviction`, `node-removal`)
+whatever code or signal the platform gave it. Without a report an exit keeps the meaning you gave
+it. The next input clears the state; `handle.reportResumed({ workspaceId, agentId? })` clears it
+earlier. Report only a stop you are about to carry out, and never for an agent with an open turn
+that you can wait for. A daemon that predates this returns no handle, so call it as
+`handle?.reportSuspended(...)`.
 `context.notice(message, level?)` shows progress or a problem in the agent's timeline.
 
 Every workspace-scoped request carries `workspaceCwd`, the workspace's directory on the daemon

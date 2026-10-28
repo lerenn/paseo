@@ -1,4 +1,4 @@
-import { deriveEffectiveWorkspaceStatus } from "@/workspace-status";
+import { deriveEffectiveWorkspaceStatus, isWorkspaceSuspended } from "@/workspace-status";
 import equal from "fast-deep-equal";
 import type { PrHint } from "@/git/pr-hint";
 import { selectPrHintFromStatus } from "@/git/pr-hint";
@@ -36,6 +36,8 @@ export interface SidebarWorkspacePlacement {
 export interface SidebarStatusWorkspacePlacement extends SidebarWorkspacePlacement {
   statusBucket: SidebarStateBucket;
   statusEnteredAt: Date | null;
+  /** Idle because the runtime suspended the agent; drawn as a pause icon, not an error. */
+  suspended?: boolean;
 }
 
 export interface SidebarWorkspaceEntry extends SidebarStatusWorkspacePlacement {
@@ -171,6 +173,11 @@ export function createSidebarWorkspaceEntry(input: {
     currentBranch: normalizeCurrentBranch(input.workspace.gitRuntime?.currentBranch),
     statusBucket: effectiveStatus.status,
     statusEnteredAt: effectiveStatus.enteredAt,
+    suspended: isWorkspaceSuspended({
+      workspaceId: input.workspace.id,
+      status: effectiveStatus.status,
+      workspaceAgentActivity: input.workspaceAgentActivity,
+    }),
     archivingAt: input.workspace.archivingAt,
     runtimeId: input.workspace.runtimeId,
     diffStat: input.workspace.diffStat,

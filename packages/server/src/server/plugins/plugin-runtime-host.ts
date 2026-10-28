@@ -3,6 +3,7 @@ import type {
   WorkspaceRuntimeContext,
   WorkspaceRuntimeExecRequest,
   WorkspaceRuntimeFileSystem,
+  WorkspaceRuntimeHandle,
   WorkspaceRuntimeOptions,
   WorkspaceRuntimeProcess,
   WorkspaceRuntimeRegistration,
@@ -42,7 +43,7 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
   const execs = new Map<string, RunningExec>();
   const startTails = new Map<string, Promise<void>>();
 
-  function register(runtime: WorkspaceRuntimeRegistration): void {
+  function register(runtime: WorkspaceRuntimeRegistration): WorkspaceRuntimeHandle {
     const id = runtime.id.trim();
     if (!/^[a-z][a-z0-9._-]*$/.test(id)) {
       throw new Error(`Invalid workspace runtime ID: ${runtime.id}`);
@@ -55,6 +56,24 @@ export function createPluginRuntimeHost(options: { send(message: PluginProcessMe
       throw new Error('Workspace runtime ID "local" is reserved for the daemon host');
     if (runtimes.has(id)) throw new Error(`Duplicate workspace runtime: ${id}`);
     runtimes.set(id, { ...runtime, id });
+    return {
+      reportSuspended: ({ workspaceId, agentId, reason, message }) =>
+        sendIfOpen({
+          type: "runtime.suspended",
+          runtimeId: id,
+          workspaceId,
+          ...(agentId ? { agentId } : {}),
+          reason,
+          ...(message ? { message } : {}),
+        }),
+      reportResumed: ({ workspaceId, agentId }) =>
+        sendIfOpen({
+          type: "runtime.resumed",
+          runtimeId: id,
+          workspaceId,
+          ...(agentId ? { agentId } : {}),
+        }),
+    };
   }
 
   function metadata(): Array<{ id: string; label: string; iconPath?: string; files: boolean }> {

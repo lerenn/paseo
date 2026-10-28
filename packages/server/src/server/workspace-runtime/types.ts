@@ -11,6 +11,7 @@ import type {
   WorkspaceRuntimeDescription,
   WorkspaceRuntimeStatus,
   WorkspaceRuntimeDisplay,
+  WorkspaceRuntimeSuspendReason,
 } from "@getpaseo/plugin/server";
 
 export type RuntimeFsVerb =
@@ -46,6 +47,17 @@ export interface RuntimeNotice {
   message: string;
 }
 
+/** A runtime's report that it is about to stop, or has restarted, an agent's process on purpose. */
+export type RuntimeLifecycleEvent =
+  | {
+      type: "suspended";
+      workspaceId: string;
+      agentId?: string;
+      reason: WorkspaceRuntimeSuspendReason;
+      message?: string;
+    }
+  | { type: "resumed"; workspaceId: string; agentId?: string };
+
 /** What core needs from a registered workspace runtime. A plugin proxy implements it. */
 export interface WorkspaceRuntimeBackend {
   readonly id: string;
@@ -75,6 +87,7 @@ export interface WorkspaceRuntimeBackend {
   activity(event: WorkspaceRuntimeActivityEvent): void;
   exec(request: WorkspaceRuntimeExecRequest, sink: RuntimeExecSink): RuntimeExecControl;
   onNotice(listener: (notice: RuntimeNotice) => void): () => void;
+  onLifecycle(listener: (event: RuntimeLifecycleEvent) => void): () => void;
 }
 
 /** The reserved id for the daemon host. A plugin cannot register it; a request can name it. */

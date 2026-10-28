@@ -47,6 +47,11 @@ export interface RuntimeProcessLauncherOptions {
   /** The agent's final MCP servers, read when the process starts. */
   mcpServers?: () => Record<string, JsonValue> | undefined;
   onNotice?: (notice: RuntimeNotice) => void;
+  /**
+   * Reclassifies an exit the runtime reported ahead of time (a planned suspend), so the provider
+   * sees it as planned. Runs before `onExit`.
+   */
+  classifyExit?: (exit: WorkspaceRuntimeExit) => WorkspaceRuntimeExit;
   /** Called with every process exit, before the provider sees it. */
   onExit?: (exit: WorkspaceRuntimeExit) => void;
   /**
@@ -210,8 +215,9 @@ export function createRuntimeProcessLauncher(
           const target = streams?.sink ?? sink;
           const rawControl = backend.exec(request, {
             ...target,
-            onExit(exit) {
+            onExit(rawExit) {
               unsubscribe();
+              const exit = options.classifyExit?.(rawExit) ?? rawExit;
               // A lost sandbox is not a finished process: let the runtime re-adopt what is left,
               // so the next input relaunches into a consistent runtime.
               const live = options.liveWorkspaces?.();

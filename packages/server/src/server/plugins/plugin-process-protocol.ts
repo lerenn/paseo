@@ -182,6 +182,15 @@ export type PluginProcessMessage =
       level: string;
       message: string;
     }
+  | {
+      type: "runtime.suspended";
+      runtimeId: string;
+      workspaceId: string;
+      agentId?: string;
+      reason: "idle" | "quota-eviction" | "manual" | "node-removal";
+      message?: string;
+    }
+  | { type: "runtime.resumed"; runtimeId: string; workspaceId: string; agentId?: string }
   | { type: "runtime.exec.started"; execId: string }
   | { type: "runtime.exec.stdout"; execId: string; data: Uint8Array }
   | { type: "runtime.exec.stderr"; execId: string; data: Uint8Array }
@@ -512,6 +521,24 @@ export const PluginProcessMessageSchema: z.ZodType<PluginProcessMessage> = z.dis
         workspaceId: z.string().min(1),
         level: z.string(),
         message: z.string(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("runtime.suspended"),
+        runtimeId: z.string().min(1),
+        workspaceId: z.string().min(1),
+        agentId: z.string().min(1).optional(),
+        reason: z.enum(["idle", "quota-eviction", "manual", "node-removal"]),
+        message: z.string().optional(),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal("runtime.resumed"),
+        runtimeId: z.string().min(1),
+        workspaceId: z.string().min(1),
+        agentId: z.string().min(1).optional(),
       })
       .strict(),
     z.object({ type: z.literal("runtime.exec.started"), execId: z.string().min(1) }).strict(),

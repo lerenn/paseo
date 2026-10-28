@@ -850,6 +850,25 @@ const AgentActiveTurnPayloadSchema = z.object({
   startedAt: z.string().nullable(),
 });
 
+export const AgentSuspensionReasonSchema = z.enum([
+  "idle",
+  "quota-eviction",
+  "manual",
+  "node-removal",
+]);
+
+/**
+ * The agent's workspace runtime stopped its process on purpose (see the plugin SDK's
+ * `reportSuspended`). `status` stays "idle", so older clients show an ordinary idle agent.
+ */
+export const AgentSuspensionSchema = z.object({
+  reason: AgentSuspensionReasonSchema,
+  since: z.string(),
+  message: z.string().optional(),
+});
+
+export type AgentSuspension = z.infer<typeof AgentSuspensionSchema>;
+
 export const AgentSnapshotPayloadSchema = z.object({
   id: z.string(),
   provider: AgentProviderSchema,
@@ -879,6 +898,7 @@ export const AgentSnapshotPayloadSchema = z.object({
   attentionTimestamp: z.string().nullable().optional(),
   archivedAt: z.string().nullable().optional(),
   providerUnavailable: z.boolean().optional(),
+  suspension: AgentSuspensionSchema.optional(),
   // Private helper marker, retained for exact-ID snapshots and older wire messages.
   internal: z.boolean().optional(),
 });
@@ -904,6 +924,7 @@ export const AgentListItemPayloadSchema = z.object({
   attentionTimestamp: z.string().nullable().optional(),
   labels: z.record(z.string(), z.string()).default({}),
   providerUnavailable: z.boolean().optional(),
+  suspension: AgentSuspensionSchema.optional(),
 });
 
 export type AgentListItemPayload = z.infer<typeof AgentListItemPayloadSchema>;
