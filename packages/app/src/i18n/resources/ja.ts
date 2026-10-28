@@ -2078,20 +2078,6 @@ export const ja: TranslationResources = {
   sidebarCallout: {
     dismiss: "閉じる",
   },
-  daemonOutdated: {
-    title: "デーモンが古くなっています",
-    versions: "{{host}}のデーモンは{{daemonVersion}}です。このアプリは{{appVersion}}です。",
-    terminalsStayOpen: "更新するとデーモンが再起動します。ターミナルは開いたままです。",
-    terminalsClose: "更新するとデーモンが再起動し、開いているターミナルは閉じられます。",
-    desktopUpdateTerminals:
-      "Paseo Desktop を更新すると、macOS と Linux ではターミナルは開いたままですが、Windows では閉じられます。",
-    desktopManaged:
-      "このデーモンはPaseo Desktopによって管理されています。そのコンピューターでPaseoを更新してください。",
-    selfUpdateUnsupported:
-      "このデーモンは自身を更新できません。そのコンピューターでPaseoを更新してください。",
-    update: "更新",
-    updateFailedTitle: "デーモンを更新できませんでした",
-  },
   contextWindow: {
     noData: "コンテキストデータがありません",
     accessibilityNoData: "コンテキストウィンドウ：コンテキストデータがありません",
@@ -2790,6 +2776,14 @@ export const ja: TranslationResources = {
       },
       agents: {
         unavailable: "エージェントを管理するにはこのホストに接続してください",
+        resumeOnStartup: {
+          title: "再起動後にエージェントを再開",
+          info: "ホストの停止時に作業中だったエージェントを開き直し、再開メッセージを送信します。通常の再起動とクラッシュの両方に適用されます。",
+          hint: "中断された作業を自動的に続行します。",
+          prompt: "再開メッセージ",
+          edit: "編集",
+          editAccessibilityLabel: "メッセージを編集",
+        },
         idleRuntimeCleanup: {
           title: "アイドル状態のエージェントを解放",
           hint: "1 時間のアイドル状態の後にメモリを解放します。",

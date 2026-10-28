@@ -2105,19 +2105,6 @@ export const fr: TranslationResources = {
   sidebarCallout: {
     dismiss: "Ignorer",
   },
-  daemonOutdated: {
-    title: "Daemon obsolète",
-    versions: "{{host}} exécute le daemon {{daemonVersion}}. Cette app est en {{appVersion}}.",
-    terminalsStayOpen: "La mise à jour redémarre le daemon. Les terminaux restent ouverts.",
-    terminalsClose: "La mise à jour redémarre le daemon et ferme les terminaux ouverts.",
-    desktopUpdateTerminals:
-      "La mise à jour de Paseo Desktop garde les terminaux ouverts sur macOS et Linux, et les ferme sur Windows.",
-    desktopManaged: "Paseo Desktop gère ce daemon. Mettez à jour Paseo sur cet ordinateur.",
-    selfUpdateUnsupported:
-      "Ce daemon ne peut pas se mettre à jour lui-même. Mettez à jour Paseo sur cet ordinateur.",
-    update: "Mettre à jour",
-    updateFailedTitle: "Échec de la mise à jour du daemon",
-  },
   contextWindow: {
     noData: "Aucune donnée de contexte",
     accessibilityNoData: "Fenêtre de contexte : aucune donnée de contexte",
@@ -2825,6 +2812,14 @@ export const fr: TranslationResources = {
       },
       agents: {
         unavailable: "Connectez-vous à cet hôte pour gérer les agents",
+        resumeOnStartup: {
+          title: "Reprendre les agents après un redémarrage",
+          info: "Rouvre les agents qui travaillaient lorsque l’hôte s’est arrêté et envoie le message de reprise. S’applique après un redémarrage normal ou un plantage.",
+          hint: "Continuer automatiquement le travail interrompu.",
+          prompt: "Message de reprise",
+          edit: "Modifier",
+          editAccessibilityLabel: "Modifier le message",
+        },
         idleRuntimeCleanup: {
           title: "Libérer les agents inactifs",
           hint: "Libère de la mémoire après une heure d’inactivité.",

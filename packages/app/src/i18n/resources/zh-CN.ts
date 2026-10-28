@@ -2036,18 +2036,6 @@ export const zhCN: TranslationResources = {
   sidebarCallout: {
     dismiss: "关闭",
   },
-  daemonOutdated: {
-    title: "守护进程版本过旧",
-    versions: "{{host}} 运行的守护进程为 {{daemonVersion}}，此应用为 {{appVersion}}。",
-    terminalsStayOpen: "更新会重启守护进程，终端将保持打开。",
-    terminalsClose: "更新会重启守护进程，并关闭已打开的终端。",
-    desktopUpdateTerminals:
-      "更新 Paseo Desktop 时，macOS 和 Linux 上的终端保持打开，Windows 上的终端会被关闭。",
-    desktopManaged: "此守护进程由 Paseo Desktop 管理。请在那台电脑上更新 Paseo。",
-    selfUpdateUnsupported: "此守护进程无法自行更新。请在那台电脑上更新 Paseo。",
-    update: "更新",
-    updateFailedTitle: "守护进程更新失败",
-  },
   contextWindow: {
     noData: "暂无上下文数据",
     accessibilityNoData: "上下文窗口：暂无上下文数据",
@@ -2734,6 +2722,14 @@ export const zhCN: TranslationResources = {
       },
       agents: {
         unavailable: "连接到这个 Host 以管理 Agent",
+        resumeOnStartup: {
+          title: "重启后恢复智能体",
+          info: "重新打开主机停止时正在工作的智能体，并发送恢复提示。适用于正常重启和崩溃后的恢复。",
+          hint: "自动继续被中断的工作。",
+          prompt: "恢复提示",
+          edit: "编辑",
+          editAccessibilityLabel: "编辑提示",
+        },
         idleRuntimeCleanup: {
           title: "释放空闲 Agent",
           hint: "空闲一小时后释放内存。",
