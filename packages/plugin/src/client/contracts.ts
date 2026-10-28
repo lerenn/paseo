@@ -480,7 +480,7 @@ export type PluginClientSlashCommandContribution<Text extends PluginText = strin
 
 /**
  * A picker on the create composers (New workspace and new agent). The chosen
- * value is held by the host until creation, then handed to `before("agent.create")`
+ * value is held by the host until creation, then handed to the `agent.create.before` hook
  * hooks as `request.pluginOptions[pluginId][id]`. Same select shape as the
  * provider composer controls, for plugins that are not providers.
  */

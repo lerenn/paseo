@@ -35,7 +35,7 @@ Status values: `in fork` (not posted upstream), `posted` (upstream Discussion or
 
 - **API:** `client.addCreateOption({ id, label, icon, options, defaultValue?, description? })`: a
   declarative select beside the mode picker on the New workspace and new-agent composers. The value
-  reaches `before("agent.create")` as `request.pluginOptions[pluginId][optionId]`.
+  reaches the `agent.create.before` hook as `request.pluginOptions[pluginId][optionId]`.
 - **Fork PRs:** #7 (`c88616a78`). First consumer: the Role picker of `lerenn/paseo-agents-roles` (#19).
   Daemons advertise `server_info.features.pluginCreateOptions`; the app hides the picker without it.
 - **Upstream branch (one aspect, cut from upstream main):** `upstream/create-options-1-option`
@@ -143,10 +143,10 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
 
 ### Plugin agent-create context
 
-- **API:** `before("agent.create")` requests carry read-only `labels` and `parentAgentId` (null for a
+- **API:** `agent.create.before` requests carry read-only `labels` and `parentAgentId` (null for a
   top-level agent); `PluginHookAgent` carries `labels`. The request also carries read-only `workspaceId` and `runtimeId` (null for a host workspace). A hook that edits them is ignored. Daemons
   advertise `server_info.features.pluginCreateContext`. Reference:
-  `public-docs/plugins/reference.md`, "Before hooks". First consumer: the Assistant mailbox.
+  `public-docs/plugins/hooks.md`, "agent.create.before". First consumer: the Assistant mailbox.
 - **Fork PRs:** #41 (`02e1adea4`), #51 (`a42fcfb03`, adds `workspaceId` and `runtimeId`).
 - **Upstream branch (one aspect, cut from upstream main):** `upstream/plugin-create-context-1-hooks`.
 - **Upstream Discussion / PR:** drafts only, not posted:
@@ -188,13 +188,16 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
 
 ### Plugin prompt hook
 
-- **API:** `before("agent.prompt")`: runs before a user or agent prompt reaches the provider, for
+- **API:** the `agent.prompt.before` hook (`before("agent.prompt")` through upstream's renamed-hook
+  adapter): runs before a user or agent prompt reaches the provider, for
   every provider, with `agentId`, `labels`, `parentAgentId`, `prompt`, `source`, `sourceAgentId` and `isFirstPrompt` (slash commands are left alone). A hook
   sets `prepend` to add a separate `<paseo-plugin-context>` block; the user's text is untouched and
   the timeline shows only what was sent. Plugins compose in ID order; failures and slow hooks (3 s)
   are skipped, never blocking the prompt. Daemons advertise `server_info.features.pluginPromptHook`.
-  First consumer: Agents Mail.
-- **Fork PRs:** #47 (`14a94d03d`).
+  First consumer: Agents Mail. Reference: `public-docs/plugins/hooks.md`, "agent.prompt.before".
+  Upstream marks it a waiting hook in `pluginHookRegistry`; `isolatedBeforeHookNames` in the
+  daemon makes it skip on failure instead.
+- **Fork PRs:** #47 (`14a94d03d`); renamed with upstream's hook names in the 0.14 sync.
 - **Upstream branch (one aspect, cut from upstream main):** `upstream/plugin-prompt-hook-1-hook`.
 - **Upstream Discussion / PR:** drafts only, not posted:
   `/home/paseo/work/upstream-drafts/plugin-prompt-hook/`.
@@ -237,7 +240,12 @@ Cmd/Ctrl is held`).
    fork's copy (revert it or take upstream's version on conflict) and delete its entry or set it to
    `merged upstream`.
 4. Resolve conflicts. The usual hot spots are `packages/app/src/plugins/types.ts`,
-   `packages/app/src/plugins/evaluate.ts`, `docs/plugins.md` and the public plugin reference.
+   `packages/app/src/plugins/evaluate.ts`, `docs/plugins.md`, the public plugin reference and
+   hooks pages, and `packages/server/src/server/plugins/runtime.ts`. Upstream fakes of
+   `PluginClientRuntime` in new app tests need the fork's `add*` methods. The fork's plugin
+   code pulls more app modules into browser tests than upstream's do, so every icon those modules
+   import must be exported by `packages/app/test-stubs/lucide-react-native.ts`. A missing one makes
+   Vite's dependency scan fail and the browser tests reload mid-run (`app-tests` fails in CI only).
 5. `npm run build:server && npm run typecheck`, then `npm run lint`.
 6. Run the touched suites only, for example
    `npx vitest run packages/app/src/plugins packages/website/src --bail=1`. Do not run the full suite

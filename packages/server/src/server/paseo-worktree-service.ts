@@ -1,3 +1,4 @@
+import type { PluginLifecycle } from "./plugins/lifecycle/index.js";
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
@@ -62,6 +63,7 @@ export interface AttemptFirstAgentBranchAutoNameResult {
 }
 
 export interface CreatePaseoWorktreeDeps extends CreateWorktreeCoreDeps {
+  lifecycle?: Pick<PluginLifecycle, "wait" | "before">;
   workspaceGitService: WorkspaceGitService;
   workspaceProvisioning: Pick<WorkspaceProvisioningService, "createWorkspaceForWorktree">;
 }
@@ -84,6 +86,15 @@ async function createPaseoWorktreeWithPriority(
   const workspaceCwdPlan = await planWorkspaceCwdForWorktree(input.cwd, deps.workspaceGitService);
   const createdWorktree = await createWorktreeCore(input, deps);
   try {
+    if (createdWorktree.created) {
+      await deps.lifecycle?.wait("worktree.create.after", {
+        worktree: {
+          path: createdWorktree.worktree.worktreePath,
+          branch: createdWorktree.worktree.branchName,
+          sourceCheckout: workspaceCwdPlan.sourceCheckout,
+        },
+      });
+    }
     await maybeMarkFirstAgentBranchAutoNameEligible({ createdWorktree });
     const workspaceCwd = mapWorkspaceRelativeCwdToWorktree({
       relativeWorkspaceCwd: workspaceCwdPlan.relativeWorkspaceCwd,
@@ -163,7 +174,7 @@ async function isDirectory(targetPath: string): Promise<boolean> {
 async function planWorkspaceCwdForWorktree(
   inputCwd: string,
   workspaceGitService: Pick<WorkspaceGitService, "getCheckout">,
-): Promise<{ inputCwd: string; relativeWorkspaceCwd: string }> {
+): Promise<{ inputCwd: string; relativeWorkspaceCwd: string; sourceCheckout: string }> {
   const normalizedInputCwd = resolve(inputCwd);
   const sourceCheckout = await workspaceGitService.getCheckout(normalizedInputCwd);
   const sourceWorktreePath = sourceCheckout.worktreeRoot ?? normalizedInputCwd;
@@ -171,7 +182,7 @@ async function planWorkspaceCwdForWorktree(
   if (relativeWorkspaceCwd === null) {
     throw new Error(`Workspace cwd is outside its source worktree: ${normalizedInputCwd}`);
   }
-  return { inputCwd: normalizedInputCwd, relativeWorkspaceCwd };
+  return { inputCwd: normalizedInputCwd, relativeWorkspaceCwd, sourceCheckout: sourceWorktreePath };
 }
 
 export async function attemptFirstAgentBranchAutoName(options: {

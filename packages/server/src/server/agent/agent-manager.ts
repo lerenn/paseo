@@ -1427,7 +1427,7 @@ export class AgentManager {
         workspaceId && this.workspaceRuntimes
           ? ((await this.workspaceRuntimes.getWorkspaceRuntime(workspaceId))?.id ?? null)
           : null;
-      const request = await this.pluginLifecycle.before("agent.create", {
+      const request = await this.pluginLifecycle.before("agent.create.before", {
         config,
         env: options.env,
         pluginOptions: options.pluginOptions,
@@ -1476,7 +1476,7 @@ export class AgentManager {
       historyPrimed: true,
     });
     if (!agent.internal) {
-      this.pluginLifecycle?.emit("agent.created", {
+      this.pluginLifecycle?.emit("agent.create.after", {
         agent: describeHookAgent({ ...agent, title: agent.config.title }),
       });
     }
@@ -2188,7 +2188,7 @@ export class AgentManager {
     const archivedRecord = buildArchivedAgentRecord(record, options);
     await this.requireRegistry().upsert(archivedRecord);
     if (!record.archivedAt && !record.internal) {
-      this.pluginLifecycle?.emit("agent.archived", {
+      this.pluginLifecycle?.emit("agent.archive.after", {
         agent: describeHookAgent(archivedRecord),
         archivedAt: archivedRecord.archivedAt,
       });
@@ -2806,7 +2806,7 @@ export class AgentManager {
       envelopes?.flatMap((message) => (message.source ? [message.source.agentId] : []))[0] ?? null;
     let prepend: string | undefined;
     try {
-      const request = await this.pluginLifecycle.before("agent.prompt", {
+      const request = await this.pluginLifecycle.before("agent.prompt.before", {
         agentId: agent.id,
         labels: { ...agent.labels },
         parentAgentId: agent.labels[PARENT_AGENT_ID_LABEL] ?? null,
@@ -4226,7 +4226,7 @@ export class AgentManager {
   private emitClosedAgent(agent: ManagedAgentClosed, options?: { persist?: boolean }): void {
     this.emitState(agent, options);
     if (!agent.internal) {
-      this.pluginLifecycle?.emit("agent.closed", {
+      this.pluginLifecycle?.emit("agent.close.after", {
         agent: describeHookAgent({ ...agent, title: agent.config.title }),
       });
     }
@@ -5743,7 +5743,7 @@ export class AgentManager {
         tools: [],
         mcpServers: {},
       };
-      const transformed = await this.pluginLifecycle.before("agent.session_open", request);
+      const transformed = await this.pluginLifecycle.before("agent.open.before", request);
       env = transformed.env;
       if (request.purpose === "interactive") {
         this.attachedPluginTools.set(agentId, transformed.tools as AttachedAgentTool[]);

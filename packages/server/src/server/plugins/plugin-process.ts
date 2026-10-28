@@ -291,6 +291,7 @@ export function createPluginWorker(options: {
       registerUsageSource,
       registerWorkspaceRuntime: runtimeHost.register,
       registerSettings,
+      addHook: hooks.addHook,
       on: hooks.on,
       before: hooks.before,
     });
@@ -590,7 +591,7 @@ export function createPluginWorker(options: {
         });
         return;
       }
-      void hooks.invoke(message.requestId, message.kind, message.name, message.input, paseo).then(
+      void hooks.invoke(message.requestId, message.name, message.input, paseo).then(
         (output) => {
           return send({ type: "result", requestId: message.requestId, output });
         },
