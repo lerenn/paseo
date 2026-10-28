@@ -6,6 +6,8 @@ export interface WorkspaceAgentActivity {
   agentId: string;
   status: WorkspaceDescriptor["status"];
   enteredAt: Date | null;
+  /** The agent's runtime stopped its process on purpose; it is idle and wakes on the next input. */
+  suspended?: boolean;
 }
 
 function workspaceAgentStatus(agent: Agent): Agent["status"] {
@@ -43,6 +45,7 @@ export function buildWorkspaceAgentActivityIndex(
       agentId: agent.id,
       status,
       enteredAt,
+      ...(agent.suspension ? { suspended: true } : {}),
     });
   }
 
@@ -50,7 +53,8 @@ export function buildWorkspaceAgentActivityIndex(
     const previousActivity = previous?.get(workspaceId);
     if (
       previousActivity?.agentId === activity.agentId &&
-      previousActivity.status === activity.status
+      previousActivity.status === activity.status &&
+      previousActivity.suspended === activity.suspended
     ) {
       activityByWorkspaceId.set(workspaceId, previousActivity);
     }

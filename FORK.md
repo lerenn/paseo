@@ -116,6 +116,22 @@ exec })` in the plugin server SDK. A workspace selects a runtime with `runtime: 
   `pr-12-create-context.md`), not posted (ask Louis).
 - **Status:** in fork.
 
+### Suspended agents
+
+- **API:** `registerWorkspaceRuntime` returns a handle with
+  `reportSuspended({ workspaceId, agentId?, reason, message? })` and
+  `reportResumed({ workspaceId, agentId? })`; `reason` is `idle`, `quota-eviction`, `manual` or
+  `node-removal`. The daemon keeps `suspension: { reason, since, message? }` on the agent (optional
+  on the agent snapshot and list item; `status` stays `idle`, so older clients show an idle agent),
+  adds the message to the timeline as an info item, and reclassifies the exit that follows
+  (`suspended` for `idle`/`manual`, `interrupted` for the other two) whatever code the platform
+  gave it, so a planned stop never surfaces as "stopped unexpectedly". The next input clears it.
+  The sidebar row shows a pause icon instead of the idle dot. Reference:
+  `public-docs/plugins/reference.md`, "Workspace runtimes". First consumer: the Kubernetes Runtime.
+- **Fork PRs:** the PR that added this entry.
+- **Upstream branch / Discussion:** not cut yet (ask Louis).
+- **Status:** in fork.
+
 ### Agent status indicator
 
 - **API:** `AgentStatusIndicator({ agentId, size? })` from `@getpaseo/plugin/client/ui`: an agent's

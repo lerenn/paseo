@@ -24,10 +24,13 @@ import { WorkspaceRuntimeRegistry } from "../workspace-runtime/registry.js";
 import {
   RemoteLaunchUnsupportedError,
   WorkspaceRuntimeUnavailableError,
+  type RuntimeExecSink,
+  type RuntimeLifecycleEvent,
   type WorkspaceRuntimeBackend,
 } from "../workspace-runtime/types.js";
 import { InMemoryAgentTimelineStore } from "./agent-timeline-store.js";
 import { toAgentPayload } from "./agent-projections.js";
+import { runtimeExitOf } from "../workspace-runtime/remote-child-process.js";
 import { projectTimelineRows } from "./timeline-projection.js";
 import { getOpenAgentTabLabel, PARENT_AGENT_ID_LABEL } from "@getpaseo/protocol/agent-labels";
 import { startAgentRun } from "./agent-prompt.js";
@@ -12655,12 +12658,22 @@ class FakeWorkspaceRuntime implements WorkspaceRuntimeBackend {
   activity(event: { activity: string }) {
     this.events.push(`activity:${event.activity}`);
   }
-  exec() {
+  readonly sinks: RuntimeExecSink[] = [];
+  exec(_request: unknown, sink: RuntimeExecSink) {
     this.events.push("exec");
+    this.sinks.push(sink);
     return { writeStdin() {}, signal() {}, abort() {} };
   }
   onNotice() {
     return () => {};
+  }
+  private readonly lifecycleListeners = new Set<(event: RuntimeLifecycleEvent) => void>();
+  onLifecycle(listener: (event: RuntimeLifecycleEvent) => void) {
+    this.lifecycleListeners.add(listener);
+    return () => this.lifecycleListeners.delete(listener);
+  }
+  report(event: RuntimeLifecycleEvent) {
+    for (const listener of this.lifecycleListeners) listener(event);
   }
 }
 
@@ -12750,6 +12763,56 @@ test("the runtime resumes before a prompt is delivered and sees turn activity", 
   expect(backend.events.indexOf("beforeInput")).toBeLessThan(
     backend.events.indexOf("activity:turn_started"),
   );
+});
+
+test("a runtime's planned stop shows the agent as suspended and a stop with 137 is no error", async () => {
+  const client = new LaunchContextRecordingClient();
+  const { manager, backend } = createRuntimeManager(client, "fake");
+  const agent = await manager.createAgent({ provider: "codex", cwd: process.cwd() }, undefined, {
+    workspaceId: "wks_runtime",
+  });
+  backend.report({
+    type: "suspended",
+    workspaceId: "wks_runtime",
+    reason: "idle",
+    message: "Pod suspended to save resources; it wakes on the next message",
+  });
+  const suspended = manager.getAgent(agent.id);
+  expect(suspended?.lifecycle).toBe("idle");
+  expect(suspended?.suspension).toMatchObject({ reason: "idle" });
+  expect(toAgentPayload(suspended!).suspension).toMatchObject({
+    reason: "idle",
+    message: "Pod suspended to save resources; it wakes on the next message",
+  });
+  expect(manager.getTimeline(agent.id)).toContainEqual({
+    type: "notification",
+    level: "info",
+    message: "Pod suspended to save resources; it wakes on the next message",
+  });
+
+  // The process ends with the code the platform gave it; the provider sees a suspend.
+  const child = client.launchContexts[0]!.processLauncher!.spawn({
+    command: "codex",
+    args: [],
+    env: {},
+  });
+  await expect.poll(() => backend.sinks.length).toBe(1);
+  backend.sinks[0]!.onExit({ code: 137, signal: null, reason: "exited" });
+  expect(runtimeExitOf(child)).toMatchObject({ code: 137, reason: "suspended" });
+
+  await manager.runAgent(agent.id, "hello");
+  expect(manager.getAgent(agent.id)?.suspension).toBeUndefined();
+});
+
+test("a resumed report clears the suspended state", async () => {
+  const client = new LaunchContextRecordingClient();
+  const { manager, backend } = createRuntimeManager(client, "fake");
+  const agent = await manager.createAgent({ provider: "codex", cwd: process.cwd() }, undefined, {
+    workspaceId: "wks_runtime",
+  });
+  backend.report({ type: "suspended", workspaceId: "wks_runtime", reason: "manual" });
+  backend.report({ type: "resumed", workspaceId: "wks_runtime" });
+  expect(manager.getAgent(agent.id)?.suspension).toBeUndefined();
 });
 
 function runtimeCleanup(manager: AgentManager) {

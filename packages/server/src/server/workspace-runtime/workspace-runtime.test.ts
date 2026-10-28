@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type {
   WorkspaceRuntimeExit,
   WorkspaceRuntimeExecRequest,
+  WorkspaceRuntimeHandle,
   WorkspaceRuntimePrepareRequest,
   WorkspaceRuntimeRegistration,
 } from "@getpaseo/plugin/server";
@@ -23,7 +24,11 @@ import { createLineRewriter, rewritePathPrefix } from "./path-map.js";
 import { WorkspaceRuntimeRegistry } from "./registry.js";
 import { RuntimeWorkspaceIndex } from "./workspace-index.js";
 import { spawnProviderProcess } from "./spawn-provider-process.js";
-import { WorkspaceRuntimeUnavailableError, type RuntimeNotice } from "./types.js";
+import {
+  WorkspaceRuntimeUnavailableError,
+  type RuntimeLifecycleEvent,
+  type RuntimeNotice,
+} from "./types.js";
 
 interface Harness {
   backend: PluginRuntimeBackend;
@@ -34,6 +39,7 @@ interface Harness {
   finishLast(exit: WorkspaceRuntimeExit): void;
   launch(overrides?: { purpose?: "session" | "probe" }): ReturnType<typeof spawnProviderProcess>;
   launcher: ReturnType<typeof createRuntimeProcessLauncher>;
+  runtimeHandle: WorkspaceRuntimeHandle;
   stdinSeen: string[];
   reconciles: string[][];
 }
@@ -46,6 +52,7 @@ function createHarness(
     missing?: string[];
     live?: boolean;
     onExit?: (exit: WorkspaceRuntimeExit) => void;
+    classifyExit?: (exit: WorkspaceRuntimeExit) => WorkspaceRuntimeExit;
   } = {},
 ): Harness {
   const calls: string[] = [];
@@ -107,7 +114,7 @@ function createHarness(
       }
     },
   });
-  host.register(runtime);
+  const runtimeHandle = host.register(runtime);
   const reply = {
     result(requestId: string, output: unknown) {
       const waiter = pending.get(requestId);
@@ -143,10 +150,12 @@ function createHarness(
     mcpServers: () => ({ tools: { type: "stdio", command: "mcp-tools" } }),
     onNotice: (notice) => notices.push(notice),
     onExit: options.onExit,
+    classifyExit: options.classifyExit,
   });
   return {
     backend,
     launcher,
+    runtimeHandle,
     stdinSeen,
     reconciles,
     calls,
@@ -220,6 +229,47 @@ describe("workspace runtime process launch", () => {
     await exited;
     expect(child.runtimeExit).toMatchObject({ reason: "runtime-lost", message: "pod evicted" });
     await expect.poll(() => harness.calls.includes("reconcile")).toBe(true);
+  });
+
+  it("tells the daemon about a planned stop and lets it reclassify the exit", async () => {
+    const events: RuntimeLifecycleEvent[] = [];
+    let suspended = false;
+    const harness = createHarness({
+      live: true,
+      classifyExit: (exit) => (suspended ? { ...exit, reason: "suspended" } : exit),
+    });
+    harness.backend.onLifecycle((event) => {
+      events.push(event);
+      suspended = event.type === "suspended";
+    });
+    const child = harness.launch() as ReturnType<typeof harness.launch> & {
+      runtimeExit: WorkspaceRuntimeExit | null;
+    };
+    await new Promise<void>((resolve) => child.once("spawn", () => resolve()));
+    harness.runtimeHandle.reportSuspended({
+      workspaceId: "wks_0123456789abcdef",
+      agentId: "agent-1",
+      reason: "idle",
+      message: "Pod suspended",
+    });
+    harness.runtimeHandle.reportResumed({ workspaceId: "wks_0123456789abcdef" });
+    expect(events).toEqual([
+      {
+        type: "suspended",
+        workspaceId: "wks_0123456789abcdef",
+        agentId: "agent-1",
+        reason: "idle",
+        message: "Pod suspended",
+      },
+      { type: "resumed", workspaceId: "wks_0123456789abcdef" },
+    ]);
+    suspended = true;
+    const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+    harness.finishLast({ code: 137, signal: null, reason: "exited" });
+    await exited;
+    expect(child.runtimeExit).toMatchObject({ code: 137, reason: "suspended" });
+    // A planned stop is not a lost sandbox: nothing to reconcile.
+    expect(harness.reconciles).toEqual([]);
   });
 
   it("surfaces a launch failure as a spawn error and close", async () => {
@@ -362,12 +412,24 @@ const onNotice = () => () => undefined;
 describe("live workspace runtime backend", () => {
   it("follows a plugin reload and fails, not falls back, once the runtime is gone", () => {
     const registry = new WorkspaceRuntimeRegistry();
-    const first = { id: "pod", label: "First", providesFiles: false, onNotice } as never;
+    const first = {
+      id: "pod",
+      label: "First",
+      providesFiles: false,
+      onNotice,
+      onLifecycle: onNotice,
+    } as never;
     const unregister = registry.register(first);
     const live = registry.live("pod");
     expect(live.label).toBe("First");
     unregister();
-    registry.register({ id: "pod", label: "Reloaded", providesFiles: false, onNotice } as never);
+    registry.register({
+      id: "pod",
+      label: "Reloaded",
+      providesFiles: false,
+      onNotice,
+      onLifecycle: onNotice,
+    } as never);
     expect(live.label).toBe("Reloaded");
     const gone = new WorkspaceRuntimeRegistry();
     expect(() => gone.live("pod").label).toThrow(WorkspaceRuntimeUnavailableError);
@@ -380,6 +442,7 @@ describe("live workspace runtime backend", () => {
       label: "Old",
       providesFiles: false,
       onNotice,
+      onLifecycle: onNotice,
       checkCommand: async () => false,
     } as never);
     const live = registry.live("pod");
@@ -391,6 +454,7 @@ describe("live workspace runtime backend", () => {
       label: "New",
       providesFiles: false,
       onNotice,
+      onLifecycle: onNotice,
       checkCommand: async () => true,
     } as never);
     expect(await pending).toBe(true);
@@ -412,6 +476,7 @@ describe("workspace runtime display details", () => {
         id: "pod",
         label: "Pod",
         providesFiles: false,
+        onLifecycle: () => () => undefined,
         onNotice: (listener: (notice: { workspaceId: string }) => void) => {
           listeners.add(listener);
           return () => listeners.delete(listener);
@@ -462,6 +527,7 @@ describe("workspace runtime display details", () => {
       label: "Pod",
       providesFiles: false,
       onNotice: () => () => undefined,
+      onLifecycle: () => () => undefined,
       describeWorkspace: async () => {
         throw new Error("pod is gone");
       },
@@ -548,6 +614,7 @@ describe("workspace runtime lifecycle", () => {
       label: "Pod",
       providesFiles: false,
       onNotice,
+      onLifecycle: onNotice,
       destroy: async (request: { workspaceId: string }) => void destroyed.push(request.workspaceId),
       reconcile: async (request: { workspaces: Array<{ workspaceId: string }> }) =>
         void reconciled.push(request.workspaces.map((workspace) => workspace.workspaceId)),

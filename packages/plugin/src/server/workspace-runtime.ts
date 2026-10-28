@@ -136,6 +136,37 @@ export interface WorkspaceRuntimeExit {
   message?: string;
 }
 
+/** Why a runtime stops an agent's process on purpose. */
+export type WorkspaceRuntimeSuspendReason = "idle" | "quota-eviction" | "manual" | "node-removal";
+
+export interface WorkspaceRuntimeSuspendedReport {
+  workspaceId: string;
+  /** Omit to cover every agent of the workspace. */
+  agentId?: string;
+  reason: WorkspaceRuntimeSuspendReason;
+  /** Shown in the agent's timeline. Defaults to a note that names the reason. */
+  message?: string;
+}
+
+export interface WorkspaceRuntimeResumedReport {
+  workspaceId: string;
+  agentId?: string;
+}
+
+/**
+ * Returned by `registerWorkspaceRuntime`. Report a planned stop before the process stops, so the
+ * exit that follows is not shown as an error: the agent shows as suspended (reason and time),
+ * its timeline gets a calm note, and the next input relaunches as usual. An `idle` or `manual`
+ * stop ends as `suspended`. A `quota-eviction` or `node-removal` stop ends as `interrupted`, so a
+ * turn open at that moment is canceled, never failed. Report a stop only for a process you are
+ * about to stop; an exit with no report keeps today's meaning.
+ */
+export interface WorkspaceRuntimeHandle {
+  reportSuspended(report: WorkspaceRuntimeSuspendedReport): void;
+  /** Clears the suspended state. The next input also clears it, so this is optional. */
+  reportResumed(report: WorkspaceRuntimeResumedReport): void;
+}
+
 export interface WorkspaceRuntimeProcess {
   stdin: Writable;
   stdout: Readable;

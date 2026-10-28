@@ -21,6 +21,7 @@ import type {
   RuntimeFsVerb,
   RuntimeExecControl,
   RuntimeExecSink,
+  RuntimeLifecycleEvent,
   RuntimeNotice,
   WorkspaceRuntimeBackend,
 } from "../workspace-runtime/types.js";
@@ -36,6 +37,7 @@ type RuntimeMessage = Extract<PluginProcessMessage, { type: `runtime.${string}` 
 export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
   private readonly execs = new Map<string, RuntimeExecSink>();
   private readonly noticeListeners = new Set<(notice: RuntimeNotice) => void>();
+  private readonly lifecycleListeners = new Set<(event: RuntimeLifecycleEvent) => void>();
 
   constructor(
     readonly id: string,
@@ -167,6 +169,32 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
     return () => this.noticeListeners.delete(listener);
   }
 
+  onLifecycle(listener: (event: RuntimeLifecycleEvent) => void): () => void {
+    this.lifecycleListeners.add(listener);
+    return () => this.lifecycleListeners.delete(listener);
+  }
+
+  private handleLifecycleMessage(
+    message: Extract<RuntimeMessage, { type: "runtime.suspended" | "runtime.resumed" }>,
+  ): void {
+    if (message.runtimeId !== this.id) return;
+    const event: RuntimeLifecycleEvent =
+      message.type === "runtime.suspended"
+        ? {
+            type: "suspended",
+            workspaceId: message.workspaceId,
+            ...(message.agentId ? { agentId: message.agentId } : {}),
+            reason: message.reason,
+            ...(message.message ? { message: message.message } : {}),
+          }
+        : {
+            type: "resumed",
+            workspaceId: message.workspaceId,
+            ...(message.agentId ? { agentId: message.agentId } : {}),
+          };
+    for (const listener of this.lifecycleListeners) listener(event);
+  }
+
   /** Routes a message from the plugin process. Returns true when it belonged to this runtime. */
   handleMessage(message: RuntimeMessage): void {
     if (message.type === "runtime.notice") {
@@ -176,6 +204,10 @@ export class PluginRuntimeBackend implements WorkspaceRuntimeBackend {
       for (const listener of this.noticeListeners) {
         listener({ workspaceId: message.workspaceId, level, message: message.message });
       }
+      return;
+    }
+    if (message.type === "runtime.suspended" || message.type === "runtime.resumed") {
+      this.handleLifecycleMessage(message);
       return;
     }
     const sink = this.execs.get(message.execId);

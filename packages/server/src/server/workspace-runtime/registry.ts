@@ -3,6 +3,7 @@ import {
   WorkspaceRuntimeUnavailableError,
   type RuntimeExecControl,
   type RuntimeExecSink,
+  type RuntimeLifecycleEvent,
   type WorkspaceRuntimeBackend,
 } from "./types.js";
 import type {
@@ -39,6 +40,9 @@ const DISPLAY_TTL_MS = 10_000;
 export class WorkspaceRuntimeRegistry {
   private readonly backends = new Map<string, WorkspaceRuntimeBackend>();
   private readonly listeners = new Set<() => void>();
+  private readonly lifecycleListeners = new Set<
+    (event: RuntimeLifecycleEvent & { runtimeId: string }) => void
+  >();
   private readonly withdrawnAt = new Map<string, number>();
   private readonly displays = new Map<
     string,
@@ -68,12 +72,16 @@ export class WorkspaceRuntimeRegistry {
     this.backends.set(backend.id, backend);
     this.displays.clear();
     const stopNotices = backend.onNotice((notice) => this.displays.delete(notice.workspaceId));
+    const stopLifecycle = backend.onLifecycle((event) => {
+      for (const listener of this.lifecycleListeners) listener({ ...event, runtimeId: backend.id });
+    });
     this.withdrawnAt.delete(backend.id);
     for (const wake of this.waiters.get(backend.id) ?? []) wake();
     this.waiters.delete(backend.id);
     this.notify();
     return () => {
       stopNotices();
+      stopLifecycle();
       if (this.backends.get(backend.id) === backend) {
         this.backends.delete(backend.id);
         this.displays.clear();
@@ -193,6 +201,14 @@ export class WorkspaceRuntimeRegistry {
       label: backend.label,
       icon: backend.icon,
     }));
+  }
+
+  /** Planned stops and restarts the runtimes report, across every registered runtime. */
+  onLifecycle(
+    listener: (event: RuntimeLifecycleEvent & { runtimeId: string }) => void,
+  ): () => void {
+    this.lifecycleListeners.add(listener);
+    return () => this.lifecycleListeners.delete(listener);
   }
 
   subscribe(listener: () => void): () => void {

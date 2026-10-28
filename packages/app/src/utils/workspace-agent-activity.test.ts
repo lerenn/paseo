@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Agent } from "@/stores/session-store";
+import { isWorkspaceSuspended } from "@/workspace-status";
 import { buildWorkspaceAgentActivityIndex } from "./workspace-agent-activity";
 
 function agent(input: {
@@ -14,6 +15,7 @@ function agent(input: {
   pendingPermissionCount?: number;
   archivedAt?: string | null;
   parentAgentId?: string | null;
+  suspended?: boolean;
 }): Agent {
   return {
     serverId: "host-a",
@@ -62,6 +64,9 @@ function agent(input: {
     archivedAt: input.archivedAt ? new Date(input.archivedAt) : null,
     parentAgentId: input.parentAgentId ?? null,
     labels: {},
+    ...(input.suspended
+      ? { suspension: { reason: "idle" as const, since: "2026-01-01T00:00:00.000Z" } }
+      : {}),
   };
 }
 
@@ -99,6 +104,38 @@ describe("workspace agent activity index", () => {
 
     expect(result.get("workspace-open")?.status).toBe("running");
     expect(result.get("workspace-error")?.status).toBe("failed");
+  });
+
+  it("marks a suspended agent without turning it into an error", () => {
+    const result = buildWorkspaceAgentActivityIndex(
+      new Map([
+        [
+          "asleep",
+          agent({
+            id: "asleep",
+            workspaceId: "workspace-asleep",
+            suspended: true,
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          }),
+        ],
+      ]),
+    );
+
+    expect(result.get("workspace-asleep")).toMatchObject({ status: "done", suspended: true });
+    expect(
+      isWorkspaceSuspended({
+        workspaceId: "workspace-asleep",
+        status: "done",
+        workspaceAgentActivity: result,
+      }),
+    ).toBe(true);
+    expect(
+      isWorkspaceSuspended({
+        workspaceId: "workspace-asleep",
+        status: "running",
+        workspaceAgentActivity: result,
+      }),
+    ).toBe(false);
   });
 
   it("keeps the latest active root agent for each workspace", () => {

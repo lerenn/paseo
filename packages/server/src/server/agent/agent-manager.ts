@@ -109,6 +109,8 @@ import {
 import type { JsonValue } from "@getpaseo/protocol/agent-types";
 import type {
   WorkspaceRuntimeActivity,
+  WorkspaceRuntimeExit,
+  WorkspaceRuntimeSuspendReason,
   WorkspaceRuntimeOptions,
   WorkspaceRuntimeReconcileRequest,
 } from "@getpaseo/plugin/server";
@@ -119,6 +121,7 @@ import {
 import type { WorkspaceRuntimeRegistry } from "../workspace-runtime/registry.js";
 import {
   RemoteLaunchUnsupportedError,
+  type RuntimeLifecycleEvent,
   type WorkspaceRuntimeBackend,
 } from "../workspace-runtime/types.js";
 import { withTimeout } from "../../utils/promise-timeout.js";
@@ -460,6 +463,19 @@ interface HandleStreamEventOptions {
   fromHistory?: boolean;
 }
 
+interface AgentSuspensionState {
+  reason: WorkspaceRuntimeSuspendReason;
+  since: Date;
+  message?: string;
+}
+
+const DEFAULT_SUSPENSION_NOTES: Record<WorkspaceRuntimeSuspendReason, string> = {
+  idle: "Workspace suspended to save resources; it wakes on the next message.",
+  manual: "Workspace suspended on request; it wakes on the next message.",
+  "quota-eviction": "Workspace stopped to free resources; it restarts on the next message.",
+  "node-removal": "Workspace moved off a removed node; it restarts on the next message.",
+};
+
 interface ManagedAgentBase {
   id: string;
   provider: AgentProvider;
@@ -493,6 +509,11 @@ interface ManagedAgentBase {
   activeTurnStartedAt: Date | null;
   lastUsage?: AgentUsage;
   lastError?: string;
+  /**
+   * Set while the agent's workspace runtime reports it stopped the process on purpose. Not
+   * persisted: the next input clears it, and a restart finds the agent idle.
+   */
+  suspension?: AgentSuspensionState;
   attention: AttentionState;
   foregroundTurnWaiters: Set<ForegroundTurnWaiter>;
   finalizedForegroundTurnIds: Set<string>;
@@ -890,6 +911,48 @@ export class AgentManager {
 
   private configureWorkspaceRuntimes(options: AgentManagerOptions): void {
     this.workspaceRuntimes = options.workspaceRuntimes ?? null;
+    this.workspaceRuntimes?.registry.onLifecycle((event) => this.handleRuntimeLifecycle(event));
+  }
+
+  private handleRuntimeLifecycle(event: RuntimeLifecycleEvent): void {
+    for (const agent of this.agents.values()) {
+      if (agent.workspaceId !== event.workspaceId) continue;
+      if (event.agentId && agent.id !== event.agentId) continue;
+      if (event.type === "resumed") {
+        this.clearSuspension(agent);
+        continue;
+      }
+      const message = event.message?.trim() || DEFAULT_SUSPENSION_NOTES[event.reason];
+      agent.suspension = { reason: event.reason, since: new Date(), message };
+      this.recordAndDispatchTimelineItem(
+        agent.id,
+        { type: "notification", level: "info", message },
+        agent.provider,
+      );
+      this.emitState(agent);
+    }
+  }
+
+  private clearSuspension(agent: ManagedAgent): void {
+    if (!agent.suspension) return;
+    agent.suspension = undefined;
+    this.emitState(agent);
+  }
+
+  /**
+   * The process of an agent whose runtime reported a planned stop ends as planned, whatever exit
+   * code the platform gave it (137 after a SIGKILL, say). `idle` and `manual` are suspends;
+   * `quota-eviction` and `node-removal` are platform cuts, which end an open turn as canceled.
+   */
+  private classifyRuntimeExit(agentId: string, exit: WorkspaceRuntimeExit): WorkspaceRuntimeExit {
+    const suspension = this.agents.get(agentId)?.suspension;
+    if (!suspension || exit.reason === "suspended" || exit.reason === "interrupted") return exit;
+    const planned = suspension.reason === "idle" || suspension.reason === "manual";
+    return {
+      ...exit,
+      reason: planned ? "suspended" : "interrupted",
+      ...(suspension.message ? { message: suspension.message } : {}),
+    };
   }
 
   private configurePaseoTools(options: AgentManagerOptions): void {
@@ -5860,10 +5923,12 @@ export class AgentManager {
       workspaceRoot: selected.root,
       liveWorkspaces: () => this.workspaceRuntimes?.listRuntimeWorkspaces(selected.id) ?? [],
       mcpServers: input.getMcpServers,
+      classifyExit: (exit) => this.classifyRuntimeExit(agentId, exit),
       onExit: (exit) => {
         // The platform cut the process: keep the runtime's message in the timeline. The providers
-        // end an open turn as canceled themselves.
+        // end an open turn as canceled themselves. A reported stop already left its note.
         if (exit.reason !== "interrupted" || !this.getAgent(agentId)) return;
+        if (this.agents.get(agentId)?.suspension) return;
         this.recordAndDispatchTimelineItem(
           agentId,
           {
@@ -5906,6 +5971,8 @@ export class AgentManager {
     await this.withAgentRuntime(agentId, (backend, workspaceId, options) =>
       backend.beforeInput({ workspaceId, agentId, options }),
     );
+    const agent = this.agents.get(agentId);
+    if (agent) this.clearSuspension(agent);
   }
 
   private signalRuntimeActivity(agentId: string, activity: WorkspaceRuntimeActivity): void {

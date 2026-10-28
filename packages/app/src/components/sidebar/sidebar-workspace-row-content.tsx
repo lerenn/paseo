@@ -2,7 +2,7 @@ import { RuntimeKindIcon } from "@/workspace-runtimes/runtime-badge";
 import { memo, useMemo, useCallback, useState, type ReactNode } from "react";
 import { Text, View, type ViewStyle } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { CircleAlert, Folder, FolderGit2, Monitor } from "lucide-react-native";
+import { CircleAlert, Folder, FolderGit2, Monitor, Pause } from "lucide-react-native";
 import { ProjectStatusIndicator } from "@/components/sidebar/project-leading-visual";
 import type { SidebarSurfaceBackdrop } from "@/styles/surface-backdrop";
 import {
@@ -150,6 +150,7 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
         ) : (
           <WorkspaceStatusIndicator
             bucket={workspace.statusBucket}
+            suspended={workspace.suspended}
             workspaceKind={workspace.workspaceKind}
             serverId={workspace.serverId}
             runtimeId={workspace.runtimeId}
@@ -188,6 +189,7 @@ export const SidebarWorkspaceRowContent = memo(function SidebarWorkspaceRowConte
 
 function WorkspaceStatusIndicator({
   bucket,
+  suspended = false,
   workspaceKind,
   serverId,
   runtimeId,
@@ -195,6 +197,7 @@ function WorkspaceStatusIndicator({
   reserveIdleSpace = true,
 }: {
   bucket: SidebarWorkspaceEntry["statusBucket"];
+  suspended?: boolean;
   workspaceKind: SidebarWorkspaceEntry["workspaceKind"];
   serverId: string;
   runtimeId?: string;
@@ -233,6 +236,16 @@ function WorkspaceStatusIndicator({
     return (
       <View style={styles.workspaceStatusDot} testID="workspace-status-indicator-attention">
         <View style={styles.standaloneStatusDot} />
+      </View>
+    );
+  }
+
+  if (bucket === "done" && suspended) {
+    // Planned, calm and not an error: the runtime stopped the agent to save resources and it
+    // wakes on the next message.
+    return (
+      <View style={styles.workspaceStatusDot} testID="workspace-status-indicator-suspended">
+        <DensityIcon icon={Pause} size="sm" color="foregroundMuted" />
       </View>
     );
   }
