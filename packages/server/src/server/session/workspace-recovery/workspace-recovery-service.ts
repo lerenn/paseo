@@ -160,7 +160,7 @@ export function createWorkspaceRecoveryService(deps: {
         };
 
     try {
-      await runGitCommand(["worktree", "prune"], { cwd: sourceRepoRoot, timeout: 30_000 });
+      await runGitCommand(["worktree", "prune"], { cwd: sourceRepoRoot });
     } catch {
       // A stale worktree registration is not guaranteed; creation reports any real conflict.
     }

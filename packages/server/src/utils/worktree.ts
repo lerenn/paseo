@@ -1159,7 +1159,7 @@ async function deletePaseoWorktreeOnHost({
 
   if (cwd) {
     try {
-      await runGitCommand(["worktree", "prune"], { cwd, timeout: 30_000 });
+      await runGitCommand(["worktree", "prune"], { cwd });
     } catch {
       // not critical; git will prune lazily
     }
@@ -1654,7 +1654,6 @@ async function configureWorktreeTrackingRemote(options: {
 async function validateGitBranchName(cwd: string, branchName: string): Promise<void> {
   const result = await runGitCommand(["check-ref-format", "--branch", branchName], {
     cwd,
-    timeout: 30_000,
     acceptExitCodes: [0, 1, 128],
   });
   if (result.exitCode !== 0) {
