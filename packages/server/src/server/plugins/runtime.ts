@@ -1,5 +1,6 @@
 import { PluginRuntimeBackend } from "./plugin-runtime-backend.js";
 import type { WorkspaceRuntimeRegistry } from "../workspace-runtime/registry.js";
+import { validateWorktreePath } from "../../utils/worktree-path.js";
 import type { PluginHookPayload } from "@getpaseo/plugin/server";
 import type { PluginWireBeforeRequests, PluginBeforeResults } from "./lifecycle/index.js";
 import type { SessionOpenWireRequest, AttachedAgentTool } from "./agent-tools.js";
@@ -624,7 +625,14 @@ export class PluginRuntime {
           },
           { timeoutMs: isolated ? ISOLATED_HOOK_TIMEOUT_MS : REQUEST_TIMEOUT_MS },
         );
-        request = validateBeforeResult(name, request, output);
+        request = await validateBeforeResult(name, request, output);
+        if (name === "worktree.create.before") {
+          const worktree = request as PluginWireBeforeRequests["worktree.create.before"];
+          worktree.path = await validateWorktreePath({
+            candidate: worktree.path,
+            repoPath: worktree.repoRoot,
+          });
+        }
         if (name === "agent.open.before") {
           const opened = request as SessionOpenWireRequest;
           this.collectMcpServers(mcpServers, mcpServerOwners, loaded, opened.mcpServers);
