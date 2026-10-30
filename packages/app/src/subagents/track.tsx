@@ -18,7 +18,8 @@ import {
 import type { Theme } from "@/styles/theme";
 import { useAgentFactsLine } from "@/panels/agent-facts-line";
 import { getPanelManifest } from "@/panels/panel-manifest";
-import { useSheetPanePage } from "@/screens/workspace/sheet-pane";
+import type { MenuFillPageDefinition } from "@/components/ui/menu";
+import { useSheetPaneHostIfAny, useSheetPanePage } from "@/screens/workspace/sheet-pane";
 import type { SheetTab } from "@/stores/workspace-layout-store";
 import type { SubagentRow } from "./select";
 import type { ArchiveFinishedStatus } from "./use-archive-finished";
@@ -68,7 +69,25 @@ function useRowPresentation(row: SubagentRow, serverId: string): WorkspaceTabPre
   };
 }
 
-export function SubagentsTrack({
+/**
+ * Sheet pages need a workspace's sheet pane host. A composer outside a workspace pane, such as a
+ * plugin surface's AgentChat, has none: there the rows open through `onOpenSubagent` instead.
+ */
+export function SubagentsTrack(props: SubagentsTrackProps): ReactElement | null {
+  const host = useSheetPaneHostIfAny();
+  return host ? (
+    <SheetPaneSubagentsTrack {...props} />
+  ) : (
+    <SubagentsTrackPill {...props} sheetPanePage={null} />
+  );
+}
+
+function SheetPaneSubagentsTrack(props: SubagentsTrackProps): ReactElement | null {
+  const sheetPanePage = useSheetPanePage();
+  return <SubagentsTrackPill {...props} sheetPanePage={sheetPanePage} />;
+}
+
+function SubagentsTrackPill({
   serverId,
   rows,
   onOpenSubagent,
@@ -78,9 +97,11 @@ export function SubagentsTrack({
   onArchiveFinished,
   archiveFinishedStatus = IDLE_ARCHIVE_FINISHED_STATUS,
   onDetachSubagent,
-}: SubagentsTrackProps): ReactElement | null {
+  sheetPanePage,
+}: SubagentsTrackProps & {
+  sheetPanePage: ((sheet: SheetTab) => MenuFillPageDefinition) | null;
+}): ReactElement | null {
   const { t } = useTranslation();
-  const sheetPanePage = useSheetPanePage();
 
   const isArchivingFinished = archiveFinishedStatus.kind === "archiving";
   const isArchiveFinishedFailed = archiveFinishedStatus.kind === "failed";
@@ -91,8 +112,10 @@ export function SubagentsTrack({
   const pill = buildSubagentPillPresentation(t, rows);
   const finishedCount = countFinishedSubagents(rows);
   const showArchiveFinished = finishedCount > 0 || isArchivingFinished || isArchiveFinishedFailed;
-  const sheets = rows.map(sheetTabFor);
-  const pages = sheets.flatMap((sheet) => (sheet ? [sheetPanePage(sheet)] : []));
+  const sheets = sheetPanePage ? rows.map(sheetTabFor) : [];
+  const pages = sheetPanePage
+    ? sheets.flatMap((sheet) => (sheet ? [sheetPanePage(sheet)] : []))
+    : undefined;
 
   return (
     <ComposerTrackPill
